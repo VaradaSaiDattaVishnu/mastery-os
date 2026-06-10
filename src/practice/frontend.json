@@ -1,0 +1,1359 @@
+{
+  "fe-react-render": {
+    "quiz": [
+      {
+        "q": "What does React do during the 'render' phase?",
+        "options": [
+          "It updates the real DOM immediately with new values",
+          "It calls component functions to build a new virtual DOM tree",
+          "It paints pixels to the screen using the GPU",
+          "It commits side-effects from useEffect to the DOM"
+        ],
+        "answer": 1,
+        "explain": "The render phase calls component functions and computes a new fiber tree. Actual DOM mutations happen later in the commit phase."
+      },
+      {
+        "q": "What is React Fiber?",
+        "options": [
+          "A CSS animation framework bundled with React",
+          "The name for React's virtual DOM reconciler and unit of work",
+          "A browser API for scheduling paint operations",
+          "A tool for measuring bundle size in React apps"
+        ],
+        "answer": 1,
+        "explain": "Fiber is React's internal reimplementation of the reconciler. It breaks rendering into incremental units of work that can be paused, aborted, or prioritized."
+      },
+      {
+        "q": "During reconciliation, React finds that an element's type changed (e.g., <div> to <span>). What happens?",
+        "options": [
+          "React patches the existing DOM node in-place",
+          "React unmounts the old subtree and mounts a brand-new subtree",
+          "React queues a repaint but keeps the existing node",
+          "React throws an error because type changes are forbidden"
+        ],
+        "answer": 1,
+        "explain": "When an element's type changes React tears down the entire old subtree and builds a fresh one, including resetting all child state."
+      },
+      {
+        "q": "Which phase actually mutates the browser DOM?",
+        "options": [
+          "Render phase",
+          "Reconciliation phase",
+          "Commit phase",
+          "Diffing phase"
+        ],
+        "answer": 2,
+        "explain": "The commit phase takes the diff calculated during render and applies insertions, updates, and deletions to the real DOM. It also fires layout effects and passive effects."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the Virtual DOM?",
+        "back": "A lightweight JavaScript representation of the real DOM tree. React builds and diffs these in-memory trees before touching the actual browser DOM."
+      },
+      {
+        "front": "What are the two main phases of a React update?",
+        "back": "The render phase (pure, interruptible: computes new fiber tree via diffing) and the commit phase (has side-effects: mutates the DOM and fires effects)."
+      },
+      {
+        "front": "What is reconciliation?",
+        "back": "The process by which React diffs the previous and new fiber trees to calculate the minimum set of DOM operations needed to update the UI."
+      },
+      {
+        "front": "Why is the render phase described as 'pure'?",
+        "back": "React may invoke render functions multiple times, pause, or abort them. They must have no observable side-effects so React can safely re-run or discard them."
+      },
+      {
+        "front": "What does React Fiber's incremental rendering enable?",
+        "back": "Work can be split into small units, paused to yield to higher-priority updates (e.g., user input), then resumed — enabling concurrent features like Transitions and Suspense."
+      },
+      {
+        "front": "What is the difference between a 'render' and a 'paint'?",
+        "back": "A React render is a JavaScript computation producing a new virtual tree. A paint is the browser's GPU/CPU operation that actually draws pixels — they are completely separate."
+      },
+      {
+        "front": "When does React decide an existing DOM node can be reused?",
+        "back": "When the element type and key at a given position match the previous tree. If type or key differs, React unmounts the old node and mounts a new one."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `countRenderPhases(updates)` that simulates React's naive re-render counting. Given an array of update objects `{id, prevType, nextType}`, return the count of updates that would cause a full remount (type changed) vs in-place update (type same). Return `{remounts, updates}`.",
+        "starter": "function countRenderPhases(updates) {\n  // Each update: { id, prevType, nextType }\n  // Return { remounts: number, updates: number }\n}",
+        "tests": "check('empty array', () => {\n  const r = countRenderPhases([]);\n  expect(r.remounts).toBe(0);\n  expect(r.updates).toBe(0);\n});\ncheck('all same type', () => {\n  const r = countRenderPhases([{id:1,prevType:'div',nextType:'div'},{id:2,prevType:'span',nextType:'span'}]);\n  expect(r.remounts).toBe(0);\n  expect(r.updates).toBe(2);\n});\ncheck('mixed', () => {\n  const r = countRenderPhases([{id:1,prevType:'div',nextType:'span'},{id:2,prevType:'p',nextType:'p'}]);\n  expect(r.remounts).toBe(1);\n  expect(r.updates).toBe(1);\n});",
+        "solution": "function countRenderPhases(updates) {\n  let remounts = 0, updates = 0;\n  for (const u of updates) {\n    if (u.prevType !== u.nextType) remounts++;\n    else updates++;\n  }\n  return { remounts, updates };\n}"
+      }
+    ]
+  },
+
+  "fe-react-hooks": {
+    "quiz": [
+      {
+        "q": "Why is calling a hook inside a conditional statement forbidden?",
+        "options": [
+          "It causes a syntax error in the JavaScript parser",
+          "Hooks rely on call order across renders; conditionals break the stable index",
+          "React DevTools cannot track conditionally called hooks",
+          "Conditional hooks always create memory leaks"
+        ],
+        "answer": 1,
+        "explain": "React stores hook state by call-site order. If a condition skips a hook on one render, every subsequent hook shifts index and reads wrong state."
+      },
+      {
+        "q": "What is a stale closure in the context of useEffect?",
+        "options": [
+          "A closure that holds a reference to a deleted DOM node",
+          "An effect that fires after the component unmounts",
+          "An effect function that captured an old value of a variable because its dependency was missing",
+          "A closure that prevents garbage collection of large objects"
+        ],
+        "answer": 2,
+        "explain": "If a dependency is omitted from the array, the effect closes over the value from the first render and never sees updates, producing stale (outdated) behaviour."
+      },
+      {
+        "q": "When does useEffect with an empty dependency array `[]` fire?",
+        "options": [
+          "Before every render",
+          "Once after the first render, and never again",
+          "On every state or prop change",
+          "Only when the component re-mounts after an error boundary"
+        ],
+        "answer": 1,
+        "explain": "An empty array tells React there are no dependencies to track, so the effect runs exactly once after the initial commit — equivalent to componentDidMount."
+      },
+      {
+        "q": "What is the primary purpose of useRef?",
+        "options": [
+          "To derive computed values from expensive calculations",
+          "To hold a mutable value that persists across renders without triggering a re-render when changed",
+          "To subscribe to context updates without prop drilling",
+          "To delay a state update to the next event loop tick"
+        ],
+        "answer": 1,
+        "explain": "useRef returns a stable object `{ current }` whose mutations are invisible to React's render cycle — ideal for DOM references and interval IDs."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What does 'hooks are positional' mean?",
+        "back": "React tracks each hook by its call-site index within the component. The nth hook call always corresponds to the nth slot of state, so call order must be identical every render."
+      },
+      {
+        "front": "How do you fix a stale closure in useEffect?",
+        "back": "Add the variable to the dependency array so React re-creates the effect closure with the fresh value. Alternatively use a ref to hold a always-current reference."
+      },
+      {
+        "front": "What is the dependency array of useEffect for?",
+        "back": "It tells React which values the effect depends on. React compares each value with Object.is after every render and re-runs the effect only when at least one value changed."
+      },
+      {
+        "front": "What does useEffect's cleanup function do?",
+        "back": "It runs before the next effect invocation or when the component unmounts — used to cancel subscriptions, clear timers, or abort fetches to prevent memory leaks."
+      },
+      {
+        "front": "Difference between useState and useRef for storing a value?",
+        "back": "useState triggers a re-render on change and the value is part of the render output. useRef mutates silently — React is unaware of the change and does not re-render."
+      },
+      {
+        "front": "What is the useState updater function form `setState(prev => ...)`?",
+        "back": "It receives the latest state at call time, not the stale closure value. Use it when the next state depends on the previous state, especially inside effects or callbacks."
+      },
+      {
+        "front": "Why should side-effects go in useEffect and not directly in the render function?",
+        "back": "The render phase must be pure (no observable side-effects) because React may run it multiple times. useEffect runs after commit when DOM mutations are safe."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `buildDepsChangedMask(prevDeps, nextDeps)`. Given two dependency arrays, return a boolean array where `true` means that slot changed (using `Object.is` semantics). Return an empty array if both inputs are null/undefined.",
+        "starter": "function buildDepsChangedMask(prevDeps, nextDeps) {\n  // Return array of booleans, true where value changed\n}",
+        "tests": "check('no deps (null)', () => expect(buildDepsChangedMask(null, null)).toEqual([]));\ncheck('unchanged', () => expect(buildDepsChangedMask([1, 'a'], [1, 'a'])).toEqual([false, false]));\ncheck('one changed', () => expect(buildDepsChangedMask([1, 2], [1, 3])).toEqual([false, true]));\ncheck('NaN is same as NaN', () => expect(buildDepsChangedMask([NaN], [NaN])).toEqual([false]));\ncheck('reference change', () => {\n  const obj = {};\n  expect(buildDepsChangedMask([obj], [{}])).toEqual([true]);\n});",
+        "solution": "function buildDepsChangedMask(prevDeps, nextDeps) {\n  if (!prevDeps || !nextDeps) return [];\n  return prevDeps.map((v, i) => !Object.is(v, nextDeps[i]));\n}"
+      }
+    ]
+  },
+
+  "fe-react-rerender": {
+    "quiz": [
+      {
+        "q": "What does React.memo do?",
+        "options": [
+          "It caches the result of an expensive computation inside a component",
+          "It skips re-rendering a component if its props are shallowly equal to the previous render",
+          "It memoizes a callback function reference across renders",
+          "It defers a low-priority state update to avoid blocking the UI"
+        ],
+        "answer": 1,
+        "explain": "React.memo wraps a component and performs a shallow prop comparison. If all props are reference-equal, React reuses the last rendered output without calling the function."
+      },
+      {
+        "q": "Why does passing an inline object as a prop break React.memo optimisation?",
+        "options": [
+          "Inline objects are not serialisable by React's reconciler",
+          "A new object literal is created on every render, so the reference always differs from the previous render",
+          "React.memo does not support object props at all",
+          "Inline objects bypass the virtual DOM diff entirely"
+        ],
+        "answer": 1,
+        "explain": "Every render creates a new object literal with a different reference. React.memo's shallow comparison sees the reference as changed and re-renders even if the contents are identical."
+      },
+      {
+        "q": "When should you NOT use useMemo?",
+        "options": [
+          "When computing a derived value from a large list",
+          "When the computation is cheap and the component rarely renders",
+          "When the result is passed as a prop to a memoized child",
+          "When the computation depends on props and state"
+        ],
+        "answer": 1,
+        "explain": "useMemo has overhead (storage, comparison). For cheap computations the memo bookkeeping costs more than just recomputing, and adds complexity for no measurable benefit."
+      },
+      {
+        "q": "A Context value object is recreated on every render of its Provider. What is the consequence?",
+        "options": [
+          "The context API throws an error during the render phase",
+          "All context consumers re-render even when the actual data has not changed",
+          "React batches the consumer updates until the next tick",
+          "Only consumers that are direct children of the Provider re-render"
+        ],
+        "answer": 1,
+        "explain": "React compares context value with Object.is. A new object reference fails equality, so every consumer subscribes to a 'change' and re-renders unnecessarily."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is referential equality and why does it matter for React?",
+        "back": "Two values are referentially equal if they are the exact same object in memory (===). React's bailout optimisations (memo, useMemo, useCallback) all rely on referential equality checks."
+      },
+      {
+        "front": "What does useCallback do?",
+        "back": "It returns a memoized function reference that only changes when one of its dependencies changes. This prevents child components receiving a new function reference on every parent render."
+      },
+      {
+        "front": "What is the main pitfall of React Context for performance?",
+        "back": "Every consumer re-renders when the context value changes. If the value is an object recreated each render, all consumers update on every parent render regardless of whether they use the changed field."
+      },
+      {
+        "front": "How do you fix context re-render storms?",
+        "back": "Memoize the context value with useMemo, split contexts by concern (auth vs theme vs data), or use a subscription-based store (Zustand) that re-renders only the subscribing slice."
+      },
+      {
+        "front": "Difference between useMemo and useCallback?",
+        "back": "useMemo caches the return value of a function. useCallback caches the function reference itself. useCallback(fn, deps) is equivalent to useMemo(() => fn, deps)."
+      },
+      {
+        "front": "What is the 'profiler' and when do you use it before memoising?",
+        "back": "React DevTools Profiler records render duration and frequency. You should measure first — memoisation has a cost and is only worthwhile for demonstrably expensive or frequent unnecessary renders."
+      },
+      {
+        "front": "Can React.memo replace shouldComponentUpdate?",
+        "back": "Yes. React.memo is the functional-component equivalent. It does a shallow prop comparison by default, or accepts a custom comparator as a second argument for deeper equality."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `shallowEqual(a, b)` that returns true if two objects have the same keys with the same values using strict equality (`===`). This is the comparison React.memo uses internally.",
+        "starter": "function shallowEqual(a, b) {\n  // Return true if a and b are shallowly equal\n}",
+        "tests": "check('same primitive', () => expect(shallowEqual(1, 1)).toBe(true));\ncheck('different primitives', () => expect(shallowEqual(1, 2)).toBe(false));\ncheck('same object values', () => expect(shallowEqual({x:1,y:2},{x:1,y:2})).toBe(true));\ncheck('different object values', () => expect(shallowEqual({x:1},{x:2})).toBe(false));\ncheck('different key count', () => expect(shallowEqual({x:1},{x:1,y:2})).toBe(false));\ncheck('nested object always false', () => expect(shallowEqual({a:{b:1}},{a:{b:1}})).toBe(false));",
+        "solution": "function shallowEqual(a, b) {\n  if (a === b) return true;\n  if (typeof a !== 'object' || typeof b !== 'object') return false;\n  if (a === null || b === null) return false;\n  const keysA = Object.keys(a);\n  const keysB = Object.keys(b);\n  if (keysA.length !== keysB.length) return false;\n  return keysA.every(k => a[k] === b[k]);\n}"
+      }
+    ]
+  },
+
+  "fe-react-keys": {
+    "quiz": [
+      {
+        "q": "What is the purpose of the `key` prop in React lists?",
+        "options": [
+          "It sets the HTML id attribute on the rendered DOM element",
+          "It gives React a stable identity to match elements between renders for efficient diffing",
+          "It controls the render priority of list items",
+          "It instructs React to skip rendering that element on the first pass"
+        ],
+        "answer": 1,
+        "explain": "Keys let React identify which items were added, removed, or reordered. Without them React falls back to index-based matching which produces wrong updates when order changes."
+      },
+      {
+        "q": "Why is using the array index as a key dangerous when items can be reordered or deleted?",
+        "options": [
+          "Indexes are not valid JavaScript identifiers",
+          "React disallows numeric keys for security reasons",
+          "After deletion or reorder the same index maps to a different item, causing React to reuse stale component state",
+          "Index-based keys cause the list to render in descending order"
+        ],
+        "answer": 2,
+        "explain": "If item 0 is deleted, the previous item 1 becomes index 0. React thinks the item 'at position 0' simply changed props, so it reuses that component instance and its state — corrupting state."
+      },
+      {
+        "q": "What happens when you change the `key` of a component?",
+        "options": [
+          "React updates that component in-place with new props",
+          "React resets only the children of that component",
+          "React fully unmounts the old instance and mounts a fresh one, resetting all state",
+          "React batches the key change until the next concurrent tick"
+        ],
+        "answer": 2,
+        "explain": "A different key means a different identity to React. It destroys the old tree (running cleanup effects) and mounts an entirely fresh tree — a deliberate remount technique."
+      },
+      {
+        "q": "You have two list items with the same key. What does React do?",
+        "options": [
+          "It renders both items normally with a warning in development",
+          "It silently drops one of the duplicate-key items",
+          "It throws a runtime error and crashes the render",
+          "It merges the props of both items into the first element"
+        ],
+        "answer": 1,
+        "explain": "React will warn in development and exhibit undefined behaviour — typically one of the duplicate-keyed elements is dropped or incorrectly updated."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the difference between a remount and an update in React?",
+        "back": "An update keeps the existing component instance and fiber, calling the function with new props. A remount destroys the instance (running cleanup) and creates a brand-new one — resetting all state and refs."
+      },
+      {
+        "front": "When should you intentionally use a key to force a remount?",
+        "back": "When you want to fully reset a component's state when a controlling prop changes (e.g., switching the user whose data a form edits). Changing the key is cleaner than reset logic inside effects."
+      },
+      {
+        "front": "Why must keys be stable across renders?",
+        "back": "An unstable key (e.g., Math.random()) generates a new key every render, forcing React to remount the element every time — destroying state and causing performance regressions."
+      },
+      {
+        "front": "Do keys need to be globally unique?",
+        "back": "No. Keys only need to be unique among siblings in the same list. The same key can be reused in different lists or different parts of the tree without conflict."
+      },
+      {
+        "front": "How does React diff a list without keys?",
+        "back": "It compares elements by position. If you prepend an item, React sees every position as changed and re-renders the entire list — O(n) mutations instead of O(1)."
+      },
+      {
+        "front": "What is the ideal source for a list key?",
+        "back": "A stable, unique identifier from the data itself — typically a database id, UUID, or slug. It must not change as long as that logical item exists."
+      },
+      {
+        "front": "Is index as key ever acceptable?",
+        "back": "Yes — when the list is static (never reordered, filtered, or appended to the middle) and items have no persistent state. For dynamic lists, always use a data-derived stable id."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `diffLists(prevKeys, nextKeys)` that returns the minimum operations React-style list reconciliation would produce. Return `{added: string[], removed: string[], moved: boolean}`. An item is 'moved' if its relative order changed between old and new (only for items present in both lists).",
+        "starter": "function diffLists(prevKeys, nextKeys) {\n  // prevKeys and nextKeys are arrays of string keys\n  // Return { added: string[], removed: string[], moved: boolean }\n}",
+        "tests": "check('no change', () => {\n  const r = diffLists(['a','b','c'], ['a','b','c']);\n  expect(r.added).toEqual([]);\n  expect(r.removed).toEqual([]);\n  expect(r.moved).toBe(false);\n});\ncheck('added item', () => {\n  const r = diffLists(['a','b'], ['a','b','c']);\n  expect(r.added).toEqual(['c']);\n  expect(r.removed).toEqual([]);\n});\ncheck('removed item', () => {\n  const r = diffLists(['a','b','c'], ['a','c']);\n  expect(r.removed).toEqual(['b']);\n});\ncheck('reorder detected', () => {\n  const r = diffLists(['a','b','c'], ['c','a','b']);\n  expect(r.moved).toBe(true);\n});",
+        "solution": "function diffLists(prevKeys, nextKeys) {\n  const prevSet = new Set(prevKeys);\n  const nextSet = new Set(nextKeys);\n  const added = nextKeys.filter(k => !prevSet.has(k));\n  const removed = prevKeys.filter(k => !nextSet.has(k));\n  const common = prevKeys.filter(k => nextSet.has(k));\n  const commonNext = nextKeys.filter(k => prevSet.has(k));\n  let moved = false;\n  for (let i = 0; i < common.length; i++) {\n    if (common[i] !== commonNext[i]) { moved = true; break; }\n  }\n  return { added, removed, moved };\n}"
+      }
+    ]
+  },
+
+  "fe-state-models": {
+    "quiz": [
+      {
+        "q": "Which of the following is the best example of 'server state'?",
+        "options": [
+          "Whether a modal is open",
+          "The current value in a text input",
+          "A list of users fetched from an API",
+          "The currently selected tab in a tab bar"
+        ],
+        "answer": 2,
+        "explain": "Server state is remote, asynchronous, and owned by the server. It requires fetching, caching, invalidation, and synchronisation — concerns entirely different from local UI state."
+      },
+      {
+        "q": "What is state colocation?",
+        "options": [
+          "Storing all state in a single Redux store at the app root",
+          "Placing state as close to the component that needs it as possible",
+          "Using localStorage to persist state across browser sessions",
+          "Co-locating state and reducers in the same file"
+        ],
+        "answer": 1,
+        "explain": "Colocation keeps state in the lowest common ancestor of its consumers. It reduces unnecessary re-renders and makes data flow easier to trace."
+      },
+      {
+        "q": "You have a search query string only needed by a SearchBar component. Where should it live?",
+        "options": [
+          "In Redux so every component can access it",
+          "In a React Context at the app root",
+          "In useState inside SearchBar",
+          "In a server-side session variable"
+        ],
+        "answer": 2,
+        "explain": "If only SearchBar needs the query, colocating it there with useState is simplest. Lifting it higher adds coupling and unnecessary re-renders in unrelated components."
+      },
+      {
+        "q": "What distinguishes a 'server cache' from regular client state?",
+        "options": [
+          "Server cache is always stored in a cookie",
+          "Server cache reflects remote data that the server owns and can change; it must be invalidated not just mutated",
+          "Server cache is immutable and never changes once fetched",
+          "Server cache can only be read once per application session"
+        ],
+        "answer": 1,
+        "explain": "The source of truth for server cache is the backend. Clients hold a local copy that can become stale, so cache invalidation and background refetching are core concerns."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "Name the three main categories of frontend state.",
+        "back": "Local UI state (component-scoped, ephemeral), global client state (shared across components, owned by client), and server state (remote data, asynchronous, requires caching and invalidation)."
+      },
+      {
+        "front": "What is the single biggest state management mistake?",
+        "back": "Putting state higher in the tree than necessary. This causes unrelated components to re-render and makes the data flow harder to understand."
+      },
+      {
+        "front": "What is 'derived state' and why avoid storing it?",
+        "back": "Derived state can be computed from existing state or props. Storing it separately creates synchronisation bugs. Compute it inline or with useMemo instead."
+      },
+      {
+        "front": "When does global state (Redux, Zustand) make sense?",
+        "back": "When multiple disconnected parts of the tree legitimately share state that changes frequently, and prop drilling or context causes performance issues or excessive coupling."
+      },
+      {
+        "front": "What problem does treating server cache as local state create?",
+        "back": "You manually manage loading, error, and staleness logic that a dedicated cache (React Query, SWR) handles automatically with background refetching, deduplication, and invalidation."
+      },
+      {
+        "front": "What is the URL as state?",
+        "back": "URL search params and path segments are a form of shareable, bookmarkable global state ideal for filters, pagination, and selected resource IDs."
+      },
+      {
+        "front": "What is prop drilling and when does it become a problem?",
+        "back": "Passing props through intermediate components that don't use them. It becomes a problem when the chain is 3+ levels deep or when the intermediate components re-render unnecessarily because of it."
+      }
+    ],
+    "exercises": []
+  },
+
+  "fe-state-redux": {
+    "quiz": [
+      {
+        "q": "What does Immer enable inside Redux Toolkit reducers?",
+        "options": [
+          "Asynchronous state mutations via thunks",
+          "Writing apparently mutating code that Immer converts to immutable updates under the hood",
+          "Automatic memoization of all derived values",
+          "Schema validation of action payloads at runtime"
+        ],
+        "answer": 1,
+        "explain": "Immer uses a Proxy to intercept 'mutations' and produce a new immutable state, letting you write `state.value = x` instead of spreading."
+      },
+      {
+        "q": "What is the purpose of `createSelector` (Reselect) in a Redux app?",
+        "options": [
+          "It creates action creators that select a slice of the store to update",
+          "It memoizes derived state computations so they only re-run when their input selectors change",
+          "It selects which components subscribe to a given slice of state",
+          "It replaces `useSelector` for class components"
+        ],
+        "answer": 1,
+        "explain": "createSelector caches the result of a derivation. If the inputs (other selectors) return the same references, the expensive computation is skipped and the previous result is returned."
+      },
+      {
+        "q": "Why is normalizing state shape important in Redux?",
+        "options": [
+          "Redux only supports arrays, so normalization converts objects to arrays",
+          "Normalization removes duplicate entity data and enables O(1) lookups by id instead of O(n) array scans",
+          "Normalized state is smaller and reduces Redux DevTools memory usage",
+          "The Redux Toolkit slice API requires normalized state to function correctly"
+        ],
+        "answer": 1,
+        "explain": "Storing entities as `{ids: [], entities: {id: entity}}` ensures a single source of truth per entity and enables constant-time access — avoiding bugs from updating the same entity in multiple arrays."
+      },
+      {
+        "q": "What does `createSlice` from Redux Toolkit generate automatically?",
+        "options": [
+          "Async thunks for API calls based on the slice name",
+          "Action creators and action type strings matching the reducer functions",
+          "Memoized selectors for every state field in the slice",
+          "WebSocket subscriptions for real-time slice updates"
+        ],
+        "answer": 1,
+        "explain": "createSlice inspects the reducers object and auto-generates action creators and type strings like `sliceName/reducerName`, eliminating boilerplate action files."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is a Redux slice?",
+        "back": "A collection of reducer logic, action creators, and initial state for a single feature, created with createSlice. It replaces separate actions/reducer/types files."
+      },
+      {
+        "front": "What is the Redux data flow?",
+        "back": "UI dispatches an action → middleware (thunks) optionally intercepts → reducer computes new state → store notifies subscribers → connected components re-render."
+      },
+      {
+        "front": "What is a thunk in Redux Toolkit?",
+        "back": "A function returned from an action creator that receives dispatch and getState. createAsyncThunk handles the pending/fulfilled/rejected lifecycle automatically."
+      },
+      {
+        "front": "What is the N+1 selector problem in Redux?",
+        "back": "A component runs an expensive selector (e.g., filtering 1000 items) on every render because the selector is not memoized. The fix is wrapping it with createSelector."
+      },
+      {
+        "front": "How does Immer's produce work conceptually?",
+        "back": "Immer wraps state in a Proxy (draft). You mutate the draft; Immer records the changes and applies them to produce a new immutable state, leaving the original untouched."
+      },
+      {
+        "front": "What is RTK Query?",
+        "back": "A data fetching and caching tool built into Redux Toolkit. It auto-generates hooks for CRUD operations, manages loading/error state, and handles cache invalidation via tags."
+      },
+      {
+        "front": "When should you normalise entities in Redux?",
+        "back": "When the same entity appears in multiple lists (e.g., a user in a search result and in a friends list), normalization prevents the two copies from diverging after an update."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement a minimal `createReducer(initialState, handlers)` that mirrors Redux Toolkit's builder style. It takes an initialState and a handlers object mapping action types to reducer functions `(state, action) => newState`. Return a reducer function.",
+        "starter": "function createReducer(initialState, handlers) {\n  // Return a reducer function (state, action) => state\n}",
+        "tests": "const reducer = createReducer({ count: 0 }, {\n  increment: (state, action) => ({ ...state, count: state.count + (action.payload || 1) }),\n  reset: () => ({ count: 0 })\n});\ncheck('initial state', () => expect(reducer(undefined, { type: '@@INIT' })).toEqual({ count: 0 }));\ncheck('increment', () => expect(reducer({ count: 5 }, { type: 'increment', payload: 3 })).toEqual({ count: 8 }));\ncheck('reset', () => expect(reducer({ count: 99 }, { type: 'reset' })).toEqual({ count: 0 }));\ncheck('unknown action returns state', () => {\n  const s = { count: 7 };\n  expect(reducer(s, { type: 'unknown' })).toEqual(s);\n});",
+        "solution": "function createReducer(initialState, handlers) {\n  return function reducer(state = initialState, action) {\n    const handler = handlers[action.type];\n    return handler ? handler(state, action) : state;\n  };\n}"
+      }
+    ]
+  },
+
+  "fe-state-zustand": {
+    "quiz": [
+      {
+        "q": "How does Zustand prevent unnecessary re-renders when only part of the store changes?",
+        "options": [
+          "It batches all store updates into a single commit at end of the event loop",
+          "Components subscribe with a selector; Zustand re-renders only when the selector's return value changes",
+          "Zustand uses SharedArrayBuffer to share state without triggering React's render cycle",
+          "All Zustand stores are wrapped in React.memo automatically"
+        ],
+        "answer": 1,
+        "explain": "useStore(selector) subscribes a component to just the slice it selects. Zustand re-renders only when that slice's reference changes, leaving other components untouched."
+      },
+      {
+        "q": "What are transient updates in Zustand?",
+        "options": [
+          "Updates that only persist until the browser tab is closed",
+          "Reading state directly via `getState()` inside callbacks without subscribing, avoiding re-renders",
+          "Optimistic updates that are rolled back on API failure",
+          "Updates applied before React's batching system merges them"
+        ],
+        "answer": 1,
+        "explain": "Calling `useStore.getState()` reads current state synchronously without creating a subscription. Useful for event handlers that need current state but should not trigger re-renders on their host component."
+      },
+      {
+        "q": "Compared to React Context, Zustand's main performance advantage is:",
+        "options": [
+          "Zustand stores are stored outside the React tree, so updates bypass reconciliation entirely",
+          "Zustand uses selector subscriptions so only components that use the changed slice re-render, unlike Context which re-renders all consumers",
+          "Zustand uses requestIdleCallback to defer state updates to idle periods",
+          "Zustand compresses state to reduce memory usage"
+        ],
+        "answer": 1,
+        "explain": "Context re-renders all consumers when the value changes. Zustand selectors let each component subscribe to a minimal slice, so unrelated parts of the tree are never touched."
+      },
+      {
+        "q": "How do you define actions in a Zustand store?",
+        "options": [
+          "You dispatch action objects with a type string like Redux",
+          "You define them as functions inside the store creator that call `set`",
+          "Actions must be declared in a separate action file and imported",
+          "Zustand derives actions automatically from the state shape"
+        ],
+        "answer": 1,
+        "explain": "In Zustand, actions are just functions in the same store object that call `set(newState)` or `set(state => ...)`. There are no separate action types or dispatchers."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the minimal Zustand store signature?",
+        "back": "create((set, get) => ({ ...stateFields, ...actionFunctions })). set merges partial state; get reads current state synchronously."
+      },
+      {
+        "front": "How do you subscribe to a Zustand store outside React?",
+        "back": "store.subscribe(listener) returns an unsubscribe function. The listener receives (newState, prevState). Useful for syncing with external systems like localStorage."
+      },
+      {
+        "front": "What is the immer middleware in Zustand?",
+        "back": "It wraps set so you can write draft mutations inside your actions — the same Immer concept as Redux Toolkit but for Zustand stores."
+      },
+      {
+        "front": "How does Zustand compare to Redux for a small/medium app?",
+        "back": "Zustand requires far less boilerplate (no actions, reducers, or providers), has built-in async support, and achieves the same selector optimisation. Redux adds more structure for large teams."
+      },
+      {
+        "front": "What is the 'slice' pattern in Zustand?",
+        "back": "Splitting a large store into separate creator functions (slices) combined with Object.assign or spread. Each slice manages its own state and actions while sharing the same store instance."
+      },
+      {
+        "front": "What does the `shallow` equality function do in useStore?",
+        "back": "When you select an object or array, Zustand defaults to reference equality. Passing `shallow` as a second argument does a shallow comparison so the component does not re-render if the object's fields are unchanged."
+      },
+      {
+        "front": "When would you choose Zustand over useState + Context?",
+        "back": "When multiple disconnected components share frequently updated state and Context re-renders become a measurable performance issue. Zustand avoids re-render cascades through selector subscriptions."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `createStore(initializer)`, a minimal Zustand-like store. The initializer receives `(set, get)` and returns the initial state + actions. Return an object with `getState()`, `setState(partial)`, and `subscribe(listener)` (returns unsubscribe). setState should merge and notify all listeners.",
+        "starter": "function createStore(initializer) {\n  // Return { getState, setState, subscribe }\n}",
+        "tests": "const store = createStore((set, get) => ({\n  count: 0,\n  inc: () => set({ count: get().count + 1 })\n}));\ncheck('initial state', () => expect(store.getState().count).toBe(0));\ncheck('setState merges', () => {\n  store.setState({ count: 5 });\n  expect(store.getState().count).toBe(5);\n});\ncheck('action via get', () => {\n  store.setState({ count: 0 });\n  store.getState().inc();\n  expect(store.getState().count).toBe(1);\n});\ncheck('subscribe notified', () => {\n  let called = 0;\n  const unsub = store.subscribe(() => called++);\n  store.setState({ count: 99 });\n  unsub();\n  store.setState({ count: 100 });\n  expect(called).toBe(1);\n});",
+        "solution": "function createStore(initializer) {\n  let state;\n  const listeners = new Set();\n  const getState = () => state;\n  const setState = (partial) => {\n    state = { ...state, ...(typeof partial === 'function' ? partial(state) : partial) };\n    listeners.forEach(l => l(state));\n  };\n  const subscribe = (listener) => {\n    listeners.add(listener);\n    return () => listeners.delete(listener);\n  };\n  state = initializer(setState, getState);\n  return { getState, setState, subscribe };\n}"
+      }
+    ]
+  },
+
+  "fe-state-caching": {
+    "quiz": [
+      {
+        "q": "What is the cache-aside (lazy loading) pattern?",
+        "options": [
+          "The cache is always written before the database",
+          "The application checks the cache first; on a miss it fetches from the source and populates the cache",
+          "Reads always go to the database; the cache is only updated on writes",
+          "All cache entries are pre-populated at application startup"
+        ],
+        "answer": 1,
+        "explain": "Cache-aside: check cache → miss → fetch origin → store in cache → return data. The cache grows lazily with actual access patterns."
+      },
+      {
+        "q": "What is request deduplication in client caching?",
+        "options": [
+          "Removing duplicate rows from a server response before caching",
+          "Ensuring that multiple components requesting the same key in the same render cycle share a single in-flight request",
+          "Storing request history to avoid sending the same request twice per session",
+          "Compressing duplicate string values inside cached JSON payloads"
+        ],
+        "answer": 1,
+        "explain": "Tools like React Query dedupe in-flight requests: if two components mount simultaneously and both trigger the same query, only one network request fires and both receive the result."
+      },
+      {
+        "q": "What triggers a cache invalidation in React Query / SWR?",
+        "options": [
+          "Only explicit calls to `invalidateQueries` or equivalent",
+          "Any of: window focus, network reconnect, mutation success, explicit invalidation, or TTL expiry",
+          "Invalidation only happens when the user navigates away and returns",
+          "Cache is invalidated automatically after every component unmount"
+        ],
+        "answer": 1,
+        "explain": "These libraries use multiple signals — focus, online, mutation side-effects, and manual invalidation — to decide when cached data is likely stale and should be refetched."
+      },
+      {
+        "q": "What does 'stale-while-revalidate' mean?",
+        "options": [
+          "Return no data until fresh data is available, blocking the UI",
+          "Return cached (possibly stale) data immediately while a background refetch updates the cache",
+          "Mark cached data as stale but never refetch it automatically",
+          "Cache data only for the duration of a single component mount"
+        ],
+        "answer": 1,
+        "explain": "SWR returns the cached value immediately (fast, no loading spinner) and simultaneously fires a background request. When fresh data arrives, the UI updates — giving instant perceived performance."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is a cache key?",
+        "back": "A stable identifier for a cached datum — typically a URL plus serialised query params. React Query and SWR use the key to look up, store, and invalidate entries."
+      },
+      {
+        "front": "What is cache invalidation and why is it hard?",
+        "back": "Invalidation is deciding when a cached value is no longer valid and must be refetched. It is hard because the client cannot know when the server's data changed without being told (via webhooks, polling, or mutation hooks)."
+      },
+      {
+        "front": "What is optimistic UI in the context of caching?",
+        "back": "Immediately updating the local cache as if the mutation succeeded before the server responds. If the request fails, the cache is rolled back. It makes mutations feel instant."
+      },
+      {
+        "front": "What is a TTL (time-to-live) in caching?",
+        "back": "The duration after which a cached entry is considered stale and eligible for a background refetch. Short TTL = fresh data, more requests. Long TTL = fast, potentially stale."
+      },
+      {
+        "front": "How does React Query differ from useEffect + fetch for data loading?",
+        "back": "React Query provides deduplication, background refetching, stale-while-revalidate, pagination helpers, mutation management, and DevTools — all the concerns a raw useEffect approach requires you to rebuild manually."
+      },
+      {
+        "front": "What is the difference between 'gcTime' and 'staleTime' in React Query?",
+        "back": "staleTime: how long data is considered fresh (no background refetch). gcTime: how long unused cache entries stay in memory before garbage collection. staleTime <= gcTime."
+      },
+      {
+        "front": "What does query normalisation mean for client caches?",
+        "back": "Storing entities by id so a single entity update (e.g., a user profile) automatically reflects everywhere that entity appears, without manually invalidating every query that included it."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `createSimpleCache(ttlMs)`. It returns an object with `get(key)` (returns value or undefined if missing/expired) and `set(key, value)`. Entries expire after `ttlMs` milliseconds. Use `Date.now()` for timing.",
+        "starter": "function createSimpleCache(ttlMs) {\n  // Return { get(key), set(key, value) }\n}",
+        "tests": "const cache = createSimpleCache(100);\ncheck('miss on empty', () => expect(cache.get('x')).toBe(undefined));\ncheck('hit after set', () => {\n  cache.set('a', 42);\n  expect(cache.get('a')).toBe(42);\n});\ncheck('expired entry', () => {\n  const c2 = createSimpleCache(0);\n  c2.set('b', 7);\n  expect(c2.get('b')).toBe(undefined);\n});\ncheck('overwrite resets ttl', () => {\n  const c3 = createSimpleCache(100);\n  c3.set('k', 1);\n  c3.set('k', 2);\n  expect(c3.get('k')).toBe(2);\n});",
+        "solution": "function createSimpleCache(ttlMs) {\n  const store = new Map();\n  return {\n    get(key) {\n      const entry = store.get(key);\n      if (!entry) return undefined;\n      if (Date.now() - entry.ts > ttlMs) { store.delete(key); return undefined; }\n      return entry.value;\n    },\n    set(key, value) {\n      store.set(key, { value, ts: Date.now() });\n    }\n  };\n}"
+      }
+    ]
+  },
+
+  "fe-perf-virtualization": {
+    "quiz": [
+      {
+        "q": "Why does rendering 100,000 table rows without virtualization cause poor performance?",
+        "options": [
+          "JavaScript cannot hold arrays larger than 65,536 elements",
+          "The browser creates 100,000 DOM nodes which consume memory, require layout, and slow painting significantly",
+          "React's diffing algorithm has an O(n!) complexity for large lists",
+          "Server-sent data exceeds the browser's network buffer"
+        ],
+        "answer": 1,
+        "explain": "DOM nodes are expensive. 100k nodes consume hundreds of megabytes of memory and make every layout/style recalculation proportionally slower. The data is fine; the DOM is the bottleneck."
+      },
+      {
+        "q": "What does an 'overscan' value do in a virtualizer?",
+        "options": [
+          "It increases the resolution of rendered content for high-DPI screens",
+          "It renders a small number of extra rows beyond the visible viewport to reduce blank-flash during fast scrolling",
+          "It pre-fetches the next page of data from the server",
+          "It scales row heights to fill the remaining container space"
+        ],
+        "answer": 1,
+        "explain": "Overscan keeps a few off-screen rows mounted as a buffer. Without it, fast scrolling can briefly reveal unrendered rows (blank flash) before new rows mount."
+      },
+      {
+        "q": "What is 'layout thrash' (forced synchronous layout)?",
+        "options": [
+          "Too many CSS Grid cells causing the browser to recalculate columns",
+          "Alternating reads and writes to layout properties inside a loop, forcing the browser to recalculate layout on every iteration",
+          "A React render that takes longer than one animation frame",
+          "A clash between CSS transitions and JavaScript animations on the same element"
+        ],
+        "answer": 1,
+        "explain": "Reading a layout property (offsetHeight) invalidates the pending layout and forces the browser to recalculate immediately. Doing this inside a loop means N layout passes instead of one."
+      },
+      {
+        "q": "For a virtualised list with variable row heights, what information must the virtualizer track?",
+        "options": [
+          "Only the total count of items",
+          "The measured height of each rendered row to calculate scroll offsets and total scrollable height accurately",
+          "The server-side cursor for the next page of data",
+          "The CSS class names applied to each row for height estimation"
+        ],
+        "answer": 1,
+        "explain": "Variable heights mean the virtualizer cannot assume a fixed stride. It must measure rows after they render (or use ResizeObserver) and cache those heights to compute accurate item positions."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is windowing / list virtualization?",
+        "back": "Rendering only the DOM nodes that are currently visible in the viewport (plus a small overscan buffer), regardless of total list size. Nodes outside the window are unmounted."
+      },
+      {
+        "front": "How does a virtualizer maintain the correct scroll height?",
+        "back": "It places a spacer element whose total height equals the estimated height of all rows. This lets the scrollbar behave correctly even though most rows are not in the DOM."
+      },
+      {
+        "front": "What is the role of a ResizeObserver in variable-height virtualization?",
+        "back": "It observes rendered row elements and reports their actual heights. The virtualizer uses these measurements to update item offsets and total scroll height accurately."
+      },
+      {
+        "front": "When should you reach for @tanstack/react-virtual?",
+        "back": "When you have lists or grids with hundreds or more items and measure that DOM node count or layout time is causing jank. Start with a plain map and virtualise only when needed."
+      },
+      {
+        "front": "What is the difference between fixed-size and variable-size virtualisation?",
+        "back": "Fixed-size: all rows are the same height, so item offset = index * rowHeight — simple and fast. Variable-size: each row can differ; heights must be measured and accumulated."
+      },
+      {
+        "front": "What is 'layout thrash' and how do you avoid it?",
+        "back": "Reading a layout property (offsetHeight, getBoundingClientRect) right after a DOM write forces a synchronous reflow. Avoid by batching reads before writes, or using requestAnimationFrame to separate read and write phases."
+      },
+      {
+        "front": "What windowing math gives you the first visible item index?",
+        "back": "firstIndex = Math.floor(scrollTop / rowHeight) for fixed-size lists. For variable-size, binary-search the cumulative offset array for the first offset >= scrollTop."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `getVisibleRange(scrollTop, viewportHeight, itemHeight, totalItems)` for a fixed-height virtualised list. Return `{start, end}` where start is the first visible item index and end is the last (inclusive), clamped to [0, totalItems-1]. Include 2 extra items of overscan on each side.",
+        "starter": "function getVisibleRange(scrollTop, viewportHeight, itemHeight, totalItems) {\n  // Return { start, end } with 2-item overscan, clamped to valid range\n}",
+        "tests": "check('basic visible range', () => {\n  const r = getVisibleRange(0, 500, 50, 1000);\n  expect(r.start).toBe(0);\n  expect(r.end).toBe(11);\n});\ncheck('mid-scroll', () => {\n  const r = getVisibleRange(500, 500, 50, 1000);\n  expect(r.start).toBe(8);\n  expect(r.end).toBe(21);\n});\ncheck('clamped at end', () => {\n  const r = getVisibleRange(49500, 500, 50, 1000);\n  expect(r.end).toBe(999);\n});\ncheck('clamped at start', () => {\n  const r = getVisibleRange(0, 100, 50, 100);\n  expect(r.start).toBe(0);\n});",
+        "solution": "function getVisibleRange(scrollTop, viewportHeight, itemHeight, totalItems) {\n  const overscan = 2;\n  const firstVisible = Math.floor(scrollTop / itemHeight);\n  const lastVisible = Math.floor((scrollTop + viewportHeight - 1) / itemHeight);\n  const start = Math.max(0, firstVisible - overscan);\n  const end = Math.min(totalItems - 1, lastVisible + overscan);\n  return { start, end };\n}"
+      }
+    ]
+  },
+
+  "fe-perf-sw": {
+    "quiz": [
+      {
+        "q": "What is a Service Worker?",
+        "options": [
+          "A Node.js worker thread for running CPU-intensive tasks on the server",
+          "A JavaScript file that runs in a separate thread, acting as a network proxy between the browser and the server",
+          "A browser extension that intercepts and caches HTTP responses",
+          "A React hook that manages background data synchronisation"
+        ],
+        "answer": 1,
+        "explain": "A Service Worker is a script running off the main thread that can intercept fetch events and respond from a cache, enabling offline support and faster repeat loads."
+      },
+      {
+        "q": "What are the three phases of a Service Worker lifecycle?",
+        "options": [
+          "Download, Execute, Terminate",
+          "Install, Activate, Idle/Fetch",
+          "Register, Parse, Run",
+          "Mount, Update, Unmount"
+        ],
+        "answer": 1,
+        "explain": "Install: caches precached assets. Activate: old caches cleaned up, SW takes control. Idle: SW sleeps until fetch/message events wake it."
+      },
+      {
+        "q": "Why do repeat visits after a Service Worker is installed load near-instantly?",
+        "options": [
+          "The browser predicts which assets will be needed and pre-renders pages",
+          "The SW intercepts the fetch request and responds from the Cache API without hitting the network",
+          "HTTP/2 push pre-loads all assets on the first visit",
+          "The main thread is freed to run JavaScript faster on subsequent loads"
+        ],
+        "answer": 1,
+        "explain": "Precached assets are stored in the Cache API. On repeat visits the SW intercepts requests and returns stored responses, eliminating round-trip latency."
+      },
+      {
+        "q": "What is 'precaching' in the context of a Service Worker?",
+        "options": [
+          "Caching API responses for GET requests only",
+          "Saving a defined list of static assets (HTML, JS, CSS) to the Cache API during the SW install event",
+          "Warming the browser's HTTP cache by making background requests",
+          "Pre-compiling JavaScript files before they are requested"
+        ],
+        "answer": 1,
+        "explain": "Precaching downloads and stores specific assets at SW install time so they are guaranteed to be available on the first navigation — even offline."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the Cache API?",
+        "back": "A browser API for storing and retrieving Request/Response pairs. Service Workers use it to store assets during install and serve them on fetch — separate from the browser's HTTP cache."
+      },
+      {
+        "front": "What is the 'cache-first' strategy?",
+        "back": "Check the cache first; serve cached response if found. Only fall back to the network on a miss. Best for static assets with long lifetimes."
+      },
+      {
+        "front": "What is the 'network-first' strategy?",
+        "back": "Try the network first; fall back to cache on failure. Best for dynamic content where freshness matters but offline fallback is still needed."
+      },
+      {
+        "front": "What is Workbox?",
+        "back": "Google's library for Service Worker authoring. It provides pre-built caching strategies, precaching manifests, and route-based matching so you don't hand-write SW boilerplate."
+      },
+      {
+        "front": "Why must you version cache names?",
+        "back": "When you deploy updated assets, the old cache must be invalidated. Versioning the cache name (e.g., 'v2') lets the new SW's activate handler delete stale caches."
+      },
+      {
+        "front": "What is `skipWaiting` in SW lifecycle?",
+        "back": "Calling `self.skipWaiting()` during install causes the new SW to activate immediately instead of waiting for all existing clients to close — useful for fast deployments."
+      },
+      {
+        "front": "How does a Service Worker enable offline functionality?",
+        "back": "By intercepting all fetch events and returning cached responses when the network is unavailable, the app can function (read-only at minimum) without a connection."
+      }
+    ],
+    "exercises": []
+  },
+
+  "fe-perf-loading": {
+    "quiz": [
+      {
+        "q": "What is code splitting?",
+        "options": [
+          "Dividing a React component into smaller sub-components for readability",
+          "Splitting the JavaScript bundle into multiple chunks that can be loaded on demand",
+          "Distributing server-side rendering across multiple CPU cores",
+          "Separating CSS from JavaScript in the build output"
+        ],
+        "answer": 1,
+        "explain": "Code splitting breaks the monolithic JS bundle into smaller chunks. The critical path loads only what is needed immediately; the rest is deferred until required."
+      },
+      {
+        "q": "What does `React.lazy` with `Suspense` enable?",
+        "options": [
+          "Server-side rendering of components that depend on async data",
+          "Dynamic import of a component, deferring its bundle chunk until that component is rendered",
+          "Lazy evaluation of expensive useMemo computations",
+          "Debouncing render updates to reduce paint frequency"
+        ],
+        "answer": 1,
+        "explain": "React.lazy(() => import('./Component')) tells React to load that component's chunk only when it is about to render. Suspense shows a fallback while the chunk downloads."
+      },
+      {
+        "q": "What is Largest Contentful Paint (LCP)?",
+        "options": [
+          "The time from navigation to the first byte of the HTML document",
+          "The render time of the largest image or text block visible in the viewport",
+          "The total bytes of content painted during the first page load",
+          "The number of DOM nodes rendered during the initial paint"
+        ],
+        "answer": 1,
+        "explain": "LCP measures when the most significant visible element (hero image, large text) finishes rendering. Google targets LCP under 2.5 seconds for a 'good' Core Web Vitals score."
+      },
+      {
+        "q": "What does a bundle analyser (webpack-bundle-analyzer, rollup-plugin-visualizer) help you do?",
+        "options": [
+          "Automatically remove unused CSS from the production build",
+          "Visualise which modules contribute most to bundle size so you can find and eliminate bloat",
+          "Generate code-split chunks automatically without configuration",
+          "Compare two builds for regression testing of bundle size"
+        ],
+        "answer": 1,
+        "explain": "Bundle analysers produce treemap visualisations showing the size of every module. This reveals accidental duplicate dependencies, large libraries, or un-tree-shaken code."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the critical rendering path?",
+        "back": "The sequence the browser must complete to paint the first pixel: parse HTML → build DOM → load/parse CSS → build CSSOM → run blocking JS → create render tree → layout → paint."
+      },
+      {
+        "front": "What is tree shaking?",
+        "back": "Dead code elimination: bundlers (Vite, webpack) remove exports that are imported but never used, reducing bundle size. Requires ES module syntax (import/export)."
+      },
+      {
+        "front": "What is a dynamic import `import()`?",
+        "back": "A runtime ES module import that returns a Promise. Bundlers split it into a separate chunk that is fetched on demand, enabling route-level and component-level code splitting."
+      },
+      {
+        "front": "What is prefetching vs preloading?",
+        "back": "Preload (`<link rel=preload>`) fetches a resource with high priority needed for the current page. Prefetch (`<link rel=prefetch>`) fetches a resource likely needed for the next navigation at low priority."
+      },
+      {
+        "front": "What is a route-based code split?",
+        "back": "Loading each page's component only when the user navigates to that route. The initial bundle shrinks dramatically because only the landing page code is included in the entry chunk."
+      },
+      {
+        "front": "How does PRPL pattern relate to code splitting?",
+        "back": "PRPL: Push critical resources, Render initial route, Pre-cache remaining routes, Lazy-load on demand. Code splitting is the mechanism that enables the 'L' — serving only what each route needs."
+      },
+      {
+        "front": "What metric does LCP measure and what is the 'good' threshold?",
+        "back": "LCP measures when the largest visible content element finishes rendering. The Google-defined 'good' threshold is under 2.5 seconds measured at the 75th percentile of real user sessions."
+      }
+    ],
+    "exercises": []
+  },
+
+  "fe-perf-paint": {
+    "quiz": [
+      {
+        "q": "Why should CSS animations prefer `transform` and `opacity` over `top`/`left`/`width`?",
+        "options": [
+          "transform and opacity are the only properties browsers support in CSS animations",
+          "Changing transform/opacity only triggers compositing on the GPU, avoiding layout and paint",
+          "left/top cannot be animated at all in modern browsers",
+          "transform and opacity have lower CSS specificity and are easier to override"
+        ],
+        "answer": 1,
+        "explain": "transform and opacity are handled entirely by the GPU compositor. Animating them skips layout and paint entirely — enabling 60fps animations even on mobile."
+      },
+      {
+        "q": "What does `will-change: transform` tell the browser?",
+        "back": null,
+        "options": [
+          "To apply a transform to the element immediately",
+          "To promote the element to its own compositor layer in advance, reducing the cost of future animations",
+          "To disable hardware acceleration for that element",
+          "To apply GPU rendering only during scroll events"
+        ],
+        "answer": 1,
+        "explain": "will-change hints the browser to promote the element to a composited layer ahead of time, avoiding the janky first frame that occurs when promotion happens mid-animation."
+      },
+      {
+        "q": "What triggers a reflow (layout)?",
+        "options": [
+          "Changing an element's background-color",
+          "Reading `element.offsetWidth` after writing to the DOM, or changing width/height/margin/padding",
+          "Changing an element's opacity with CSS",
+          "Removing an event listener from a DOM element"
+        ],
+        "answer": 1,
+        "explain": "Any property that affects geometry (width, margin, display) triggers layout. Reading layout properties after a DOM write forces synchronous reflow — the costly 'layout thrash' pattern."
+      },
+      {
+        "q": "What is `requestAnimationFrame` (rAF) used for in animation?",
+        "options": [
+          "To schedule React re-renders at a 60Hz interval",
+          "To run animation logic immediately before the browser's next paint, keeping updates synchronised with the display refresh rate",
+          "To defer non-critical JavaScript execution to idle periods",
+          "To request the browser allocate GPU memory for a canvas element"
+        ],
+        "answer": 1,
+        "explain": "rAF callbacks fire just before each paint. This keeps JS-driven animations in sync with the display and prevents updates that render between frames."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What are the three stages a pixel change can trigger?",
+        "back": "Layout (reflow): geometry recalculated. Paint: pixel colours recalculated. Composite: layers combined by GPU. Animating transform/opacity skips the first two."
+      },
+      {
+        "front": "What is a composited layer?",
+        "back": "A section of the page the browser renders to a separate GPU texture and composites independently. Animations on composited elements don't require the main thread."
+      },
+      {
+        "front": "What causes 'jank'?",
+        "back": "A frame taking longer than ~16ms (for 60fps), causing the browser to drop it. Common causes: long JS tasks, forced synchronous layout, excessive paint area."
+      },
+      {
+        "front": "What does CSS containment (`contain: layout`) do for performance?",
+        "back": "It tells the browser that layout changes inside the element do not affect outside elements, allowing the browser to skip layout for the rest of the tree on changes inside."
+      },
+      {
+        "front": "What is `requestIdleCallback`?",
+        "back": "A browser API that schedules low-priority work (analytics, prefetch) during idle periods — after critical rendering work is complete and the user is not interacting."
+      },
+      {
+        "front": "When is `will-change` harmful?",
+        "back": "Overusing it promotes too many elements to composited layers, consuming GPU memory. Use it only on elements you know will animate, and remove it when the animation ends."
+      },
+      {
+        "front": "How do you measure rendering performance in Chrome DevTools?",
+        "back": "Use the Performance panel to record a session. Look for long tasks (>50ms), layout recalculations, paint events, and compositor frame drops in the Frames row."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `scheduleAnimationFrames(tasks, runFrame)`. Given an array of task functions and a `runFrame(callback)` mock (like rAF), schedule each task to run in its own frame — one task per `runFrame` call. Return a `cancel()` function that prevents any un-started tasks from running.",
+        "starter": "function scheduleAnimationFrames(tasks, runFrame) {\n  // Schedule each task in a separate runFrame call\n  // Return { cancel() } to stop remaining tasks\n}",
+        "tests": "const log = [];\nconst frames = [];\nconst runFrame = (cb) => frames.push(cb);\nconst { cancel } = scheduleAnimationFrames(\n  [() => log.push('a'), () => log.push('b'), () => log.push('c')],\n  runFrame\n);\ncheck('no tasks run before frames fire', () => expect(log).toEqual([]));\nframes[0]();\ncheck('first frame runs first task', () => expect(log).toEqual(['a']));\nframes[1]();\ncheck('second frame runs second task', () => expect(log).toEqual(['a','b']));\ncancel();\nif (frames[2]) frames[2]();\ncheck('cancel prevents remaining tasks', () => expect(log).toEqual(['a','b']));",
+        "solution": "function scheduleAnimationFrames(tasks, runFrame) {\n  let cancelled = false;\n  let i = 0;\n  function scheduleNext() {\n    if (cancelled || i >= tasks.length) return;\n    const task = tasks[i++];\n    runFrame(() => {\n      if (!cancelled) { task(); scheduleNext(); }\n    });\n  }\n  scheduleNext();\n  return { cancel() { cancelled = true; } };\n}"
+      }
+    ]
+  },
+
+  "fe-plat-events": {
+    "quiz": [
+      {
+        "q": "What is the order of event propagation phases?",
+        "options": [
+          "Target → Capture → Bubble",
+          "Capture → Target → Bubble",
+          "Bubble → Target → Capture",
+          "Target → Bubble → Capture"
+        ],
+        "answer": 1,
+        "explain": "Events travel down the tree in the capture phase, reach the target element, then bubble back up. addEventListener's third argument (or `capture: true`) subscribes to the capture phase."
+      },
+      {
+        "q": "What is `pointer capture` and when do you use it?",
+        "options": [
+          "Taking a screenshot of the pointer's trail across the screen",
+          "Binding all pointer events to a specific element even if the pointer moves outside it — essential for drag interactions",
+          "Preventing the browser from displaying the default cursor during drag",
+          "Capturing the initial pointer position for gesture recognition"
+        ],
+        "answer": 1,
+        "explain": "setPointerCapture ensures all pointermove and pointerup events route to the capturing element even if the cursor leaves it. Without capture, fast drags lose track of the pointer."
+      },
+      {
+        "q": "What does adding `{ passive: true }` to a scroll or touch event listener do?",
+        "options": [
+          "It prevents the event from firing if the user is idle",
+          "It tells the browser the handler will never call preventDefault, allowing scroll to begin without waiting for JS to run",
+          "It makes the listener fire after all other listeners on the element",
+          "It debounces the event to fire at most once per animation frame"
+        ],
+        "answer": 1,
+        "explain": "Without passive, the browser must wait for the event handler to complete before beginning scroll (in case it calls preventDefault). Passive listeners let scroll start immediately, eliminating jank."
+      },
+      {
+        "q": "How do Pointer Events improve on Mouse Events for touch/stylus input?",
+        "options": [
+          "Pointer Events fire faster because they bypass the browser's event queue",
+          "Pointer Events unify mouse, touch, and stylus into one event model with pressure, tilt, and identifier support",
+          "Pointer Events are only available on mobile browsers while Mouse Events are desktop-only",
+          "Pointer Events bypass passive listener restrictions for better scroll control"
+        ],
+        "answer": 1,
+        "explain": "The Pointer Events API is input-type agnostic — one event model handles mouse, pen, and all touch points with consistent properties. Mouse Events do not fire for touch on some platforms."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What does `stopPropagation` do vs `stopImmediatePropagation`?",
+        "back": "stopPropagation prevents the event from travelling further up (or down) the tree. stopImmediatePropagation also prevents any other listeners on the same element from running."
+      },
+      {
+        "front": "What is event delegation?",
+        "back": "Attaching a single event listener to a parent element rather than one per child. The handler inspects event.target to identify which child was clicked. Saves memory on large lists."
+      },
+      {
+        "front": "What is `preventDefault` used for?",
+        "back": "Cancelling the browser's default action for an event — e.g., preventing form submission, link navigation, or context menu display. It does not stop propagation."
+      },
+      {
+        "front": "What are the key Pointer Events?",
+        "back": "pointerdown, pointermove, pointerup, pointercancel, pointerenter, pointerleave, gotpointercapture, lostpointercapture. They replace mousedown/mousemove/mouseup for cross-input code."
+      },
+      {
+        "front": "How do you implement a reliable drag without pointer capture?",
+        "back": "You cannot reliably — fast mouse moves leave the element before you get pointerup. setPointerCapture on pointerdown routes all subsequent events to your element until pointerup."
+      },
+      {
+        "front": "What is the difference between pointerId and which for multi-touch?",
+        "back": "pointerId uniquely identifies each active touch point. which identifies the mouse button. For multi-touch gesture detection, use pointerId to track each finger independently."
+      },
+      {
+        "front": "When does the capture phase matter in practice?",
+        "back": "For intercepting events before child handlers fire — e.g., a modal overlay that must cancel all clicks inside, or a drag library that needs the first move event before any child processes it."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `simulatePropagation(path, listeners, phase)`. `path` is an array of element names from outermost to target (e.g. ['doc','div','btn']). `listeners` is an object mapping element name to `{capture?: fn, bubble?: fn}`. `phase` is 'capture' or 'bubble'. Call the relevant listeners in correct propagation order, passing the element name. Return an array of [elementName, phase] pairs in the order they were called.",
+        "starter": "function simulatePropagation(path, listeners, eventPhase) {\n  // Simulate capture or bubble phase, calling appropriate listener fns\n  // Return array of [elementName, phaseName] in call order\n}",
+        "tests": "const called = [];\nconst ls = {\n  doc: { capture: (el) => called.push([el,'capture']), bubble: (el) => called.push([el,'bubble']) },\n  div: { bubble: (el) => called.push([el,'bubble']) },\n  btn: { capture: (el) => called.push([el,'capture']), bubble: (el) => called.push([el,'bubble']) }\n};\ncalled.length = 0;\nsimulateP = (path, ls, phase) => simulatePropagation(path, ls, phase);\nconst capResult = simulatePropagation(['doc','div','btn'], ls, 'capture');\ncheck('capture fires outer to inner', () => {\n  const names = capResult.map(x => x[0]);\n  expect(names).toEqual(['doc','btn']);\n});\nconst bubResult = simulatePropagation(['doc','div','btn'], ls, 'bubble');\ncheck('bubble fires inner to outer', () => {\n  const names = bubResult.map(x => x[0]);\n  expect(names).toEqual(['btn','div','doc']);\n});",
+        "solution": "function simulatePropagation(path, listeners, eventPhase) {\n  const result = [];\n  const order = eventPhase === 'capture' ? path : [...path].reverse();\n  for (const el of order) {\n    const handler = listeners[el]?.[eventPhase];\n    if (handler) { handler(el); result.push([el, eventPhase]); }\n  }\n  return result;\n}"
+      }
+    ]
+  },
+
+  "fe-plat-webapis": {
+    "quiz": [
+      {
+        "q": "What permission must be granted before `Notification.requestPermission()` can show browser notifications?",
+        "options": [
+          "No permission is needed — notifications are always allowed",
+          "The user must explicitly grant the 'notifications' permission via the browser prompt",
+          "The site must be served over HTTP (not HTTPS)",
+          "The Web Push API subscription must be created first"
+        ],
+        "answer": 1,
+        "explain": "Browsers require explicit user consent for notifications. requestPermission() shows a prompt; if denied, subsequent Notification constructors silently fail."
+      },
+      {
+        "q": "What is the Web Speech API's `SpeechSynthesis` used for?",
+        "options": [
+          "Speech-to-text transcription of microphone audio",
+          "Text-to-speech synthesis that reads text aloud through the device speaker",
+          "Real-time translation of spoken language",
+          "Generating AI voice models in the browser"
+        ],
+        "answer": 1,
+        "explain": "SpeechSynthesis is the TTS half of Web Speech API. window.speechSynthesis.speak(utterance) reads text aloud. The separate SpeechRecognition API handles speech-to-text."
+      },
+      {
+        "q": "What is the main limitation of `localStorage`?",
+        "options": [
+          "localStorage is asynchronous and returns Promises",
+          "localStorage can only store strings and is synchronous, blocking the main thread for large reads",
+          "localStorage is automatically cleared after every browser restart",
+          "localStorage cannot be accessed from event listeners"
+        ],
+        "answer": 1,
+        "explain": "localStorage is synchronous. For large data, reading/writing blocks the main thread. For structured data or large payloads, IndexedDB's async API is the right choice."
+      },
+      {
+        "q": "What does the Permissions API let you do before calling a browser API that requires user consent?",
+        "options": [
+          "Silently grant permissions without a user prompt",
+          "Query the current permission state (granted, denied, prompt) so you can branch logic without triggering the browser prompt",
+          "Revoke previously granted permissions programmatically",
+          "Request multiple permissions in a single browser dialog"
+        ],
+        "answer": 1,
+        "explain": "navigator.permissions.query({ name: 'notifications' }) returns the current state. You can show UI only when state is 'prompt' and skip it when 'granted'."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the difference between localStorage and sessionStorage?",
+        "back": "localStorage persists until explicitly cleared, survives browser restarts, and is shared across tabs of the same origin. sessionStorage is cleared when the tab closes and is not shared."
+      },
+      {
+        "front": "What is the Web Speech Recognition API?",
+        "back": "SpeechRecognition converts microphone audio to text. It fires result events with transcripts. It requires microphone permission and works best in Chrome/Edge."
+      },
+      {
+        "front": "What is the Notification API vs the Web Push API?",
+        "back": "Notification API shows notifications while the page is open. Web Push (Push API + Service Worker) delivers notifications even when the page is closed via a push server."
+      },
+      {
+        "front": "What is IndexedDB and when should you use it over localStorage?",
+        "back": "IndexedDB is an asynchronous, transactional, key-value object store supporting large blobs, indexes, and cursors. Use it for offline data, large datasets, or binary assets that would block with localStorage."
+      },
+      {
+        "front": "What is the Geolocation API?",
+        "back": "navigator.geolocation.getCurrentPosition(success, error, options) returns the device's location. Requires user permission. watchPosition streams position updates."
+      },
+      {
+        "front": "What is the origin-private file system (OPFS)?",
+        "back": "A sandboxed file system accessible only to the origin, providing high-performance synchronous file I/O in web workers. Ideal for SQLite WASM builds running entirely in the browser."
+      },
+      {
+        "front": "What is the Clipboard API?",
+        "back": "navigator.clipboard.writeText(text) / readText() provide async clipboard access. Reading requires the 'clipboard-read' permission; writing may require a user gesture."
+      }
+    ],
+    "exercises": []
+  },
+
+  "fe-plat-webgl": {
+    "quiz": [
+      {
+        "q": "What are the two shader types in a WebGL program and what do they do?",
+        "options": [
+          "Fragment shader and compute shader — one draws pixels, the other runs math",
+          "Vertex shader and fragment shader — vertex transforms geometry positions, fragment determines per-pixel colour",
+          "Geometry shader and depth shader — one defines shapes, one defines 3D depth",
+          "Vertex shader and normal shader — one positions triangles, one calculates lighting normals"
+        ],
+        "answer": 1,
+        "explain": "The vertex shader runs once per vertex, transforming positions. The fragment (pixel) shader runs once per rasterised pixel, outputting a colour."
+      },
+      {
+        "q": "Why is minimising draw calls important in WebGL?",
+        "options": [
+          "Each draw call has CPU overhead for state validation and driver communication — fewer calls mean less CPU time",
+          "The GPU can only process one draw call at a time across all WebGL contexts",
+          "Draw calls consume GPU VRAM that is shared with the OS compositor",
+          "draw calls are counted against a browser-enforced limit of 100 per frame"
+        ],
+        "answer": 0,
+        "explain": "Each draw call involves CPU-GPU communication overhead. Batching geometry into one VBO and issuing a single draw call is far more efficient than many small ones."
+      },
+      {
+        "q": "What does a Three.js `requestAnimationFrame` render loop do?",
+        "options": [
+          "It syncs React state updates with the GPU render queue",
+          "It calls renderer.render(scene, camera) before each browser paint to produce an updated frame",
+          "It downloads new geometry assets each frame from the server",
+          "It throttles the GPU to a fixed 30fps to reduce power consumption"
+        ],
+        "answer": 1,
+        "explain": "The render loop calls renderer.render every frame. The scene graph is traversed, transformed objects are submitted to WebGL, and the canvas displays the result."
+      },
+      {
+        "q": "What is GLSL?",
+        "options": [
+          "A JavaScript library for procedural 3D mesh generation",
+          "The C-like shading language in which WebGL vertex and fragment shaders are written",
+          "A GPU profiling standard for measuring draw call performance",
+          "A binary format for compressed 3D geometry files"
+        ],
+        "answer": 1,
+        "explain": "GLSL (OpenGL Shading Language) runs directly on the GPU. You write it as a string, compile it at runtime via WebGL, and link it into a shader program."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is a Vertex Buffer Object (VBO)?",
+        "back": "A GPU-side memory buffer holding vertex data (positions, normals, UVs). Uploading data to a VBO once and reusing it avoids re-uploading geometry every frame."
+      },
+      {
+        "front": "What is the role of the Model-View-Projection (MVP) matrix?",
+        "back": "Model matrix transforms object-space to world-space. View matrix transforms to camera-space. Projection maps 3D to 2D clip-space. The vertex shader multiplies them: gl_Position = MVP * vertex."
+      },
+      {
+        "front": "What is Three.js and what does it abstract?",
+        "back": "A JavaScript library that wraps raw WebGL. It provides Scene, Camera, Geometry, Material, and Mesh abstractions — you never write GLSL unless customising shaders."
+      },
+      {
+        "front": "What is a render loop and why must it use rAF?",
+        "back": "The render loop continuously re-renders the scene. Using requestAnimationFrame ensures renders fire in sync with the display refresh rate and pause when the tab is hidden, saving CPU/GPU."
+      },
+      {
+        "front": "What is a fragment shader uniform?",
+        "back": "A value passed from JavaScript into the shader that is constant for all fragments in a draw call — e.g., time, resolution, or colour. Set via gl.uniform* calls."
+      },
+      {
+        "front": "What is instanced rendering?",
+        "back": "Rendering multiple copies of the same geometry in a single draw call by providing per-instance data (positions, colours) in a buffer. Dramatically reduces draw call count for particle systems."
+      },
+      {
+        "front": "What is the WebGL context and how many can a page have?",
+        "back": "An object obtained from canvas.getContext('webgl2') providing all WebGL API methods. Browsers typically limit a page to 8–16 active contexts; exceeding this causes old contexts to be lost."
+      }
+    ],
+    "exercises": []
+  },
+
+  "fe-plat-a11y": {
+    "quiz": [
+      {
+        "q": "What does 'semantics first' mean in accessibility?",
+        "options": [
+          "Use CSS classes with semantic names like .button and .header",
+          "Use native HTML elements that have built-in semantics (button, nav, main) before reaching for ARIA",
+          "Write semantic commit messages in your version control history",
+          "Define accessible names in a JSON schema before building components"
+        ],
+        "answer": 1,
+        "explain": "Native HTML elements carry built-in role, state, and keyboard behaviour that screen readers and browsers understand. Custom ARIA must manually replicate all of that."
+      },
+      {
+        "q": "When should you use `aria-label` vs `aria-labelledby`?",
+        "options": [
+          "aria-label is for images; aria-labelledby is for form fields",
+          "aria-label provides a string label directly; aria-labelledby references another element's text by id — prefer labelledby when visible text exists",
+          "They are interchangeable — use whichever is shorter",
+          "aria-label works only in Chrome; aria-labelledby is for Firefox"
+        ],
+        "answer": 1,
+        "explain": "aria-labelledby keeps the accessible name in sync with visible text, avoiding duplication. aria-label is for cases where no visible label exists (e.g., icon-only buttons)."
+      },
+      {
+        "q": "What is focus management and why does it matter for modals?",
+        "options": [
+          "Preventing focus from leaving an input field until it passes validation",
+          "Moving keyboard focus to the modal on open, trapping it inside, and returning it to the trigger on close",
+          "Styling the focus ring to match the design system's colour palette",
+          "Logging which elements receive focus for analytics purposes"
+        ],
+        "answer": 1,
+        "explain": "Without focus management, screen reader users cannot navigate a modal — focus stays behind it or escapes to hidden content. Trapping focus inside is a WCAG 2.1 requirement for dialog components."
+      },
+      {
+        "q": "What is the purpose of `role=\"alert\"` on an element?",
+        "options": [
+          "It changes the element's visual appearance to a red warning box",
+          "It creates a live region that announces its text content to screen readers immediately when it changes",
+          "It makes the element focusable so users can navigate to it with Tab",
+          "It prevents the element from being scrolled out of view"
+        ],
+        "answer": 1,
+        "explain": "role=alert is an assertive live region. Screen readers interrupt the current announcement and immediately read the new content — appropriate for error messages and urgent status updates."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the accessibility tree?",
+        "back": "A parallel tree built by the browser from the DOM, exposing semantic role, state, name, and value of elements to OS accessibility APIs used by screen readers and other assistive technologies."
+      },
+      {
+        "front": "What is WCAG and what are the conformance levels?",
+        "back": "Web Content Accessibility Guidelines. A = minimum baseline (must). AA = industry standard requirement (should). AAA = enhanced (aspire to). Most legal requirements target AA."
+      },
+      {
+        "front": "What does `tabIndex=\"0\"` vs `tabIndex=\"-1\"` do?",
+        "back": "tabIndex=0 adds the element to the natural tab order. tabIndex=-1 removes it from tab order but allows programmatic focus via .focus() — used for focus-managed components like modals."
+      },
+      {
+        "front": "What is a skip link?",
+        "back": "A visually hidden link at the top of the page that becomes visible on focus. It allows keyboard users to skip repetitive navigation and jump directly to main content."
+      },
+      {
+        "front": "What is `prefers-reduced-motion`?",
+        "back": "A CSS media query and JavaScript media.matches check indicating the user has requested minimal motion (OS accessibility setting). Animations should be reduced or removed when it is true."
+      },
+      {
+        "front": "What is an ARIA live region?",
+        "back": "An element with aria-live='polite' or 'assertive' that announces dynamic content changes to screen readers without requiring the user to navigate to it — ideal for status messages."
+      },
+      {
+        "front": "What does `aria-expanded` communicate?",
+        "back": "The expanded/collapsed state of a disclosure widget (accordion, dropdown, tree). Screen readers announce 'expanded' or 'collapsed' so users know whether child content is currently visible."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `buildFocusTrap(elements)`. Given an ordered array of focusable element names (strings), return an object with `next(current)` and `prev(current)` that return the next/previous focusable element name, wrapping around at the ends. This simulates the Tab/Shift+Tab behaviour inside a focus trap.",
+        "starter": "function buildFocusTrap(elements) {\n  // Return { next(current), prev(current) }\n}",
+        "tests": "const trap = buildFocusTrap(['close', 'input', 'cancel', 'confirm']);\ncheck('next from first', () => expect(trap.next('close')).toBe('input'));\ncheck('next wraps', () => expect(trap.next('confirm')).toBe('close'));\ncheck('prev from last', () => expect(trap.prev('confirm')).toBe('cancel'));\ncheck('prev wraps', () => expect(trap.prev('close')).toBe('confirm'));\ncheck('single element', () => {\n  const t = buildFocusTrap(['x']);\n  expect(t.next('x')).toBe('x');\n  expect(t.prev('x')).toBe('x');\n});",
+        "solution": "function buildFocusTrap(elements) {\n  return {\n    next(current) {\n      const i = elements.indexOf(current);\n      return elements[(i + 1) % elements.length];\n    },\n    prev(current) {\n      const i = elements.indexOf(current);\n      return elements[(i - 1 + elements.length) % elements.length];\n    }\n  };\n}"
+      }
+    ]
+  }
+}

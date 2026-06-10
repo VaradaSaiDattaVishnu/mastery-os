@@ -1,0 +1,882 @@
+{
+  "be-node-loop": {
+    "quiz": [
+      {
+        "q": "Which phase of the Node.js event loop executes `setImmediate` callbacks?",
+        "options": [
+          "timers",
+          "poll",
+          "check",
+          "close callbacks"
+        ],
+        "answer": 2,
+        "explain": "The check phase runs setImmediate callbacks immediately after the poll phase drains, making it distinct from setTimeout (timers phase) and I/O callbacks."
+      },
+      {
+        "q": "Why does Node.js never block on file I/O even though JavaScript is single-threaded?",
+        "options": [
+          "Node.js spawns a new OS thread for every I/O call",
+          "libuv delegates I/O to a thread pool and notifies the event loop via a callback when done",
+          "File I/O is handled synchronously in a separate V8 isolate",
+          "Node.js uses fork() to create a child process per I/O operation"
+        ],
+        "answer": 1,
+        "explain": "libuv manages a thread pool (default size 4) for blocking operations like file I/O. When the work completes, libuv posts a callback into the poll phase queue, keeping the JS thread free."
+      },
+      {
+        "q": "A Promise `.then()` callback and a `setImmediate` callback are both queued at the same time. Which runs first?",
+        "options": [
+          "setImmediate, because the check phase comes before microtasks",
+          "Promise .then(), because microtasks drain completely between each event loop phase transition",
+          "They run in parallel on different threads",
+          "It depends on which was registered first in wall-clock time"
+        ],
+        "answer": 1,
+        "explain": "Microtasks (resolved promise callbacks, queueMicrotask) drain fully after each task before the event loop advances to the next phase. setImmediate is a macrotask in the check phase."
+      },
+      {
+        "q": "What happens to all other JavaScript while a synchronous `for` loop running 5 billion iterations executes?",
+        "options": [
+          "Other callbacks run concurrently on the V8 thread pool",
+          "Node.js pauses the loop and services I/O every 100ms automatically",
+          "Everything else is blocked — the single JS thread is occupied",
+          "The OS scheduler preempts JS and handles I/O transparently"
+        ],
+        "answer": 2,
+        "explain": "There is exactly one JS thread. A CPU-bound synchronous loop starves the event loop, blocking all I/O callbacks, timers, and HTTP responses until it finishes."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What are the six phases of the Node.js event loop in order?",
+        "back": "timers → pending callbacks → idle/prepare → poll → check → close callbacks. The timers phase runs setTimeout/setInterval; poll blocks waiting for I/O; check runs setImmediate."
+      },
+      {
+        "front": "What is a microtask in Node.js, and when does it run?",
+        "back": "Microtasks are Promise resolution callbacks and queueMicrotask() calls. They drain completely after every individual task (macro-task) finishes, before the event loop moves to the next phase."
+      },
+      {
+        "front": "What is libuv's role in Node.js?",
+        "back": "libuv is the C library that provides the event loop, thread pool, and platform-agnostic async I/O. It handles file system, DNS, and other blocking operations on background threads and notifies Node via callbacks."
+      },
+      {
+        "front": "What is the difference between process.nextTick and setImmediate?",
+        "back": "process.nextTick fires before any I/O events, at the end of the current operation — even before Promise microtasks in some versions. setImmediate fires in the check phase, after I/O callbacks have had a chance to run."
+      },
+      {
+        "front": "Why is blocking the event loop dangerous in a Node.js server?",
+        "back": "All client requests share one thread. A single CPU-bound operation (e.g., a slow regex, JSON.parse of a huge payload) delays every pending response, timer, and I/O callback for the duration."
+      },
+      {
+        "front": "What is the default libuv thread pool size and how do you change it?",
+        "back": "The default is 4 threads. Set the UV_THREADPOOL_SIZE environment variable (max 1024) before the process starts to increase it for workloads with many concurrent file or crypto operations."
+      }
+    ],
+    "exercises": []
+  },
+
+  "be-node-async": {
+    "quiz": [
+      {
+        "q": "What is backpressure in Node.js streams?",
+        "options": [
+          "An error thrown when a stream buffer overflows",
+          "The mechanism by which a writable stream signals to a readable that it cannot accept more data, causing the readable to pause",
+          "A TCP-level flow control mechanism handled automatically by the OS",
+          "The latency added when a stream chunk must be encrypted"
+        ],
+        "answer": 1,
+        "explain": "When a Writable's internal buffer is full, write() returns false. A well-behaved Readable listens for the 'drain' event before resuming. Ignoring this causes unbounded memory growth."
+      },
+      {
+        "q": "Which of these correctly converts a Node.js callback-style function to a Promise?",
+        "options": [
+          "new Promise(fs.readFile(path))",
+          "util.promisify(fs.readFile)(path, 'utf8')",
+          "Promise.resolve(fs.readFile(path, 'utf8'))",
+          "async () => fs.readFile(path, 'utf8')"
+        ],
+        "answer": 1,
+        "explain": "util.promisify wraps a (err, value) Node-style callback function into a function that returns a Promise. The other options either don't promisify correctly or resolve the function reference itself."
+      },
+      {
+        "q": "You need to run three independent async database queries and wait for all to complete. What is the best approach?",
+        "options": [
+          "await query1(); await query2(); await query3();",
+          "await Promise.race([query1(), query2(), query3()])",
+          "await Promise.all([query1(), query2(), query3()])",
+          "query1().then(() => query2()).then(() => query3())"
+        ],
+        "answer": 2,
+        "explain": "Promise.all runs all three concurrently and resolves when all finish. Sequential awaits (option A) run them one at a time, tripling latency. Promise.race resolves after only the first completes."
+      },
+      {
+        "q": "What does the async keyword on a function guarantee?",
+        "options": [
+          "The function runs on a worker thread",
+          "The function always returns a Promise, even if it returns a plain value",
+          "All awaited operations run in parallel",
+          "Errors inside the function are silently swallowed"
+        ],
+        "answer": 1,
+        "explain": "An async function always wraps its return value in a resolved Promise. Errors thrown inside become rejected Promises. It has no effect on threading — the code still runs on the single JS thread."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the difference between a Promise and a callback?",
+        "back": "Callbacks are functions passed to async operations; they can only be called once but lead to nesting hell. Promises represent a future value with .then/.catch chaining, composability (Promise.all, race), and cleaner async/await syntax."
+      },
+      {
+        "front": "What happens when you await a value that is not a Promise?",
+        "back": "await wraps it in Promise.resolve() and yields to the microtask queue momentarily, then resumes. The effect is that even a plain value goes through one microtask tick, but the function continues normally with that value."
+      },
+      {
+        "front": "What are Node.js Transform streams used for?",
+        "back": "Transform streams are duplex streams that read data, modify it, and write the result — e.g., gzip compression, encryption, JSON parsing line-by-line. They participate in the backpressure mechanism like any readable/writable."
+      },
+      {
+        "front": "How does stream piping help with backpressure?",
+        "back": "readable.pipe(writable) automatically wires the backpressure: when the writable's buffer is full (write returns false), pipe pauses the readable. When 'drain' fires, it resumes — preventing memory from growing unbounded."
+      },
+      {
+        "front": "What does Promise.allSettled do that Promise.all does not?",
+        "back": "Promise.allSettled waits for all promises to settle (resolve or reject) and returns an array of {status, value/reason} objects. Promise.all short-circuits and rejects immediately if any promise rejects."
+      },
+      {
+        "front": "What is unhandled promise rejection and why is it dangerous?",
+        "back": "A promise that rejects with no .catch handler is an unhandled rejection. In modern Node.js it terminates the process. Always attach .catch() or use try/catch in async functions, and listen for the 'unhandledRejection' process event for safety."
+      },
+      {
+        "front": "When would you use a Node.js Readable stream in object mode?",
+        "back": "Object mode allows a stream to emit arbitrary JS objects instead of Buffers/strings. This is useful for streaming database cursors row-by-row, piping parsed JSON objects through a pipeline without serializing back to strings."
+      }
+    ],
+    "exercises": []
+  },
+
+  "be-node-express": {
+    "quiz": [
+      {
+        "q": "In Express, what must you do to pass control to the next middleware in the stack?",
+        "options": [
+          "return true from the middleware function",
+          "call next()",
+          "call res.continue()",
+          "nothing — Express automatically advances after each middleware"
+        ],
+        "answer": 1,
+        "explain": "Express middleware must explicitly call next() to hand control to the next function in the pipeline. Without it, the request hangs. Calling next(err) skips to error-handling middleware."
+      },
+      {
+        "q": "Which Express middleware signature marks it as an error handler?",
+        "options": [
+          "(req, res) => {}",
+          "(err, req, res, next) => {}",
+          "(error) => {}",
+          "(req, res, err, next) => {}"
+        ],
+        "answer": 1,
+        "explain": "Express identifies error-handling middleware by the presence of exactly four parameters. The first parameter is the error object. These must be registered after all other routes/middleware."
+      },
+      {
+        "q": "What is the difference between app.use('/api', router) and app.get('/api/users', handler)?",
+        "options": [
+          "No difference — both mount at the same path",
+          "app.use mounts an entire sub-router at a prefix, matching any method/sub-path; app.get only matches GET at exactly that path",
+          "app.use is for middleware only, not routers",
+          "app.get is always faster because it does not create a sub-router"
+        ],
+        "answer": 1,
+        "explain": "app.use('/api', router) strips the '/api' prefix and routes all remaining path/method combinations through the router. app.get only matches HTTP GET on that exact path."
+      },
+      {
+        "q": "Middleware A sets req.user. Middleware B tries to read req.user but it is undefined. What is the most likely cause?",
+        "options": [
+          "B ran before A in the registration order",
+          "req.user cannot be set on the request object",
+          "Middleware must return values, not set properties",
+          "B is an error-handling middleware and skipped A"
+        ],
+        "answer": 0,
+        "explain": "Express middleware runs in registration order. If B is registered before A, req.user has not yet been set when B executes. Order is everything in the middleware pipeline."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the Express request lifecycle from incoming TCP packet to response?",
+        "back": "HTTP parser → body parser (buffers body) → global middleware stack (in order) → route-matching → route middleware (in order) → route handler → response. Error middleware runs if next(err) is called."
+      },
+      {
+        "front": "What does app.use() without a path prefix do?",
+        "back": "It registers middleware that runs for every incoming request regardless of path or HTTP method. Commonly used for body parsers, logging (morgan), authentication, and CORS headers."
+      },
+      {
+        "front": "What is the purpose of express.Router()?",
+        "back": "Router creates a mini-app with its own middleware and route definitions. It enables modular route organisation: define routes in separate files, mount them at a prefix with app.use('/prefix', router)."
+      },
+      {
+        "front": "How do you set a global error handler in Express?",
+        "back": "Register a middleware with four parameters (err, req, res, next) at the very end of the middleware stack, after all routes. Any middleware calling next(err) will skip regular middleware and jump to this handler."
+      },
+      {
+        "front": "What is the danger of forgetting await on an async route handler in Express?",
+        "back": "The thrown error from the async function becomes an unhandled promise rejection. Express's error handler is not triggered. Wrap async handlers: (req, res, next) => asyncFn(req, res).catch(next)."
+      },
+      {
+        "front": "What is the difference between req.params, req.query, and req.body?",
+        "back": "req.params holds URL segment variables (:id). req.query holds ?key=value query string values. req.body holds the parsed request body (requires body-parser / express.json() middleware)."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `compose(...fns)` that takes an array of Express-style middleware functions `(req, res, next)` and returns a single middleware that runs them in order, passing control via `next`. If any middleware calls `next('error')`, stop the chain and call the final callback with that error.\n\nSignature: `compose(...fns)` returns `(req, res, done) => void`",
+        "starter": "function compose(...fns) {\n  // your code — return a single (req, res, done) middleware\n}",
+        "tests": "const log = [];\nconst mw1 = (req, res, next) => { log.push('mw1'); req.x = 1; next(); };\nconst mw2 = (req, res, next) => { log.push('mw2'); req.x += 1; next(); };\nconst mwErr = (req, res, next) => { next('oops'); };\n\ncheck('runs both middleware in order', () => {\n  log.length = 0;\n  const chain = compose(mw1, mw2);\n  const req = {}, res = {};\n  chain(req, res, (err) => { expect(err).toBe(undefined); });\n  expect(log).toEqual(['mw1','mw2']);\n  expect(req.x).toBe(2);\n});\n\ncheck('propagates error and stops chain', () => {\n  log.length = 0;\n  const chain = compose(mw1, mwErr, mw2);\n  const req = {}, res = {};\n  let caught;\n  chain(req, res, (err) => { caught = err; });\n  expect(caught).toBe('oops');\n  expect(log).toEqual(['mw1']);\n});",
+        "solution": "function compose(...fns) {\n  return function(req, res, done) {\n    let i = 0;\n    function next(err) {\n      if (err !== undefined || i >= fns.length) return done(err);\n      const fn = fns[i++];\n      try { fn(req, res, next); } catch(e) { done(e); }\n    }\n    next();\n  };\n}"
+      }
+    ]
+  },
+
+  "be-api-rest": {
+    "quiz": [
+      {
+        "q": "A client sends a PUT request to create-or-replace a resource. The server applies the operation twice. According to REST principles, what should happen?",
+        "options": [
+          "The second request should return a 409 Conflict error",
+          "The server should create two copies of the resource",
+          "The result should be identical to applying it once — PUT must be idempotent",
+          "The client must include an Idempotency-Key header to make it safe"
+        ],
+        "answer": 2,
+        "explain": "PUT is defined as idempotent: applying it N times must have the same effect as applying it once. This is a fundamental REST constraint that enables safe retries on network failures."
+      },
+      {
+        "q": "Which HTTP status code should a REST API return when a resource is successfully created?",
+        "options": [
+          "200 OK",
+          "201 Created",
+          "202 Accepted",
+          "204 No Content"
+        ],
+        "answer": 1,
+        "explain": "201 Created signals that the request succeeded and a new resource was created. The Location header should point to the new resource. 200 means success with a response body; 202 means accepted for async processing."
+      },
+      {
+        "q": "Which pagination strategy is most appropriate for a live feed where new items are inserted frequently?",
+        "options": [
+          "Offset/limit pagination (OFFSET 100 LIMIT 20)",
+          "Page-number pagination (?page=5&per_page=20)",
+          "Cursor-based pagination using the last seen item's ID or timestamp",
+          "Total-count pagination that recalculates the full count on each request"
+        ],
+        "answer": 2,
+        "explain": "Cursor-based pagination is stable under insertions because it anchors to a specific item rather than a row count. Offset pagination suffers from row drift: new items shift all subsequent pages."
+      },
+      {
+        "q": "A REST API returns a list of orders at `/api/orders`. To support multiple API versions without breaking existing clients, which approach avoids polluting the URL?",
+        "options": [
+          "Query param: /api/orders?version=2",
+          "URL path: /api/v2/orders",
+          "Accept header: Accept: application/vnd.myapi.v2+json",
+          "Cookie: api-version=2"
+        ],
+        "answer": 2,
+        "explain": "Content negotiation via Accept headers is the purest REST versioning approach — URLs identify resources, not versions. However, URL versioning (/v2/) is widely used in practice because it is more debuggable and cache-friendly."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What does idempotency mean for HTTP methods?",
+        "back": "A method is idempotent if sending the same request multiple times has the same server-side effect as sending it once. GET, PUT, DELETE, HEAD, and OPTIONS are idempotent. POST is not. This property makes retries safe."
+      },
+      {
+        "front": "What is the difference between 401 Unauthorized and 403 Forbidden?",
+        "back": "401 means the request lacks valid authentication credentials — the client should authenticate and retry. 403 means the server understood the request and the identity is known, but that identity is not permitted to access the resource."
+      },
+      {
+        "front": "When should you use 422 Unprocessable Entity vs 400 Bad Request?",
+        "back": "400 signals a malformed request (invalid JSON, missing Content-Type). 422 signals the request is syntactically valid but semantically wrong — e.g., validation failures like 'email already exists' or a numeric field out of allowed range."
+      },
+      {
+        "front": "What is HATEOAS and why do few APIs implement it fully?",
+        "back": "HATEOAS (Hypermedia as the Engine of Application State) means responses include links to related actions, letting clients discover the API without out-of-band docs. It is rarely fully implemented because the client complexity it introduces often outweighs the decoupling benefit."
+      },
+      {
+        "front": "What is the purpose of the ETag / If-None-Match header pair?",
+        "back": "ETag is a resource fingerprint (hash or version) returned by the server. Clients send it back in If-None-Match; if the resource hasn't changed, the server returns 304 Not Modified with no body, saving bandwidth."
+      },
+      {
+        "front": "What distinguishes a REST resource from a REST endpoint?",
+        "back": "A resource is a noun — a conceptual entity (Order, User, Product). An endpoint is a URL that addresses that resource. Multiple HTTP methods (GET, POST, PUT, DELETE) on the same URL act on one resource — not one verb per URL."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `httpStatus(operation, result)` that returns the correct HTTP status code.\n\nRules:\n- operation `'create'`, result `'ok'` → 201\n- operation `'read'` or `'update'` or `'delete'`, result `'ok'` → 200\n- operation `'delete'`, result `'noContent'` → 204\n- result `'notFound'` → 404\n- result `'unauthorized'` → 401\n- result `'forbidden'` → 403\n- result `'validationError'` → 422\n- anything else → 500",
+        "starter": "function httpStatus(operation, result) {\n  // your code\n}",
+        "tests": "check('create ok → 201', () => expect(httpStatus('create','ok')).toBe(201));\ncheck('read ok → 200', () => expect(httpStatus('read','ok')).toBe(200));\ncheck('update ok → 200', () => expect(httpStatus('update','ok')).toBe(200));\ncheck('delete noContent → 204', () => expect(httpStatus('delete','noContent')).toBe(204));\ncheck('notFound → 404', () => expect(httpStatus('read','notFound')).toBe(404));\ncheck('unauthorized → 401', () => expect(httpStatus('read','unauthorized')).toBe(401));\ncheck('forbidden → 403', () => expect(httpStatus('read','forbidden')).toBe(403));\ncheck('validationError → 422', () => expect(httpStatus('create','validationError')).toBe(422));\ncheck('unknown → 500', () => expect(httpStatus('read','unknown')).toBe(500));",
+        "solution": "function httpStatus(operation, result) {\n  if (result === 'notFound') return 404;\n  if (result === 'unauthorized') return 401;\n  if (result === 'forbidden') return 403;\n  if (result === 'validationError') return 422;\n  if (result === 'ok') {\n    if (operation === 'create') return 201;\n    return 200;\n  }\n  if (result === 'noContent') return 204;\n  return 500;\n}"
+      }
+    ]
+  },
+
+  "be-api-validation": {
+    "quiz": [
+      {
+        "q": "Why should input validation always happen at the API boundary rather than deeper in the service layer?",
+        "options": [
+          "Service layers cannot access request data",
+          "Validating at the boundary prevents malformed data from polluting internal state, database writes, and downstream services — it fails fast with a clear error",
+          "Boundary validation is faster because it avoids database round-trips",
+          "Joi and Zod only work in HTTP middleware"
+        ],
+        "answer": 1,
+        "explain": "The boundary is the trust perimeter. Validating early means bad data never reaches business logic, avoids partial mutations, and gives the caller a precise error immediately rather than a confusing 500 deep in the stack."
+      },
+      {
+        "q": "What is a DTO (Data Transfer Object) in the context of API validation?",
+        "options": [
+          "A database model that maps directly to a table",
+          "A typed shape describing exactly what data a request should contain, used to validate and transform input before it reaches business logic",
+          "A caching layer that stores frequently requested objects",
+          "An ORM entity with built-in validation decorators"
+        ],
+        "answer": 1,
+        "explain": "A DTO defines the contract for incoming or outgoing data. It is validated at the boundary and often differs from the internal domain model — e.g., a CreateUserDTO includes password, but the User domain object stores only a hash."
+      },
+      {
+        "q": "A user submits a form with `age: '25'` (string). Your schema expects a number. Which validation behaviour is safest?",
+        "options": [
+          "Silently coerce '25' to 25 and continue",
+          "Reject the request with a 422 error explaining the type mismatch",
+          "Accept any truthy value and let the database cast it",
+          "Convert to number only if the field is named 'age' or 'count'"
+        ],
+        "answer": 1,
+        "explain": "Coercion hides client bugs and can be exploited. Strict rejection with a descriptive error forces clients to send the correct type, making the contract explicit and preventing unexpected type coercions deeper in the system."
+      },
+      {
+        "q": "Which of these best describes schema-level validation versus business-rule validation?",
+        "options": [
+          "No difference — both should be done in the database",
+          "Schema validation checks type/format/presence (email is a string, age > 0); business-rule validation checks domain logic (email not already taken, order total > minimum)",
+          "Business rules run synchronously; schema validation is always async",
+          "Schema validation is done by the database ORM; business rules by the frontend"
+        ],
+        "answer": 1,
+        "explain": "Schema validation is stateless and cheap — it checks the shape of the data. Business-rule validation may require database lookups or domain knowledge. Both are necessary; neither substitutes for the other."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the principle 'never trust input, always shape it'?",
+        "back": "Every piece of external input (HTTP body, query params, headers, environment variables) must be validated against an explicit schema and transformed into the exact type/shape the system expects. Trusting raw input leads to type errors, injection, and unexpected behaviour."
+      },
+      {
+        "front": "What is the difference between whitelisting and blacklisting in input validation?",
+        "back": "Whitelisting (allow-listing) specifies exactly which fields and values are permitted; anything else is rejected. Blacklisting tries to block known bad values. Whitelisting is always safer because unknown-bad inputs pass a blacklist."
+      },
+      {
+        "front": "What is mass assignment and how do you prevent it?",
+        "back": "Mass assignment occurs when a client can set fields on a model that should not be user-controlled (e.g., isAdmin: true). Prevent it by validating against an explicit DTO that only includes allowed fields, stripping all others."
+      },
+      {
+        "front": "What is a Joi (or Zod) schema and what does it give you?",
+        "back": "A declarative description of valid data: types, required fields, formats, ranges, and custom rules. Validating against it returns either a typed, clean value or a structured list of errors — enabling informative 422 responses."
+      },
+      {
+        "front": "Why validate query parameters and headers, not just the request body?",
+        "back": "Attacks and bugs come through all request surfaces. A malformed ?limit=-1 can break pagination logic. An unexpected Content-Type header can cause body parsing to fail silently. Validate every piece of data that your code reads."
+      },
+      {
+        "front": "What does 'sanitisation' mean versus 'validation'?",
+        "back": "Validation checks whether data meets a contract and rejects it if not. Sanitisation modifies data to remove dangerous content (e.g., stripping HTML tags before storing to prevent XSS). Both are needed; sanitisation should never substitute for validation."
+      }
+    ],
+    "exercises": []
+  },
+
+  "be-api-resilience": {
+    "quiz": [
+      {
+        "q": "The token bucket rate-limiting algorithm allows bursts. What does this mean?",
+        "options": [
+          "Requests are queued and released at exactly one per interval",
+          "Tokens accumulate while unused (up to the bucket capacity), allowing a burst of requests to be served immediately before the bucket empties",
+          "Burst mode disables rate limiting for premium users",
+          "The bucket doubles in size when traffic spikes"
+        ],
+        "answer": 1,
+        "explain": "In a token bucket, tokens refill at a fixed rate and accumulate up to capacity. If a client hasn't made requests recently, it has a full bucket and can burst. This contrasts with fixed-window limiting where bursts cause throttling even after quiet periods."
+      },
+      {
+        "q": "Why should retries use exponential backoff with jitter rather than a fixed retry interval?",
+        "options": [
+          "Fixed intervals are not allowed by HTTP",
+          "Exponential backoff reduces load on a struggling server; jitter randomises retry times so multiple clients don't create a thundering herd by retrying in sync",
+          "Jitter ensures each retry uses a different IP address",
+          "Fixed intervals retry too quickly the first time and too slowly later"
+        ],
+        "answer": 1,
+        "explain": "Without jitter, all clients that received errors at the same moment will retry simultaneously, potentially re-overloading the server in synchronised waves. Jitter spreads retry times, smoothing the load."
+      },
+      {
+        "q": "A circuit breaker is in the OPEN state. What happens to incoming requests?",
+        "options": [
+          "Requests are queued until the downstream service recovers",
+          "Requests are immediately rejected (fail-fast) without even attempting to call the downstream service",
+          "Requests are routed to a secondary service automatically",
+          "The circuit breaker forwards requests but logs failures for monitoring"
+        ],
+        "answer": 1,
+        "explain": "An OPEN circuit breaker fails-fast, protecting both the calling service (from cascading failures) and the downstream service (from being hammered while it recovers). After a timeout, it transitions to HALF-OPEN to test recovery."
+      },
+      {
+        "q": "What distinguishes a timeout from a circuit breaker?",
+        "options": [
+          "They are the same pattern with different names",
+          "A timeout stops waiting for a single slow response; a circuit breaker prevents any calls to a failing service after a failure threshold is exceeded",
+          "Timeouts are for databases; circuit breakers are for HTTP services",
+          "A timeout is client-side; a circuit breaker is always server-side"
+        ],
+        "answer": 1,
+        "explain": "Timeouts are per-request safeguards: they bound how long you wait. Circuit breakers are stateful counters across requests: once failures cross a threshold, they open and stop sending requests entirely until the service recovers."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What are the three states of a circuit breaker?",
+        "back": "CLOSED: requests flow normally; failures are counted. OPEN: all requests fail immediately (fail-fast); opened after failure threshold exceeded. HALF-OPEN: a probe request is allowed; if it succeeds, the circuit closes; if it fails, it opens again."
+      },
+      {
+        "front": "What is exponential backoff with full jitter?",
+        "back": "delay = random(0, min(cap, base * 2^attempt)). Each retry waits up to 2^attempt * base ms (capped), but a random fraction of that is chosen. This prevents thundering herd while still backing off when a service is struggling."
+      },
+      {
+        "front": "What is the token bucket algorithm?",
+        "back": "Each client has a bucket that holds up to N tokens. Tokens are added at rate R per second. Each request consumes one token. If the bucket is empty, the request is rejected (or queued). The bucket allows bursting while enforcing a steady-state rate."
+      },
+      {
+        "front": "What is the difference between rate limiting and throttling?",
+        "back": "Rate limiting rejects requests that exceed a threshold (returns 429). Throttling slows them down (queues them, delays responses). Rate limiting protects the service from abuse; throttling degrades gracefully but still processes requests."
+      },
+      {
+        "front": "What is cascading failure and how does fail-fast prevent it?",
+        "back": "Cascading failure: a slow downstream service causes upstream callers to accumulate threads/connections waiting, exhausting their resources, causing them to fail, and so on up the chain. Fail-fast (timeouts + open circuit) returns immediately, freeing resources."
+      },
+      {
+        "front": "What is a bulkhead pattern?",
+        "back": "Partition resources (thread pools, connection pools) per downstream dependency. If one dependency becomes slow, its pool fills up but other pools remain available. Named after ship bulkheads that isolate flooding to one compartment."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `tokenBucket(capacity, refillPerSecond)` that returns a function `consume(tokens = 1)` → `boolean`.\n\n- The bucket starts full.\n- Tokens refill continuously at `refillPerSecond` (use elapsed time since last call).\n- `consume(n)` removes n tokens if available and returns `true`; otherwise returns `false` without modifying the bucket.\n- Bucket never exceeds `capacity`.\n\nFor testing, `Date.now` is injectable: the factory accepts an optional `now = () => Date.now()` parameter.",
+        "starter": "function tokenBucket(capacity, refillPerSecond, now = () => Date.now()) {\n  // your code — return consume function\n}",
+        "tests": "// fixed clock for deterministic tests\nlet t = 0;\nconst clock = () => t;\n\nconst consume = tokenBucket(10, 5, clock); // cap=10, 5 tokens/sec\n\ncheck('starts full — can consume 10', () => {\n  t = 0;\n  expect(consume(10)).toBe(true);\n});\ncheck('bucket empty — consume fails', () => {\n  expect(consume(1)).toBe(false);\n});\ncheck('after 1s, 5 tokens refilled', () => {\n  t = 1000; // 1 second later\n  expect(consume(5)).toBe(true);\n});\ncheck('cannot exceed capacity', () => {\n  t = 10000; // 10s later — would add 50 tokens but cap is 10\n  expect(consume(10)).toBe(true);\n  expect(consume(1)).toBe(false);\n});",
+        "solution": "function tokenBucket(capacity, refillPerSecond, now = () => Date.now()) {\n  let tokens = capacity;\n  let lastRefill = now();\n  return function consume(n = 1) {\n    const current = now();\n    const elapsed = (current - lastRefill) / 1000;\n    tokens = Math.min(capacity, tokens + elapsed * refillPerSecond);\n    lastRefill = current;\n    if (tokens >= n) {\n      tokens -= n;\n      return true;\n    }\n    return false;\n  };\n}"
+      },
+      {
+        "prompt": "Implement `retryWithBackoff(fn, maxAttempts, baseDelayMs)` that calls the async `fn()` up to `maxAttempts` times.\n\n- On failure, wait `baseDelayMs * 2^attempt` ms before the next try (attempt starts at 0).\n- Add full jitter: actual delay = `Math.random() * calculatedDelay`.\n- If all attempts fail, reject with the last error.\n- If `fn` succeeds, resolve with its value.\n\nFor deterministic tests, accept optional `sleep = (ms) => new Promise(r => setTimeout(r, ms))` and `rand = Math.random`.",
+        "starter": "async function retryWithBackoff(fn, maxAttempts, baseDelayMs, sleep = (ms) => new Promise(r => setTimeout(r, ms)), rand = Math.random) {\n  // your code\n}",
+        "tests": "const noSleep = () => Promise.resolve();\nconst noRand = () => 0.5;\n\ncheck('succeeds on first try', async () => {\n  let n = 0;\n  const result = await retryWithBackoff(() => { n++; return Promise.resolve('ok'); }, 3, 10, noSleep, noRand);\n  expect(result).toBe('ok');\n  expect(n).toBe(1);\n});\n\ncheck('retries and succeeds on 3rd attempt', async () => {\n  let n = 0;\n  const fn = () => { n++; if (n < 3) return Promise.reject(new Error('fail')); return Promise.resolve('done'); };\n  const result = await retryWithBackoff(fn, 3, 10, noSleep, noRand);\n  expect(result).toBe('done');\n  expect(n).toBe(3);\n});\n\ncheck('rejects after all attempts exhausted', async () => {\n  let n = 0;\n  const fn = () => { n++; return Promise.reject(new Error('always fails')); };\n  let err;\n  try { await retryWithBackoff(fn, 3, 10, noSleep, noRand); } catch(e) { err = e; }\n  expect(err.message).toBe('always fails');\n  expect(n).toBe(3);\n});",
+        "solution": "async function retryWithBackoff(fn, maxAttempts, baseDelayMs, sleep = (ms) => new Promise(r => setTimeout(r, ms)), rand = Math.random) {\n  let lastErr;\n  for (let i = 0; i < maxAttempts; i++) {\n    try {\n      return await fn();\n    } catch (e) {\n      lastErr = e;\n      if (i < maxAttempts - 1) {\n        const delay = rand() * baseDelayMs * Math.pow(2, i);\n        await sleep(delay);\n      }\n    }\n  }\n  throw lastErr;\n}"
+      }
+    ]
+  },
+
+  "be-api-fastapi": {
+    "quiz": [
+      {
+        "q": "What does FastAPI use Pydantic for?",
+        "options": [
+          "Database migrations and ORM queries",
+          "Request/response data validation and serialisation using Python type annotations",
+          "Dependency injection and service container management",
+          "Async task scheduling and background jobs"
+        ],
+        "answer": 1,
+        "explain": "Pydantic models in FastAPI automatically validate incoming request bodies and serialise response data based on Python type hints. Invalid data returns a 422 with field-level error details."
+      },
+      {
+        "q": "Why is FastAPI's async def route handler different from a regular def route handler?",
+        "options": [
+          "async def routes run on multiple threads simultaneously",
+          "async def routes run on the event loop and can await I/O without blocking the server; def routes are run in a thread pool to avoid blocking the loop",
+          "def routes are deprecated in FastAPI and will be removed",
+          "async def routes skip Pydantic validation for speed"
+        ],
+        "answer": 1,
+        "explain": "FastAPI runs on Starlette/uvicorn's async event loop. async def handlers can await coroutines directly. Synchronous def handlers are run in a thread pool executor to prevent them from blocking the event loop."
+      },
+      {
+        "q": "What is uvicorn's role in a FastAPI deployment?",
+        "options": [
+          "It is a database connection pooler",
+          "It is an ASGI server — it handles HTTP connections and routes requests to the FastAPI ASGI application",
+          "It is a process manager like PM2 that restarts crashed services",
+          "It compiles Python to bytecode for faster startup"
+        ],
+        "answer": 1,
+        "explain": "uvicorn is a lightweight ASGI server that speaks HTTP/1.1 and HTTP/2, accepts connections, and feeds requests to the FastAPI app (which implements the ASGI interface). Gunicorn + uvicorn workers is a common production setup."
+      },
+      {
+        "q": "FastAPI is ideal for serving ML models because:",
+        "options": [
+          "It ships with TensorFlow and PyTorch built in",
+          "Its async runtime, automatic OpenAPI docs, and Pydantic schemas make it fast to build, validate, and document inference endpoints while handling concurrent requests efficiently",
+          "It compiles ML models to WebAssembly for browser deployment",
+          "It automatically batches inference requests on GPU"
+        ],
+        "answer": 1,
+        "explain": "FastAPI's combination of high performance (async + uvicorn), automatic schema validation (Pydantic), and instant /docs (OpenAPI) makes it the dominant Python framework for ML inference APIs."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is ASGI and how does it differ from WSGI?",
+        "back": "ASGI (Asynchronous Server Gateway Interface) is the async successor to WSGI. WSGI is synchronous — one request per thread. ASGI supports async/await, WebSockets, and long-lived connections. FastAPI is ASGI; Flask/Django (classic) are WSGI."
+      },
+      {
+        "front": "What does a Pydantic BaseModel give you that a plain Python dict does not?",
+        "back": "Type coercion and validation on assignment, field-level error messages with paths, default values, field aliases, JSON serialisation/deserialisation, and IDE autocompletion — all from Python type annotations."
+      },
+      {
+        "front": "How does FastAPI's dependency injection system work?",
+        "back": "Route functions declare dependencies as `Depends(callable)` parameters. FastAPI resolves them before calling the handler — instantiating DB sessions, verifying auth tokens, loading config. Dependencies can themselves have dependencies, forming a DAG."
+      },
+      {
+        "front": "What HTTP status code does FastAPI return when Pydantic validation fails?",
+        "back": "422 Unprocessable Entity, with a JSON body listing each field path, its value, and the exact validation error type. This is automatic — no extra error-handling code needed."
+      },
+      {
+        "front": "What is the difference between a path parameter and a query parameter in FastAPI?",
+        "back": "Path parameters are part of the URL: @app.get('/items/{item_id}'). Query parameters are appended after ?: @app.get('/items') with def f(skip: int = 0). FastAPI infers the type and makes it optional/required from the function signature."
+      },
+      {
+        "front": "How do you run CPU-bound work in FastAPI without blocking the event loop?",
+        "back": "Use asyncio.to_thread() or a ProcessPoolExecutor to run the CPU-heavy code off the event loop. A synchronous def route is automatically run in a thread pool, but a ProcessPoolExecutor is needed for true parallelism past the GIL."
+      }
+    ],
+    "exercises": []
+  },
+
+  "be-rt-ws": {
+    "quiz": [
+      {
+        "q": "How does a WebSocket connection differ from a standard HTTP request/response?",
+        "options": [
+          "WebSocket uses UDP while HTTP uses TCP",
+          "WebSocket starts with an HTTP upgrade handshake, then becomes a persistent full-duplex TCP connection where either side can send at any time",
+          "WebSocket requires a new TCP connection for each message",
+          "WebSocket connections are stateless like HTTP but use binary frames"
+        ],
+        "answer": 1,
+        "explain": "A WebSocket begins life as an HTTP/1.1 request with Upgrade: websocket. After the server replies 101 Switching Protocols, the TCP connection stays open and both client and server can push frames independently — no polling needed."
+      },
+      {
+        "q": "In a multi-server WebSocket deployment, why can't you naively broadcast a message to all clients in a room?",
+        "options": [
+          "WebSocket rooms don't exist in the spec",
+          "Clients connected to server A are not known to server B — a broadcast from server B's in-memory room map will miss them",
+          "TCP connections cannot be shared between server processes",
+          "Broadcasts require all servers to be on the same physical host"
+        ],
+        "answer": 1,
+        "explain": "Socket connections are held in process memory. In a multi-server setup, each server has different connections. To broadcast across servers you need a pub/sub layer (e.g., Redis pub/sub with socket.io-redis) so all servers receive the event and push it to their local connections."
+      },
+      {
+        "q": "What is 'presence' in a WebSocket chat or collaboration app?",
+        "options": [
+          "Encrypting messages end-to-end",
+          "Tracking which users are currently connected and broadcasting join/leave events to the room",
+          "Persisting the chat history to a database",
+          "Authenticating users before allowing them to open a socket"
+        ],
+        "answer": 1,
+        "explain": "Presence is the real-time tracking of who is online in a space (room, document, channel). Implementing it requires tracking connect/disconnect events and broadcasting diffs to the room — complicated by server restarts and connection drops."
+      },
+      {
+        "q": "A client's WebSocket connection drops. The client reconnects. How should the server handle message ordering?",
+        "options": [
+          "Start sending from message #1 since the client has no state",
+          "Track a sequence number or last-seen cursor; on reconnect, replay any messages the client missed since its last acknowledged message",
+          "Drop all missed messages — WebSocket is best-effort like UDP",
+          "Queue messages indefinitely until the client reconnects, regardless of reconnect time"
+        ],
+        "answer": 1,
+        "explain": "Robust real-time systems assign sequence numbers or timestamps to messages and store a short backlog. On reconnect, the client sends its last-seen sequence and the server replays the delta, ensuring guaranteed ordering."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the WebSocket upgrade handshake?",
+        "back": "The client sends an HTTP GET with headers: Upgrade: websocket, Connection: Upgrade, and Sec-WebSocket-Key (base64 nonce). The server responds 101 Switching Protocols with Sec-WebSocket-Accept = SHA1(key + magic GUID) base64. The TCP connection is now a WebSocket."
+      },
+      {
+        "front": "What are WebSocket frames?",
+        "back": "The binary framing layer over TCP. Each frame has: FIN bit (last fragment), opcode (text/binary/ping/pong/close), mask bit, payload length, optional masking key (client→server must mask), and payload. Large messages can be split across continuation frames."
+      },
+      {
+        "front": "What is a WebSocket room and how do you implement one?",
+        "back": "A room is a named group of socket connections. When a socket joins a room, its connection is added to a set keyed by room name. To broadcast, iterate the set and send to each socket. In-memory rooms are local to one server; cross-server rooms need Redis pub/sub."
+      },
+      {
+        "front": "Why might you choose Server-Sent Events (SSE) over WebSockets for a feed?",
+        "back": "SSE is one-directional (server→client), works over plain HTTP/2, reconnects automatically, and is simpler to implement and proxy. Choose SSE for notification feeds where the client doesn't need to send data. Use WebSockets for bidirectional, low-latency communication."
+      },
+      {
+        "front": "How do you authenticate a WebSocket connection?",
+        "back": "Send a JWT in the Authorization header during the HTTP upgrade request (not possible from browser WebSocket API) or in the first message after connect. The server validates the token before routing any further messages. Never trust the socket without auth."
+      },
+      {
+        "front": "What is heartbeating (ping/pong) in WebSockets and why is it needed?",
+        "back": "NAT routers and proxies close idle TCP connections. Periodic ping frames (server→client) keep the connection alive. If no pong is received within a timeout, the server closes and cleans up the dead connection and its room memberships."
+      }
+    ],
+    "exercises": []
+  },
+
+  "be-rt-authjwt": {
+    "quiz": [
+      {
+        "q": "Which part of a JWT contains the user claims and is it secure to store sensitive data there?",
+        "options": [
+          "The signature — which is encrypted",
+          "The payload (second segment) — which is base64url-encoded but NOT encrypted, so anyone can decode it",
+          "The header — which is hashed with the secret",
+          "The entire token — which is AES-encrypted"
+        ],
+        "answer": 1,
+        "explain": "A JWT has three base64url segments: header.payload.signature. The payload is only encoded, not encrypted. Anyone with the token can decode and read the claims. Never store secrets, PII, or sensitive data in a JWT payload unless you use JWE (JSON Web Encryption)."
+      },
+      {
+        "q": "Why do JWTs need a refresh token mechanism?",
+        "options": [
+          "JWTs expire instantly after first use",
+          "Access tokens are short-lived (minutes) to limit damage if stolen; refresh tokens are long-lived and used only to issue new access tokens, reducing the exposure window",
+          "The server must re-verify identity on each request using the refresh token",
+          "Refresh tokens are required by the OAuth2 specification for all token types"
+        ],
+        "answer": 1,
+        "explain": "Short access token TTLs limit how long a stolen token can be used. Refresh tokens are stored securely (httpOnly cookie) and only sent to the auth server. This separates the high-frequency access token from the sensitive long-lived credential."
+      },
+      {
+        "q": "What is the primary advantage of stateless JWT authentication over server-side sessions?",
+        "options": [
+          "JWTs are always more secure than sessions",
+          "The server needs no session store — any server in a cluster can validate a JWT independently using just the signing key, enabling horizontal scaling without shared state",
+          "JWTs can be revoked instantly without any infrastructure changes",
+          "JWTs are faster because they skip the signature verification step"
+        ],
+        "answer": 1,
+        "explain": "With sessions, every server must share a session store (Redis, DB) to look up the session ID. JWTs carry all claims and can be verified using a shared signing key (or public key for RS256), enabling stateless, scalable authentication."
+      },
+      {
+        "q": "How do you revoke a JWT before its expiry?",
+        "options": [
+          "You cannot — JWTs are stateless and cannot be revoked",
+          "Delete it from the client; the server cannot revoke it",
+          "Maintain a denylist (token ID or jti claim) in a fast store like Redis; check it on every request",
+          "Re-issue the token with a past expiry date and send it to the client"
+        ],
+        "answer": 2,
+        "explain": "JWT revocation requires adding statefulness. The standard approach is to store revoked jti (JWT ID) claims in Redis with a TTL matching the token's remaining lifetime. This is checked on each request before trusting the token."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What are the three parts of a JWT?",
+        "back": "header.payload.signature. Header: algorithm and token type (base64url JSON). Payload: claims — iss, sub, exp, iat, and custom (base64url JSON). Signature: HMAC-SHA256(base64(header) + '.' + base64(payload), secret) — verifies integrity."
+      },
+      {
+        "front": "What is the difference between HS256 and RS256 signing algorithms for JWTs?",
+        "back": "HS256 uses a single shared secret (symmetric). Any party with the secret can both sign and verify — not suitable when multiple services verify tokens but should not be able to issue them. RS256 uses a private key to sign and a public key to verify — services only need the public key."
+      },
+      {
+        "front": "What OAuth2 grant type is most appropriate for a SPA calling your own API?",
+        "back": "Authorization Code flow with PKCE (Proof Key for Code Exchange). The implicit flow is deprecated. PKCE prevents auth code interception attacks without requiring a client secret, which cannot be safely stored in a browser."
+      },
+      {
+        "front": "What should the Access-Control-Allow-Credentials header do and when is it needed?",
+        "back": "It allows the browser to include cookies and Authorization headers in cross-origin requests. Required when using httpOnly cookies for refresh tokens with a SPA on a different origin. Must be paired with a specific (non-wildcard) Access-Control-Allow-Origin."
+      },
+      {
+        "front": "Where should you store JWT access tokens and refresh tokens in a browser?",
+        "back": "Access tokens: memory (JS variable) or sessionStorage — accessible to JS but cleared on tab close. Refresh tokens: httpOnly, Secure, SameSite=Strict cookies — inaccessible to JS, preventing XSS theft. Never store refresh tokens in localStorage."
+      },
+      {
+        "front": "What is the 'sub' claim in a JWT?",
+        "back": "The 'sub' (subject) claim identifies the principal — typically the user ID. It is a standard registered claim. Always use it as the canonical user identifier rather than a custom claim to stay RFC 7519 compliant."
+      }
+    ],
+    "exercises": []
+  },
+
+  "be-rt-otp": {
+    "quiz": [
+      {
+        "q": "Why must OTP codes have a short expiry time (e.g. 5–10 minutes)?",
+        "options": [
+          "SMS delivery is unreliable and codes expire before delivery",
+          "Short expiry windows limit the time an attacker who intercepts the code has to use it",
+          "TOTP algorithms only work for 5-minute windows",
+          "Shorter codes are required to fit in an SMS"
+        ],
+        "answer": 1,
+        "explain": "A short expiry minimises the attack window if the code is intercepted via SMS SIM-swap, shoulder surfing, or a delayed delivery. It is the primary defence against offline brute-force of a 6-digit space (only 1M possibilities)."
+      },
+      {
+        "q": "Why is it critical to rate-limit OTP verification attempts?",
+        "options": [
+          "To reduce SMS gateway costs",
+          "A 6-digit OTP has only 1,000,000 possible values — without rate limiting, an attacker can brute-force it within seconds",
+          "The database cannot handle more than a few verification queries per second",
+          "Rate limiting prevents users from accidentally submitting forms twice"
+        ],
+        "answer": 1,
+        "explain": "With 6 digits and no rate limiting, an attacker can try all 1M codes in seconds over a fast connection. Even at 1 attempt per second, 1M codes exhaust in ~11 days — far beyond the expiry. Rate limiting to 5–10 attempts per session kills the attack."
+      },
+      {
+        "q": "What should the server return when the maximum OTP verification attempts are exceeded?",
+        "options": [
+          "200 OK with a 'wrong code' message to avoid leaking information",
+          "Invalidate the OTP immediately and return an error that forces the user to request a new code",
+          "Keep the code valid and add a 30-second delay between attempts",
+          "Return the remaining attempt count in the response for good UX"
+        ],
+        "answer": 1,
+        "explain": "Once the attempt limit is hit, invalidating the code and forcing a new request is the safest approach. It prevents further brute-forcing of that code and resets the attempt counter for the new code."
+      },
+      {
+        "q": "Which of these best describes a TOTP (Time-based OTP) compared to an SMS OTP?",
+        "options": [
+          "TOTP codes are longer and therefore more secure",
+          "TOTP generates codes from a shared secret + current time window, requiring no network delivery — eliminating SMS SIM-swap attacks",
+          "TOTP stores codes in a server database; SMS OTP does not",
+          "TOTP is only for enterprise applications; SMS OTP is for consumer apps"
+        ],
+        "answer": 1,
+        "explain": "TOTP (RFC 6238) uses HMAC-SHA1(secret, floor(time/30)) to generate codes. No network delivery means no SIM-swap or SS7 interception attack surface. Both client and server compute the same code from the shared secret."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the typical OTP flow for phone-based authentication?",
+        "back": "1. User submits phone number. 2. Server generates a cryptographically random 6-digit code, stores it hashed with expiry and attempt counter. 3. Server sends code via SMS gateway. 4. User submits code. 5. Server verifies hash, checks expiry, increments attempt counter. 6. On success: issue session/JWT; invalidate code."
+      },
+      {
+        "front": "How do you store an OTP securely on the server?",
+        "back": "Store a bcrypt or SHA-256 hash of the OTP code (not the plaintext), along with the associated phone number, expiry timestamp, and attempt count. Never store the raw code in the database — a DB breach should not expose valid codes."
+      },
+      {
+        "front": "What is a constant-time comparison and why is it needed for OTP verification?",
+        "back": "A timing-safe comparison (e.g., crypto.timingSafeEqual in Node.js) takes the same amount of time regardless of how many characters match. Regular string comparison short-circuits on the first mismatch, allowing timing attacks to infer how close a guess is."
+      },
+      {
+        "front": "How do you prevent OTP replay attacks (reusing a valid code)?",
+        "back": "Mark the OTP as used/invalidated immediately on first successful verification. Store a 'used' flag or delete the record. Even if the code is not yet expired, a second verification attempt should fail."
+      },
+      {
+        "front": "What rate-limiting strategy should protect the 'send OTP' endpoint?",
+        "back": "Limit by phone number: e.g., max 5 OTP sends per hour per number. This prevents OTP bombing (flooding a user with SMS messages) and reduces SMS gateway costs. Implement a cooldown between sends (e.g., 60 seconds)."
+      },
+      {
+        "front": "What is the difference between OTP and TOTP?",
+        "back": "OTP (one-time password) is any single-use code — typically server-generated and delivered via SMS/email. TOTP (time-based OTP, RFC 6238) derives codes from a shared secret + time window using HMAC, requiring no delivery channel. TOTP is used in authenticator apps."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement an OTP verification system.\n\nImplement `createOtpStore()` that returns `{ generate(phone), verify(phone, code) }`.\n\n- `generate(phone)`: creates a 6-digit string OTP, stores `{code, expiresAt: now+300000ms, attempts: 0}`, returns the code.\n- `verify(phone, code)`: \n  - If no OTP exists for phone → return `{ok: false, reason: 'not_found'}`\n  - If expired → return `{ok: false, reason: 'expired'}`\n  - If attempts >= 5 → return `{ok: false, reason: 'max_attempts'}`\n  - If code doesn't match → increment attempts, return `{ok: false, reason: 'wrong_code'}`\n  - If matches → delete the OTP, return `{ok: true}`\n\nAccept optional `now = () => Date.now()` for testability.",
+        "starter": "function createOtpStore(now = () => Date.now()) {\n  const store = {}; // phone → {code, expiresAt, attempts}\n\n  function generate(phone) {\n    // your code\n  }\n\n  function verify(phone, code) {\n    // your code\n  }\n\n  return { generate, verify };\n}",
+        "tests": "let fakeNow = 0;\nconst otp = createOtpStore(() => fakeNow);\n\ncheck('generate returns 6-digit string', () => {\n  fakeNow = 0;\n  const code = otp.generate('555-1234');\n  expect(typeof code).toBe('string');\n  expect(code.length).toBe(6);\n});\n\ncheck('correct code → ok:true and invalidates', () => {\n  fakeNow = 0;\n  const code = otp.generate('555-0001');\n  fakeNow = 1000;\n  const r1 = otp.verify('555-0001', code);\n  expect(r1.ok).toBe(true);\n  // second use of same code should fail\n  const r2 = otp.verify('555-0001', code);\n  expect(r2.ok).toBe(false);\n  expect(r2.reason).toBe('not_found');\n});\n\ncheck('wrong code → wrong_code', () => {\n  fakeNow = 0;\n  otp.generate('555-0002');\n  fakeNow = 1000;\n  const r = otp.verify('555-0002', '000000');\n  expect(r.ok).toBe(false);\n  expect(r.reason).toBe('wrong_code');\n});\n\ncheck('expired code → expired', () => {\n  fakeNow = 0;\n  const code = otp.generate('555-0003');\n  fakeNow = 400000; // past 300s expiry\n  const r = otp.verify('555-0003', code);\n  expect(r.ok).toBe(false);\n  expect(r.reason).toBe('expired');\n});\n\ncheck('max attempts → max_attempts', () => {\n  fakeNow = 0;\n  otp.generate('555-0004');\n  fakeNow = 1000;\n  for (let i = 0; i < 5; i++) otp.verify('555-0004', '000000');\n  const r = otp.verify('555-0004', '000000');\n  expect(r.ok).toBe(false);\n  expect(r.reason).toBe('max_attempts');\n});",
+        "solution": "function createOtpStore(now = () => Date.now()) {\n  const store = {};\n\n  function generate(phone) {\n    const code = String(Math.floor(Math.random() * 1000000)).padStart(6, '0');\n    store[phone] = { code, expiresAt: now() + 300000, attempts: 0 };\n    return code;\n  }\n\n  function verify(phone, code) {\n    const record = store[phone];\n    if (!record) return { ok: false, reason: 'not_found' };\n    if (now() > record.expiresAt) return { ok: false, reason: 'expired' };\n    if (record.attempts >= 5) return { ok: false, reason: 'max_attempts' };\n    if (record.code !== code) {\n      record.attempts++;\n      return { ok: false, reason: 'wrong_code' };\n    }\n    delete store[phone];\n    return { ok: true };\n  }\n\n  return { generate, verify };\n}"
+      }
+    ]
+  },
+
+  "be-rt-rbac": {
+    "quiz": [
+      {
+        "q": "What is the difference between authentication and authorization?",
+        "options": [
+          "They are the same — authenticating a user also authorises them",
+          "Authentication verifies identity (who you are); authorization determines what that identity is permitted to do",
+          "Authorization happens before authentication in secure systems",
+          "Authentication is client-side; authorization is always server-side"
+        ],
+        "answer": 1,
+        "explain": "Authentication answers 'who are you?' — verified by password, token, or biometric. Authorization answers 'what are you allowed to do?' — checked against roles, permissions, or policies. A user can be authenticated but not authorised for a specific resource."
+      },
+      {
+        "q": "In RBAC, what is the principle of least privilege?",
+        "options": [
+          "All users start with no roles and must request access",
+          "Each user/service is granted only the minimum permissions needed to perform its function — no more",
+          "Privileged users have fewer UI elements to reduce confusion",
+          "Admin roles are given to fewer than 1% of users"
+        ],
+        "answer": 1,
+        "explain": "Least privilege limits blast radius: if an account is compromised, the attacker can only do what that account was allowed to do. A 'viewer' role that can't write means a compromised viewer token can't corrupt data."
+      },
+      {
+        "q": "Where should authorization checks happen in a layered architecture?",
+        "options": [
+          "Only in the frontend to avoid redundant server calls",
+          "Only in the database layer via row-level security",
+          "At the API gateway only, not in individual services",
+          "At every layer that accesses the resource — API handler, service layer, and ideally the data layer — defence in depth"
+        ],
+        "answer": 3,
+        "explain": "Defence in depth means checking at multiple layers. Frontend checks improve UX (hide buttons). API middleware enforces coarse-grained access. Service layer enforces business rules. DB row-level security is a last-resort backstop."
+      },
+      {
+        "q": "You have roles: admin, editor, viewer. The 'editor' role should inherit all 'viewer' permissions plus write access. Which RBAC enhancement supports this cleanly?",
+        "options": [
+          "Duplicate all viewer permissions into the editor role definition",
+          "Role hierarchy (hierarchical RBAC), where editor inherits from viewer",
+          "Check both roles on every request with an OR condition",
+          "Add a 'can_do_viewer_things' boolean to the editor role"
+        ],
+        "answer": 1,
+        "explain": "Hierarchical RBAC lets roles inherit permissions from parent roles. This avoids duplication and ensures adding a new viewer permission automatically applies to editor and admin too."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What are the three core components of RBAC?",
+        "back": "Users (subjects), Roles (named collections of permissions), Permissions (allowed operations on resources). Users are assigned roles; roles have permissions. Access decisions check whether the user's roles include the required permission."
+      },
+      {
+        "front": "What is attribute-based access control (ABAC) and when do you use it over RBAC?",
+        "back": "ABAC evaluates policies using attributes of the subject, resource, and environment (e.g., user.department == resource.department, time < 17:00). Use ABAC when RBAC's coarse-grained roles cannot express the fine-grained context-dependent rules you need."
+      },
+      {
+        "front": "What is a permission matrix / access control matrix?",
+        "back": "A table with roles as rows and actions/resources as columns, with each cell indicating allow/deny. It makes the full permission surface visible at a glance, simplifying audits. Unity's 15-module RBAC is an example that benefits from this representation."
+      },
+      {
+        "front": "What is the difference between role-based and resource-based authorization?",
+        "back": "Role-based: 'admin can delete any order'. Resource-based (ownership): 'a user can delete their own order'. Resource-based checks require loading the resource and checking ownership, not just the role. Many real systems need both."
+      },
+      {
+        "front": "How do you enforce RBAC in a REST API middleware?",
+        "back": "After authentication, read the user's roles from the JWT or session. Define a require(permission) middleware factory that checks canAccess(req.user.roles, permission) and returns 403 if denied. Apply it per-route: router.delete('/orders/:id', require('orders:delete'), handler)."
+      },
+      {
+        "front": "What is policy enforcement point (PEP) vs policy decision point (PDP)?",
+        "back": "PEP is where the access check is enforced — your API middleware, route handler. PDP is where the access decision is made — a centralised authorization service or library (e.g., OPA, Casbin). Separating them lets you evolve policy logic independently of enforcement code."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `createRBAC(rolePermissions)` given a map of `{role: string[]}` permissions.\n\nReturn `{ can(roles, action) }` where:\n- `roles` is a string or array of role strings\n- `action` is a permission string\n- Returns `true` if any of the user's roles include the action, `false` otherwise.\n\nAlso implement `addRole(role, permissions)` to add/replace a role definition at runtime.\n\nExample: `createRBAC({admin: ['read','write','delete'], editor: ['read','write'], viewer: ['read']})`",
+        "starter": "function createRBAC(rolePermissions) {\n  // your code\n  // return { can(roles, action), addRole(role, permissions) }\n}",
+        "tests": "const rbac = createRBAC({\n  admin: ['read', 'write', 'delete'],\n  editor: ['read', 'write'],\n  viewer: ['read']\n});\n\ncheck('admin can delete', () => expect(rbac.can('admin', 'delete')).toBe(true));\ncheck('viewer cannot write', () => expect(rbac.can('viewer', 'write')).toBe(false));\ncheck('editor can write', () => expect(rbac.can('editor', 'write')).toBe(true));\ncheck('editor cannot delete', () => expect(rbac.can('editor', 'delete')).toBe(false));\ncheck('array of roles — any match returns true', () => {\n  expect(rbac.can(['viewer', 'editor'], 'write')).toBe(true);\n});\ncheck('unknown role → false', () => expect(rbac.can('superuser', 'read')).toBe(false));\ncheck('addRole works', () => {\n  rbac.addRole('moderator', ['read', 'write', 'ban']);\n  expect(rbac.can('moderator', 'ban')).toBe(true);\n  expect(rbac.can('moderator', 'delete')).toBe(false);\n});",
+        "solution": "function createRBAC(rolePermissions) {\n  const map = { ...rolePermissions };\n  return {\n    can(roles, action) {\n      const arr = Array.isArray(roles) ? roles : [roles];\n      return arr.some(r => (map[r] || []).includes(action));\n    },\n    addRole(role, permissions) {\n      map[role] = permissions;\n    }\n  };\n}"
+      }
+    ]
+  }
+}

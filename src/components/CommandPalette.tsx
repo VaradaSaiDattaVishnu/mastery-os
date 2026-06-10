@@ -25,7 +25,9 @@ export function CommandPalette() {
 
   const commands = useMemo<Cmd[]>(() => {
     const list: Cmd[] = [
-      { id: 'home', label: 'Home / Dashboard', hint: 'nav', keywords: 'home dashboard start', run: () => { navigate('/'); toggle(false) } },
+      { id: 'home', label: 'Home / Dashboard', hint: 'nav', keywords: 'home dashboard start today', run: () => { navigate('/'); toggle(false) } },
+      { id: 'review', label: 'Daily Review (spaced repetition)', hint: 'study', keywords: 'review flashcards srs recall due', run: () => { navigate('/review'); toggle(false) } },
+      { id: 'atlas', label: 'Open the Atlas (skill tree)', hint: 'map', keywords: 'atlas map skill tree mastery', run: () => { navigate('/atlas'); toggle(false) } },
       { id: 'settings', label: 'AI Tutor settings', hint: 'config', keywords: 'ai key gemini settings', run: () => { setSettingsOpen(true); toggle(false) } },
       ...tracks.map((t) => ({
         id: `t-${t.id}`,

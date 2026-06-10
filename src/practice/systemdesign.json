@@ -1,0 +1,977 @@
+{
+  "sd-scale-lb": {
+    "quiz": [
+      {
+        "q": "Your stateful WebSocket service stores session data in memory. A round-robin L7 load balancer sends the same user's requests to different nodes. What is the correct fix?",
+        "options": [
+          "Switch to an L4 load balancer to bypass HTTP",
+          "Enable sticky sessions (IP hash or session cookie) or externalise session state to Redis",
+          "Increase the number of backend nodes",
+          "Add a CDN in front of the load balancer"
+        ],
+        "answer": 1,
+        "explain": "Stateful services break under plain round-robin because a request hits a node that lacks the session. Sticky sessions pin a client to one node, or you externalise state so every node can serve every request — the latter is more resilient."
+      },
+      {
+        "q": "An L4 load balancer and an L7 load balancer both receive HTTPS traffic to the same backend pool. Which statement about them is correct?",
+        "options": [
+          "L4 can route on URL paths; L7 cannot",
+          "L7 terminates TLS and can inspect HTTP headers; L4 passes packets without decrypting them",
+          "L4 is always slower than L7 because it operates at a lower layer",
+          "L7 cannot perform health checks; only L4 can"
+        ],
+        "answer": 1,
+        "explain": "L4 (TCP/UDP) forwards packets using IP and port — no TLS termination, no header inspection. L7 (HTTP/HTTPS) terminates TLS and can route on Host headers, URL paths, or cookies, enabling content-aware routing."
+      },
+      {
+        "q": "A scale-quest node fails its health check. What should a properly configured load balancer do in the next request cycle?",
+        "options": [
+          "Hash the request to the same node and retry indefinitely",
+          "Remove the node from the active pool until it passes the health check again",
+          "Return a 503 to the client immediately without trying other nodes",
+          "Route the request using L4 instead of L7 as a fallback"
+        ],
+        "answer": 1,
+        "explain": "Health checks exist so the LB can drain a failing node from the rotation. The node is re-added once it begins passing checks. Hashing to the dead node or returning 503 immediately violates the purpose of having replicas."
+      },
+      {
+        "q": "Under a least-connections algorithm, server A has 10 active connections and server B has 2. A new request arrives. Which server gets it, and why?",
+        "options": [
+          "Server A — it has handled more total requests so it is warmer",
+          "Server B — it has fewer active connections so it is least loaded right now",
+          "Either — least-connections is the same as round-robin",
+          "Neither — least-connections requires a session cookie to route correctly"
+        ],
+        "answer": 1,
+        "explain": "Least-connections routes to the server with the fewest in-flight connections at decision time. Server B wins here. This outperforms round-robin when requests have widely varying service times."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the core job of a load balancer?",
+        "back": "Distribute incoming requests across a pool of replicas so no single node becomes a bottleneck or single point of failure. It also performs health checking and removes failed nodes from rotation."
+      },
+      {
+        "front": "L4 vs L7 load balancing — key difference",
+        "back": "L4 operates at the TCP/UDP layer: routes by IP + port, no TLS termination, very low overhead. L7 operates at HTTP: terminates TLS, reads headers/cookies/paths, enables content-based routing and sticky sessions."
+      },
+      {
+        "front": "What is a sticky session and when is it needed?",
+        "back": "A sticky session (session affinity) pins a client to the same backend node, typically via a cookie or IP hash. It is needed when session state is stored in-process on the node rather than in a shared store like Redis."
+      },
+      {
+        "front": "Name four common LB algorithms and their trade-offs.",
+        "back": "Round-robin: simple, equal distribution. Least-connections: better for variable request durations. IP hash: deterministic, enables stickiness. Weighted round-robin: accounts for heterogeneous node capacity."
+      },
+      {
+        "front": "What is a health check in a load balancer?",
+        "back": "A periodic probe (HTTP GET, TCP connect, or custom) the LB sends to each backend. If a node fails N consecutive checks it is removed from the pool; when it recovers and passes checks it is re-added."
+      },
+      {
+        "front": "What is connection draining (graceful shutdown)?",
+        "back": "When a node is deregistered, the LB stops sending new requests to it but lets existing in-flight requests complete within a drain timeout. This avoids abruptly closing active connections during deploys or scale-ins."
+      },
+      {
+        "front": "What problem does a global server load balancer (GSLB) solve that a regional LB cannot?",
+        "back": "A GSLB routes users to the nearest or healthiest data-centre via DNS. A regional LB only distributes traffic within one DC. GSLB adds geo-routing, latency-based routing, and cross-region failover."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `roundRobin(servers)` returning a next() function that cycles through the server list repeatedly. Each call to next() returns the next server in order, wrapping around.",
+        "starter": "function roundRobin(servers) {\n  // return a function () => server\n}",
+        "tests": "check('cycles', () => { const n = roundRobin(['a','b','c']); expect([n(),n(),n(),n()]).toEqual(['a','b','c','a']); });\ncheck('single', () => { const n = roundRobin(['x']); expect([n(),n()]).toEqual(['x','x']); });\ncheck('two', () => { const n = roundRobin(['p','q']); expect([n(),n(),n()]).toEqual(['p','q','p']); });",
+        "solution": "function roundRobin(servers) {\n  let i = 0;\n  return () => servers[i++ % servers.length];\n}"
+      },
+      {
+        "prompt": "Implement `weightedRandom(servers)` where servers is an array of `{id, weight}` objects. Return a next() function that picks a server with probability proportional to its weight.",
+        "starter": "function weightedRandom(servers) {\n  // return a function () => server id\n  // Example: [{id:'a',weight:1},{id:'b',weight:3}] → 'b' picked ~75% of the time\n}",
+        "tests": "check('always picks valid server', () => {\n  const n = weightedRandom([{id:'a',weight:1},{id:'b',weight:3}]);\n  const ids = new Set(['a','b']);\n  for (let i = 0; i < 100; i++) expect(ids.has(n())).toBe(true);\n});\ncheck('single server always returned', () => {\n  const n = weightedRandom([{id:'only',weight:5}]);\n  expect(n()).toBe('only');\n});\ncheck('zero-weight server never picked', () => {\n  const n = weightedRandom([{id:'a',weight:0},{id:'b',weight:1}]);\n  for (let i = 0; i < 50; i++) expect(n()).toBe('b');\n});",
+        "solution": "function weightedRandom(servers) {\n  const total = servers.reduce((s, x) => s + x.weight, 0);\n  return () => {\n    let r = Math.random() * total;\n    for (const s of servers) {\n      r -= s.weight;\n      if (r <= 0) return s.id;\n    }\n    return servers[servers.length - 1].id;\n  };\n}"
+      }
+    ]
+  },
+
+  "sd-scale-cache": {
+    "quiz": [
+      {
+        "q": "A CDN cache has a 95% hit ratio for your static assets. What does this mean for origin load?",
+        "options": [
+          "95% of requests never reach the origin server",
+          "5% of requests are served from cache",
+          "The origin handles 95% of all traffic",
+          "The CDN forwards all requests and caches 95% of responses"
+        ],
+        "answer": 0,
+        "explain": "A 95% hit ratio means 95 of every 100 requests are served from edge nodes, never touching the origin. Only 5% are cache misses that reach the origin. This dramatically reduces origin load and latency."
+      },
+      {
+        "q": "You updated a product image but CDN users still see the old one 30 minutes later. Cache-Control is set to max-age=3600. What is the most targeted fix without lowering the TTL for all assets?",
+        "options": [
+          "Purge the specific asset URL from the CDN and re-upload with the same filename",
+          "Append a content hash or version to the asset URL (e.g., /img/product.v2.jpg) and update references",
+          "Set max-age=0 globally to ensure freshness",
+          "Move the image to a different CDN provider"
+        ],
+        "answer": 1,
+        "explain": "Cache-busting via content-hashed filenames (or query params) ensures the new URL has no cached entry, guaranteeing fresh delivery immediately. Purging works but doesn't scale — every deploy needs a purge call. URL versioning is the standard practice."
+      },
+      {
+        "q": "Your app-layer cache uses cache-aside. What happens on a cache miss?",
+        "options": [
+          "The application reads from the cache only and returns null",
+          "The application reads from the database, writes the result to the cache, then returns the data",
+          "The cache automatically populates itself from the database on miss",
+          "The request is queued until the cache is warm"
+        ],
+        "answer": 1,
+        "explain": "Cache-aside (lazy loading): on miss, the application fetches from the DB, stores the result in the cache with a TTL, and returns it. Subsequent requests hit the cache. The cache is never populated speculatively — only what is actually read gets cached."
+      },
+      {
+        "q": "What is a cache stampede and how is it mitigated?",
+        "options": [
+          "A cache that is too large, causing memory pressure and evictions",
+          "Many concurrent requests all missing the same expired key and simultaneously querying the database",
+          "A cache that is invalidated by the wrong service in a microservices system",
+          "A CDN that routes requests to the wrong origin"
+        ],
+        "answer": 1,
+        "explain": "A stampede (thundering herd) happens when a popular key expires and thousands of requests hit the DB at once before any of them repopulates the cache. Mitigations include: probabilistic early expiry, locking/mutex-based repopulation, or background refresh."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is a cache hit ratio and why does it matter?",
+        "back": "Hit ratio = cache hits / total requests. A higher ratio means fewer expensive database or origin calls. Even going from 90% to 99% cuts origin load by 90% — the marginal value of additional hit ratio is non-linear."
+      },
+      {
+        "front": "Cache-aside vs write-through — key difference",
+        "back": "Cache-aside: app checks cache, on miss reads DB and populates cache. Simple but risks stale data. Write-through: on every write, app updates both DB and cache atomically. Cache is always fresh but adds write latency and wastes space for rarely-read data."
+      },
+      {
+        "front": "What is a TTL in caching and what happens when it expires?",
+        "back": "TTL (time-to-live) is the maximum age of a cached entry. On expiry the entry is evicted; the next request for that key is a cache miss and the app must re-fetch from the source. Short TTL = fresh data but more misses. Long TTL = fast but risks staleness."
+      },
+      {
+        "front": "What is cache invalidation and why is it called hard?",
+        "back": "Invalidation removes or updates cached entries when the underlying data changes. It is hard because the cache and the database are separate — a write to the DB does not automatically invalidate dependent cache entries. Distributed caches make this even harder (race conditions)."
+      },
+      {
+        "front": "What is a CDN and what class of content benefits most from it?",
+        "back": "A Content Delivery Network caches assets at globally-distributed edge nodes, serving them from the node nearest to the user. Static, immutable content (JS bundles, images, videos) benefits most; dynamic personalised content is harder to cache at the edge."
+      },
+      {
+        "front": "What is cache eviction and name three common policies.",
+        "back": "Eviction removes entries to free memory when the cache is full. LRU (Least Recently Used) evicts the entry not accessed for the longest time. LFU (Least Frequently Used) evicts the entry accessed fewest times. TTL-based eviction removes entries after a fixed lifetime regardless of access."
+      },
+      {
+        "front": "What is a cache stampede (thundering herd) and one mitigation?",
+        "back": "When a popular cache entry expires, many concurrent requests all miss and query the DB simultaneously. One mitigation: probabilistic early expiry — recompute the cache before it expires with probability proportional to remaining TTL, so only one request does the work."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement an LRU cache class `LRUCache(capacity)` with `get(key)` returning the value or -1 if absent, and `put(key, value)` inserting the key. When capacity is exceeded, evict the least recently used entry. Both operations must be O(1).",
+        "starter": "function LRUCache(capacity) {\n  // attach get(key) and put(key, value) methods\n  this.get = function(key) {};\n  this.put = function(key, value) {};\n}",
+        "tests": "check('basic get/put', () => {\n  const c = new LRUCache(2);\n  c.put(1, 1); c.put(2, 2);\n  expect(c.get(1)).toBe(1);\n  c.put(3, 3);\n  expect(c.get(2)).toBe(-1);\n});\ncheck('update existing', () => {\n  const c = new LRUCache(2);\n  c.put(1, 10); c.put(1, 20);\n  expect(c.get(1)).toBe(20);\n});\ncheck('miss returns -1', () => {\n  const c = new LRUCache(1);\n  expect(c.get(99)).toBe(-1);\n});\ncheck('capacity 1 evicts old on new insert', () => {\n  const c = new LRUCache(1);\n  c.put(1, 1); c.put(2, 2);\n  expect(c.get(1)).toBe(-1);\n  expect(c.get(2)).toBe(2);\n});",
+        "solution": "function LRUCache(capacity) {\n  const map = new Map();\n  this.get = function(key) {\n    if (!map.has(key)) return -1;\n    const val = map.get(key);\n    map.delete(key); map.set(key, val);\n    return val;\n  };\n  this.put = function(key, value) {\n    if (map.has(key)) map.delete(key);\n    map.set(key, value);\n    if (map.size > capacity) map.delete(map.keys().next().value);\n  };\n}"
+      }
+    ]
+  },
+
+  "sd-scale-shard": {
+    "quiz": [
+      {
+        "q": "You shard a users table by user_id % 4 giving 4 shards. A query needs all users in a geographic region. What problem does this create?",
+        "options": [
+          "Write amplification — every write goes to all four shards",
+          "Scatter-gather — the query must fan out to all shards since region data is spread across them",
+          "Hotspot — all geographic queries hit the same shard",
+          "Replication lag — the query reads stale data from replica shards"
+        ],
+        "answer": 1,
+        "explain": "Hash sharding distributes rows uniformly but destroys locality for non-key dimensions. A region query cannot be answered by one shard — it must scatter to all four and gather results. Range-based sharding on a geographic key or a secondary index on region would solve this."
+      },
+      {
+        "q": "A MongoDB sharded cluster uses seller_id as the shard key for an orders collection. One seller has 10 million orders; all others have thousands. What is this problem called and what causes it?",
+        "options": [
+          "Write concern violation — the seller's shard doesn't acknowledge enough replicas",
+          "A hotspot shard — one shard key value is disproportionately large, concentrating load on a single shard",
+          "A fan-out problem — reads scatter to all shards because the key is too granular",
+          "Index bloat — the shard key index grows too large on one node"
+        ],
+        "answer": 1,
+        "explain": "A hotspot (or jumbo chunk) forms when a single shard key value maps to a massive portion of the data. All reads/writes for that seller hit one shard, negating the benefit of sharding. Solutions include choosing a more granular key or adding a hash prefix to the key."
+      },
+      {
+        "q": "You have a 3-node replica set. The primary accepts a write with writeConcern {w: 'majority'}. What does this guarantee?",
+        "options": [
+          "The write is durable on all three nodes before acknowledgement",
+          "The write is durable on at least two of three nodes before acknowledgement",
+          "The write is only in the primary's in-memory buffer when acknowledged",
+          "The write is replicated asynchronously; w: majority is just an alias for w:1"
+        ],
+        "answer": 1,
+        "explain": "w: majority requires acknowledgement from a majority of voting members. In a 3-node set, majority is 2. The write is durable on at least 2 nodes before the client gets an ack. Even if the primary fails immediately after, the write is not lost because it exists on a replica."
+      },
+      {
+        "q": "Consistent hashing places servers on a ring and each key maps to the next server clockwise. A server is removed. How many keys need to be remapped?",
+        "options": [
+          "All keys — the ring must be rebuilt from scratch",
+          "Only the keys that were assigned to the removed server",
+          "Keys from the removed server and all servers that follow it clockwise",
+          "No keys — consistent hashing handles this automatically without remapping"
+        ],
+        "answer": 1,
+        "explain": "Consistent hashing's key property: when a node is removed, only the keys it owned are remapped — to its successor on the ring. All other keys remain on their current nodes. This minimises migration cost compared to modulo hashing where nearly all keys move."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the difference between horizontal sharding and vertical partitioning?",
+        "back": "Horizontal sharding splits rows across nodes by a shard key — each shard holds a subset of rows but all columns. Vertical partitioning splits columns — e.g., moving infrequently accessed large columns to a separate table or service. Both reduce the data per node but solve different bottlenecks."
+      },
+      {
+        "front": "What is a hotspot shard and how does an uneven key distribution cause it?",
+        "back": "A hotspot forms when a shard key value is disproportionately common or large, routing a majority of traffic to one shard. Solutions: choose a higher-cardinality key, add a random salt/prefix to the key, or use consistent hashing with virtual nodes to spread load."
+      },
+      {
+        "front": "What is consistent hashing and why does it matter for distributed caches?",
+        "back": "Consistent hashing places servers and keys on a ring; a key maps to the next server clockwise. When a server is added or removed, only O(K/N) keys (K keys, N servers) are remapped. This minimises cache invalidation storms during cluster resizing — critical for systems like Memcached/Redis clusters."
+      },
+      {
+        "front": "What is a replica set and how does it differ from sharding?",
+        "back": "A replica set copies the same data across multiple nodes for high availability and read scaling. Sharding partitions data across nodes to scale writes and storage. They are complementary: a sharded cluster is typically each shard being its own replica set."
+      },
+      {
+        "front": "What is replication lag and when does it cause user-visible problems?",
+        "back": "Replication lag is the delay between a write landing on the primary and being applied to replicas. If a user writes then immediately reads from a replica, they may see stale data. Monotonic read guarantees (always read from the same replica or the primary after a write) mitigate this."
+      },
+      {
+        "front": "What is scatter-gather in sharded systems?",
+        "back": "When a query cannot be routed to a single shard (because the filter is not on the shard key), it must scatter to all shards and gather results. Scatter-gather is expensive — latency is the max of all shards, and the coordinator aggregates partial results."
+      },
+      {
+        "front": "What are virtual nodes (vnodes) in consistent hashing?",
+        "back": "Instead of each physical server having one point on the ring, it has V virtual nodes spread uniformly. This improves load distribution and makes adding/removing servers smoother — a joining server absorbs ~K/N keys from many different predecessors rather than one large range."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `consistentHash(servers, replicas)` that builds a ring and returns a `lookup(key)` function. Each server gets `replicas` virtual nodes. `lookup(key)` returns the server whose virtual node is the first one clockwise at or after `hash(key)` on the ring. Use the provided `hash(str)` helper.",
+        "starter": "// hash(str) is provided — returns a non-negative integer\nfunction consistentHash(servers, replicas) {\n  // Build the ring, return { lookup(key) }\n  return {\n    lookup(key) {}\n  };\n}",
+        "tests": "check('returns a known server', () => {\n  const ring = consistentHash(['A','B','C'], 10);\n  const result = ring.lookup('my-key');\n  expect(['A','B','C'].includes(result)).toBe(true);\n});\ncheck('same key always same server', () => {\n  const ring = consistentHash(['A','B','C'], 10);\n  expect(ring.lookup('stable')).toBe(ring.lookup('stable'));\n});\ncheck('works with one server', () => {\n  const ring = consistentHash(['only'], 5);\n  expect(ring.lookup('anything')).toBe('only');\n});",
+        "solution": "function consistentHash(servers, replicas) {\n  const ring = [];\n  for (const s of servers) {\n    for (let r = 0; r < replicas; r++) {\n      ring.push({ pos: hash(s + '#' + r), server: s });\n    }\n  }\n  ring.sort((a, b) => a.pos - b.pos);\n  return {\n    lookup(key) {\n      const h = hash(key);\n      for (const node of ring) if (node.pos >= h) return node.server;\n      return ring[0].server;\n    }\n  };\n}"
+      }
+    ]
+  },
+
+  "sd-scale-cap": {
+    "quiz": [
+      {
+        "q": "A network partition splits your cluster into two halves. Both halves continue accepting writes. Clients reading from different halves see different values. Which CAP properties are you sacrificing and preserving?",
+        "options": [
+          "Sacrificing Consistency; preserving Availability and Partition tolerance (AP system)",
+          "Sacrificing Availability; preserving Consistency and Partition tolerance (CP system)",
+          "Sacrificing Partition tolerance; preserving Consistency and Availability (CA system)",
+          "Preserving all three — CAP theorem only applies to SQL databases"
+        ],
+        "answer": 0,
+        "explain": "Allowing both partitions to accept writes that diverge means you chose Availability over Consistency. The system is AP. After the partition heals, writes must be reconciled. Cassandra in its default configuration is an AP system — it accepts writes on both sides and resolves conflicts later."
+      },
+      {
+        "q": "A Zookeeper-based distributed lock refuses to serve requests during a network partition, returning errors until connectivity is restored. What CAP choice does this represent?",
+        "options": [
+          "AP — it picks availability over consistency",
+          "CA — it ignores network partitions",
+          "CP — it sacrifices availability to preserve consistency during a partition",
+          "PA/EL under PACELC — it accepts high latency to stay consistent"
+        ],
+        "answer": 2,
+        "explain": "ZooKeeper is a CP system. During a partition it refuses to serve reads and writes rather than risk returning inconsistent data. This is the correct choice for coordination primitives like locks and leader election where stale data is dangerous."
+      },
+      {
+        "q": "PACELC extends CAP. What does the ELC part add that CAP misses?",
+        "options": [
+          "It models Eventual consistency, Latency, and CPU as a three-way tradeoff",
+          "Else (when there is no partition): tradeoff between Latency and Consistency",
+          "It adds Elasticity, Load balancing, and Clustering to the model",
+          "It defines when an Eventually consistent system becomes strongly consistent"
+        ],
+        "answer": 1,
+        "explain": "CAP only describes behaviour under a partition (P). PACELC adds that even without partition, replicating writes adds latency vs serving stale reads. The 'ELC' clause: Else (no partition), choose between Latency and Consistency. This exposes the always-present tradeoff in replicated systems."
+      },
+      {
+        "q": "An e-commerce cart service uses eventual consistency. A user adds item A, then item B, from two different data-centre replicas. What real-world risk must the system handle?",
+        "options": [
+          "Both replicas reject the second write due to conflict",
+          "The replicas may temporarily show different cart contents; reconciliation logic determines the final state",
+          "All writes are serialised globally, so there is no conflict risk",
+          "Only the write to the primary replica counts; others are read-only"
+        ],
+        "answer": 1,
+        "explain": "With eventual consistency, concurrent writes to different replicas diverge temporarily. The system needs a conflict resolution strategy — last-write-wins, vector clocks, or CRDTs — to merge them when replicas sync. Amazon's Dynamo paper pioneered this approach for exactly this use case."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "State the CAP theorem precisely.",
+        "back": "A distributed data store can guarantee at most two of: Consistency (every read sees the most recent write), Availability (every request gets a response), Partition tolerance (the system continues operating when network messages are dropped). Since partitions are inevitable in real networks, you effectively choose C or A under a partition."
+      },
+      {
+        "front": "What does 'eventual consistency' mean operationally?",
+        "back": "If no new updates are made to a key, eventually all replicas will converge to the same value. There is no bound on when, but the system guarantees convergence. This allows high availability during partitions at the cost of possibly reading stale data."
+      },
+      {
+        "front": "What is a quorum read/write and how does it balance C and A?",
+        "back": "In a cluster of N replicas, a write that requires W acknowledgements and a read that requires R responses satisfies strong consistency when R + W > N. Raising W and R improves consistency but reduces availability (more nodes must be reachable). Lowering them improves availability at the cost of consistency."
+      },
+      {
+        "front": "Give a real-world example each of a CP and an AP system.",
+        "back": "CP: ZooKeeper, HBase, etcd — sacrifice availability during partitions, used for coordination. AP: Cassandra, DynamoDB (default), CouchDB — remain available during partitions, reconcile conflicts later, used for shopping carts, user profiles, activity feeds."
+      },
+      {
+        "front": "What is the PACELC model?",
+        "back": "PACELC: If Partition → choose Availability or Consistency. Else (normal operation) → choose Latency or Consistency. It exposes the always-present latency-consistency tradeoff that CAP ignores. A system can be PA/EL (low latency, available, eventually consistent) or PC/EC (consistent but higher latency)."
+      },
+      {
+        "front": "What is monotonic read consistency?",
+        "back": "Once a client has seen a value V for a key, it will never subsequently see a value older than V. This prevents a user from seeing new data, then refreshing and seeing stale data. Implemented by routing a client to the same replica or by tracking a read watermark."
+      }
+    ],
+    "exercises": []
+  },
+
+  "sd-async-queue": {
+    "quiz": [
+      {
+        "q": "Order Processing uses RabbitMQ. A consumer crashes after receiving a message but before completing the database write. What setting ensures the message is re-queued for another consumer?",
+        "options": [
+          "Set prefetch=1 so only one consumer receives the message",
+          "Use manual acknowledgements — nack the message on failure so RabbitMQ re-queues it",
+          "Enable auto-ack so RabbitMQ treats every delivery as successful",
+          "Set the message TTL to 0 so unprocessed messages expire immediately"
+        ],
+        "answer": 1,
+        "explain": "Auto-ack removes the message from the queue on delivery regardless of processing outcome. Manual ack means the consumer explicitly acks on success and nacks (negative ack) on failure, causing RabbitMQ to re-queue the message. This is essential for at-least-once processing guarantees."
+      },
+      {
+        "q": "What is the purpose of a Dead Letter Queue (DLQ)?",
+        "options": [
+          "To store messages that have been successfully processed for auditing",
+          "To capture messages that failed processing N times or expired, so they can be inspected without blocking the main queue",
+          "To increase throughput by processing fast messages ahead of slow ones",
+          "To replicate messages across multiple brokers for high availability"
+        ],
+        "answer": 1,
+        "explain": "A DLQ receives messages that cannot be successfully processed — expired TTL, exceeded retry count, or rejected without re-queue. This prevents poison pills (malformed messages that always fail) from blocking the main queue. Operators can inspect the DLQ to diagnose issues."
+      },
+      {
+        "q": "A payment service downstream of the order queue is slow, processing only 10 messages/second while the queue receives 200 messages/second. What role does the queue serve here?",
+        "options": [
+          "It acts as a circuit breaker, dropping excess messages to protect the payment service",
+          "It acts as a buffer, absorbing the traffic spike and allowing the payment service to process at its own rate",
+          "It broadcasts messages to multiple payment service replicas simultaneously",
+          "It synchronously retries the payment service until it catches up"
+        ],
+        "answer": 1,
+        "explain": "This is the core value of a queue: temporal decoupling and spike absorption. The producer can write at burst speed; the consumer drains at its sustainable rate. Messages accumulate in the queue without data loss — as long as disk space holds. This is fundamentally different from synchronous HTTP calls, which would fail or time out."
+      },
+      {
+        "q": "In RabbitMQ, what does an exchange do and how does it differ from a queue?",
+        "options": [
+          "An exchange stores messages; a queue routes them to consumers",
+          "An exchange receives messages from producers and routes them to queues based on routing keys and bindings; a queue holds messages for consumers",
+          "An exchange is a consumer-side concept; a queue is a producer-side concept",
+          "Exchanges and queues are the same component — 'exchange' is the older RabbitMQ term"
+        ],
+        "answer": 1,
+        "explain": "The AMQP model separates routing from storage. Producers publish to an exchange with a routing key. The exchange applies a routing algorithm (direct, fanout, topic, headers) and delivers to bound queues. Consumers subscribe to queues. This separation allows flexible routing without coupling producers to specific queues."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What two properties does a message queue provide that synchronous HTTP calls do not?",
+        "back": "Temporal decoupling (producer and consumer do not need to be available at the same time) and load levelling (the queue absorbs bursts — the producer writes at spike speed; the consumer drains at its sustainable rate). These are the two reasons you add a queue to a system."
+      },
+      {
+        "front": "What is the difference between ack and nack in AMQP?",
+        "back": "ack (positive acknowledgement): the consumer successfully processed the message; the broker removes it from the queue. nack (negative acknowledgement): the consumer failed; the broker re-queues the message (with requeue=true) or sends it to the DLQ. Manual ack mode is required for at-least-once delivery guarantees."
+      },
+      {
+        "front": "Name the four RabbitMQ exchange types and when to use each.",
+        "back": "Direct: route by exact routing key match (point-to-point). Fanout: broadcast to all bound queues (pub/sub, notifications). Topic: route by routing key pattern with wildcards (* = one word, # = many). Headers: route by message header attributes instead of routing key."
+      },
+      {
+        "front": "What is a Dead Letter Queue and what triggers it?",
+        "back": "A DLQ receives messages that fail routing or processing. Triggers: message TTL exceeded, consumer nacks with requeue=false, queue length limit exceeded, or the queue is deleted. DLQs prevent poison pills from blocking the main queue and allow forensic inspection of failed messages."
+      },
+      {
+        "front": "What is prefetch count (QoS) in RabbitMQ and why does it matter?",
+        "back": "prefetch=N limits how many unacknowledged messages a consumer holds at once. Setting prefetch=1 prevents one slow consumer from hoarding messages while idle consumers wait. Higher prefetch improves throughput but risks losing more messages on a consumer crash before ack."
+      },
+      {
+        "front": "What does 'at-least-once delivery' mean, and what is its implication for consumers?",
+        "back": "At-least-once means a message will be delivered and processed a minimum of one time but may be delivered multiple times (on network errors or broker restarts). Consumers must be idempotent — processing the same message twice must produce the same result as processing it once."
+      },
+      {
+        "front": "What is a competing consumers pattern?",
+        "back": "Multiple consumer instances listen on the same queue. The broker distributes messages across them (each message goes to exactly one consumer). This horizontally scales message processing — adding more consumers increases throughput proportionally for independent tasks."
+      }
+    ],
+    "exercises": []
+  },
+
+  "sd-async-event": {
+    "quiz": [
+      {
+        "q": "A payment service publishes a PaymentCompleted event. The fulfillment service listens and ships the order. The notification service listens and emails the user. This is an example of which pattern?",
+        "options": [
+          "Orchestration — a central orchestrator calls fulfillment and notification",
+          "Choreography — each service reacts to events independently without a central controller",
+          "Request/reply — payment service calls both services synchronously",
+          "Saga — a chain of compensating transactions across services"
+        ],
+        "answer": 1,
+        "explain": "Choreography means services react to events they care about — no central controller. The payment service just emits a fact; it has no knowledge of fulfillment or notification. This maximises loose coupling. Orchestration would have a workflow engine explicitly calling each service in order."
+      },
+      {
+        "q": "In event-driven architecture, what is the key semantic difference between an event and a command?",
+        "options": [
+          "Events are synchronous; commands are asynchronous",
+          "An event records something that happened (past fact); a command requests something to happen (future intent)",
+          "Commands are stored in Kafka; events are stored in RabbitMQ",
+          "Events always fan out to multiple consumers; commands always go to exactly one"
+        ],
+        "answer": 1,
+        "explain": "This distinction is crucial for correct system design. Events are immutable facts (OrderPlaced, PaymentFailed) — the publisher has no expectation of a specific response. Commands (ProcessPayment, ShipOrder) are directed instructions with an expected action. Mixing them creates tight coupling: event names like ProcessPaymentCommand indicate the anti-pattern."
+      },
+      {
+        "q": "Your event-driven Order Processing system uses choreography for the order lifecycle. A new compliance requirement demands that every order follows a strict 5-step process with timeouts. Which pattern would better suit this requirement and why?",
+        "options": [
+          "Continue with choreography — add more event listeners to enforce the steps",
+          "Switch to orchestration — a central workflow engine can enforce step order, timeouts, and compensations explicitly",
+          "Add a message filter to the event bus to drop out-of-order events",
+          "Use idempotency keys to ensure each step runs exactly once"
+        ],
+        "answer": 1,
+        "explain": "Choreography becomes opaque when business logic requires strict ordering, timeouts, and visibility. Orchestration with a workflow engine (Temporal, AWS Step Functions, Conductor) makes the flow explicit, auditable, and enforceable. Regulatory compliance often demands this observability."
+      },
+      {
+        "q": "An event-driven system stores a user's profile update as an event stream. To get the current profile, it replays all events from the beginning. What is this pattern called?",
+        "options": [
+          "CQRS — Command Query Responsibility Segregation",
+          "Event sourcing — state is derived by replaying an append-only log of events",
+          "Eventual consistency — the profile will be correct eventually",
+          "Write-ahead logging — standard database durability mechanism"
+        ],
+        "answer": 1,
+        "explain": "Event sourcing stores domain events as the system of record. Current state is a projection (replay) of the event log. Benefits: full audit trail, time-travel debugging, ability to rebuild projections. Cost: projection latency, query complexity, and snapshot management for long-lived aggregates."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the core principle of event-driven architecture?",
+        "back": "Services communicate by emitting events (immutable facts about things that happened) rather than calling each other directly. Consumers subscribe to events they care about. This creates temporal and logical decoupling — the producer does not know who consumes its events or when."
+      },
+      {
+        "front": "Choreography vs Orchestration — when does each win?",
+        "back": "Choreography: each service reacts independently to events. Wins when flows are simple, teams are autonomous, and decoupling is the priority. Orchestration: a central process explicitly drives each step. Wins when flows are complex, require strict ordering, timeouts, or compensations, and auditability matters."
+      },
+      {
+        "front": "What is the outbox pattern and why is it needed?",
+        "back": "When a service must write to its DB and publish an event atomically, a dual write (DB + message broker) can fail halfway. The outbox pattern writes events to an outbox table in the same DB transaction, then a separate relay process reads the outbox and publishes to the broker. Guarantees no lost events."
+      },
+      {
+        "front": "What is event sourcing?",
+        "back": "Instead of storing current state, the system stores an ordered, immutable log of all state-changing events. Current state is derived by replaying events. Benefits: audit trail, time-travel, projections. Drawbacks: query complexity, snapshot management for long histories."
+      },
+      {
+        "front": "What is event schema evolution and why is it hard?",
+        "back": "Events are consumed by many downstream services that may be deployed independently. Changing an event schema (adding required fields, renaming) can break consumers. Solutions: versioned event types, backward-compatible additions only, or a schema registry with compatibility enforcement."
+      },
+      {
+        "front": "What does 'fat event' vs 'thin event' mean?",
+        "back": "A fat event includes all relevant data in the payload (e.g., full order details on OrderPlaced). A thin event includes only the ID, requiring consumers to fetch details via API. Fat events are self-contained (fewer round trips) but increase coupling to the event schema. Thin events reduce payload size but add latency."
+      }
+    ],
+    "exercises": []
+  },
+
+  "sd-async-saga": {
+    "quiz": [
+      {
+        "q": "In the Order Processing saga (inventory → payment → notify), the payment step fails after inventory was already reserved. What must happen and why?",
+        "options": [
+          "The saga retries the payment step indefinitely until it succeeds",
+          "A compensating transaction releases the inventory reservation to restore consistency",
+          "The order is left in a partially completed state — this is acceptable in distributed systems",
+          "The notify step is skipped; inventory remains reserved until a human resolves it"
+        ],
+        "answer": 1,
+        "explain": "The saga pattern has no 2-phase commit across services. When a step fails, previously committed local transactions must be rolled back via explicit compensating transactions (e.g., ReleaseInventory reverses ReserveInventory). Without compensations, you get phantom reservations that never free up stock."
+      },
+      {
+        "q": "What is the fundamental reason distributed transactions with 2-Phase Commit (2PC) are avoided in microservices?",
+        "options": [
+          "2PC is not supported by modern databases",
+          "2PC requires a coordinator that holds locks across all participants until the transaction commits, creating a scalability bottleneck and availability risk if the coordinator crashes",
+          "2PC only works with SQL databases and cannot span NoSQL services",
+          "2PC messages are too large to pass through a message broker"
+        ],
+        "answer": 1,
+        "explain": "2PC works but the coordinator holds distributed locks during the prepare phase. If the coordinator crashes, participants are blocked waiting. In microservices with many independent services and databases, this creates tight coupling and availability risk. Sagas trade atomicity for availability by using compensations instead of locks."
+      },
+      {
+        "q": "A saga orchestrator sends a ReserveInventory command. The inventory service processes it but the ack message is lost. The orchestrator retries. What property must the inventory service have to prevent double-reservation?",
+        "options": [
+          "High availability — at least two inventory service replicas must be running",
+          "Idempotency — processing the same ReserveInventory command twice must produce the same result as processing it once",
+          "Serializability — all commands must be processed in strict sequential order",
+          "Event sourcing — the saga step must be recorded as an event before processing"
+        ],
+        "answer": 1,
+        "explain": "Saga steps must be idempotent because the orchestrator may retry on network errors. The inventory service should use the saga's transaction ID or command ID as an idempotency key — if the reservation already exists for that ID, return success without creating a duplicate."
+      },
+      {
+        "q": "Which of these is a compensating transaction for 'Charge credit card $50 for order #123'?",
+        "options": [
+          "Retry charging the card until the charge succeeds",
+          "Refund $50 to the credit card for order #123",
+          "Cancel the credit card to prevent future charges",
+          "Mark the order as failed without touching the financial record"
+        ],
+        "answer": 1,
+        "explain": "A compensating transaction semantically undoes the effect of the original step. Charging the card is the forward action; refunding reverses it. Compensations are application-level — they are new transactions, not database rollbacks. They must be designed explicitly as part of the saga definition."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is a saga and what problem does it solve?",
+        "back": "A saga is a sequence of local transactions across multiple services, each publishing events or sending commands to trigger the next step. It solves the problem of maintaining data consistency across service boundaries without a distributed transaction (2PC). Each step is atomic locally; the saga as a whole achieves eventual consistency."
+      },
+      {
+        "front": "What is a compensating transaction?",
+        "back": "A compensating transaction semantically undoes the effect of a completed saga step. Unlike a database rollback, it is a new transaction (not a true rollback). Example: if Step 2 (charge payment) succeeds but Step 3 (create shipment) fails, the compensation for Step 2 is a refund. Each forward step must have a defined compensation."
+      },
+      {
+        "front": "Orchestrated vs choreographed sagas — key tradeoffs.",
+        "back": "Orchestrated: a central saga orchestrator sends commands and tracks state. Pros: visible flow, easy to reason about. Cons: central component, potential coupling. Choreographed: each service emits events and others react. Pros: loose coupling. Cons: flow is distributed across services — hard to observe what step you are on."
+      },
+      {
+        "front": "What is a pivot transaction in a saga?",
+        "back": "The last successful step before the saga decides to roll back. Steps before the pivot can be compensated; steps after it have not yet executed. Understanding the pivot helps determine which compensating transactions need to run in the rollback path."
+      },
+      {
+        "front": "How does a saga handle a failure in a compensating transaction?",
+        "back": "Compensating transactions must themselves be retried (they should be idempotent). A stuck compensation is a serious bug — it leaves the system in an inconsistent state. Saga frameworks typically alert operators and require manual intervention when compensations cannot be completed."
+      },
+      {
+        "front": "What consistency guarantee does a saga provide?",
+        "back": "A saga provides eventual consistency, not strong (ACID) consistency. The system passes through intermediate inconsistent states (e.g., payment charged but shipment not yet created). Sagas are appropriate when each local transaction is acceptable to commit independently and business logic can tolerate temporary inconsistency."
+      }
+    ],
+    "exercises": []
+  },
+
+  "sd-async-idem": {
+    "quiz": [
+      {
+        "q": "A client sends a CreateOrder request but the network times out before it receives the response. The server processed the request successfully. The client retries. What prevents a duplicate order?",
+        "options": [
+          "Exactly-once delivery guarantees in the message broker",
+          "An idempotency key in the request — the server checks if it has already processed this key and returns the cached result without creating a duplicate",
+          "A transaction ID that the database uses to de-duplicate automatically",
+          "The client's retry backoff — a long enough wait ensures the server has fully committed"
+        ],
+        "answer": 1,
+        "explain": "Exactly-once delivery is a myth at the network layer — messages can be lost or duplicated. An idempotency key (a UUID sent by the client) allows the server to detect retries and return the original result. The server stores key → result in Redis or the DB. This is how Stripe's API handles duplicate charge attempts."
+      },
+      {
+        "q": "Your Order service nacks a message and RabbitMQ re-delivers it 5 times. On the 6th failure, the message moves to the DLQ. What is the DLQ's role at this point?",
+        "options": [
+          "Automatically retry the message once the consumer is restarted",
+          "Store the message for manual inspection, alerting, and potential replay after the root cause is fixed",
+          "Delete the message to prevent queue backlog",
+          "Route the message to a fallback consumer that skips validation"
+        ],
+        "answer": 1,
+        "explain": "A DLQ is a safety net, not a retry mechanism. Once a message lands there, automated retries have failed — it needs human or monitoring attention. Ops teams inspect DLQ messages to diagnose bugs (malformed payloads, downstream failures). After fixing the root cause, messages can be replayed to the original queue."
+      },
+      {
+        "q": "Which retry strategy is safest for a flapping downstream service, and why?",
+        "options": [
+          "Immediate retry with no limit — ensures the message is processed as fast as possible",
+          "Exponential backoff with jitter — reduces load on the downstream service while it recovers and avoids synchronized retry storms",
+          "Fixed 1-second retry interval forever — balances speed and persistence",
+          "Single retry only — a second failure always indicates a bug that retry cannot fix"
+        ],
+        "answer": 1,
+        "explain": "Immediate retries hammer a struggling service, worsening its recovery. Fixed intervals cause synchronized 'retry storms' when many consumers retry at the same time. Exponential backoff (doubling delay each attempt) with jitter (random offset) staggers retries and gives the service breathing room, reducing the thundering herd effect."
+      },
+      {
+        "q": "A consumer receives a PaymentProcessed message with idempotency key 'pay_xyz_001'. It processes it successfully. Ten minutes later, the same message is delivered again. What should the consumer do?",
+        "options": [
+          "Process it again — the second delivery may have fresher data",
+          "Look up 'pay_xyz_001' in its idempotency store, find the prior result, ack the message, and return the cached result without reprocessing",
+          "Nack the message and send it to the DLQ as a duplicate",
+          "Raise an exception to alert that the broker is misconfigured"
+        ],
+        "answer": 1,
+        "explain": "An idempotent consumer detects the duplicate via the idempotency key, acks the message (removing it from the queue), and returns the previously computed result. Nacking would loop it back; raising an exception treats a normal at-least-once delivery scenario as an error. The key insight: idempotency + ack is the correct response to redelivery."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is an idempotency key and where does it come from?",
+        "back": "An idempotency key is a unique identifier (typically a UUID) attached to a request or message by the producer/client. The server uses it to detect duplicate submissions. For HTTP APIs the client generates it; for message queues the publisher embeds it in the message. The server stores key → result for a TTL window."
+      },
+      {
+        "front": "What is the difference between at-most-once, at-least-once, and exactly-once delivery?",
+        "back": "At-most-once: messages may be lost, never duplicated (fire and forget, auto-ack). At-least-once: messages are never lost but may be duplicated on failure/retry (manual ack). Exactly-once: no loss and no duplicates — approximated by idempotent consumers + at-least-once delivery, since true exactly-once is impossible across distributed systems."
+      },
+      {
+        "front": "What is exponential backoff with jitter?",
+        "back": "Exponential backoff doubles the wait time between retries (1s, 2s, 4s, 8s...) to avoid overwhelming a recovering service. Jitter adds a random offset to desynchronize retries from multiple clients so they don't all hit the service simultaneously (thundering herd). Formula: min(cap, base * 2^attempt) + random(0, jitter)."
+      },
+      {
+        "front": "What is a Dead Letter Queue?",
+        "back": "A DLQ is a queue that receives messages that cannot be successfully processed after N retries, whose TTL has expired, or that were rejected without re-queue. It prevents poison pills from blocking the main queue, enables offline inspection and alerting, and allows manual or automated replay after a fix."
+      },
+      {
+        "front": "How do you implement idempotency for a database write?",
+        "back": "Store the idempotency key in the same database as a unique constraint. Before processing, check if the key exists — if so, return the stored result. If not, process and insert key + result in the same transaction. This makes the check-and-insert atomic, preventing race conditions on concurrent retries."
+      },
+      {
+        "front": "What is a poison pill message?",
+        "back": "A message that can never be processed successfully — due to malformed payload, schema mismatch, or a bug that always throws. Without a DLQ or max-retry limit, it loops forever, consuming resources and blocking other messages. Detection via retry count and routing to DLQ is the standard mitigation."
+      },
+      {
+        "front": "What is a circuit breaker and how does it relate to retries?",
+        "back": "A circuit breaker tracks failure rates for a downstream service. After a threshold of failures, it opens (trips), and subsequent requests fail fast without calling the downstream for a timeout period. This prevents retry storms from amplifying a downstream outage. After the timeout, a probe request tests recovery before closing."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `dedupeSet(windowMs)` that returns a `seen(key)` function. The first call with a key returns false (not a duplicate). Subsequent calls within `windowMs` milliseconds return true (duplicate). After the window expires, the key is considered fresh again. Use the provided `Date.now()` for timestamps.",
+        "starter": "function dedupeSet(windowMs) {\n  // return { seen(key): boolean }\n  return {\n    seen(key) {}\n  };\n}",
+        "tests": "check('first call not duplicate', () => {\n  const d = dedupeSet(1000);\n  expect(d.seen('k1')).toBe(false);\n});\ncheck('second call is duplicate', () => {\n  const d = dedupeSet(1000);\n  d.seen('k1');\n  expect(d.seen('k1')).toBe(true);\n});\ncheck('different keys independent', () => {\n  const d = dedupeSet(1000);\n  d.seen('a');\n  expect(d.seen('b')).toBe(false);\n});\ncheck('expired key is fresh', () => {\n  const d = dedupeSet(0);\n  d.seen('x');\n  expect(d.seen('x')).toBe(false);\n});",
+        "solution": "function dedupeSet(windowMs) {\n  const store = new Map();\n  return {\n    seen(key) {\n      const now = Date.now();\n      const ts = store.get(key);\n      if (ts !== undefined && now - ts < windowMs) return true;\n      store.set(key, now);\n      return false;\n    }\n  };\n}"
+      },
+      {
+        "prompt": "Implement `tokenBucket(capacity, refillPerSecond)` returning a `consume(tokens)` function that returns true if tokens are available and deducts them, or false if insufficient. The bucket refills at `refillPerSecond` tokens per second up to `capacity`. Use `Date.now()` for time.",
+        "starter": "function tokenBucket(capacity, refillPerSecond) {\n  // return { consume(tokens): boolean }\n  return {\n    consume(tokens) {}\n  };\n}",
+        "tests": "check('full bucket allows consume', () => {\n  const b = tokenBucket(10, 1);\n  expect(b.consume(5)).toBe(true);\n});\ncheck('exceeded capacity returns false', () => {\n  const b = tokenBucket(3, 1);\n  expect(b.consume(5)).toBe(false);\n});\ncheck('consuming all then one more fails', () => {\n  const b = tokenBucket(2, 0);\n  b.consume(2);\n  expect(b.consume(1)).toBe(false);\n});\ncheck('consume(0) always true', () => {\n  const b = tokenBucket(0, 0);\n  expect(b.consume(0)).toBe(true);\n});",
+        "solution": "function tokenBucket(capacity, refillPerSecond) {\n  let tokens = capacity;\n  let last = Date.now();\n  return {\n    consume(n) {\n      const now = Date.now();\n      tokens = Math.min(capacity, tokens + (now - last) / 1000 * refillPerSecond);\n      last = now;\n      if (n <= tokens) { tokens -= n; return true; }\n      return false;\n    }\n  };\n}"
+      }
+    ]
+  },
+
+  "sd-arch-micro": {
+    "quiz": [
+      {
+        "q": "The Order Processing system has 9 microservices. The team wants to add a feature that touches 6 of them atomically. What anti-pattern have they likely fallen into?",
+        "options": [
+          "Bounded context violation — each service is too small and lacks sufficient business logic",
+          "Distributed monolith — services are deployed separately but are tightly coupled, requiring coordinated cross-service changes and negating the independence benefit of microservices",
+          "Data lake anti-pattern — the shared database is too large for the team to manage",
+          "Event sourcing overuse — too many services publish events to the same topic"
+        ],
+        "answer": 1,
+        "explain": "A distributed monolith is the worst of both worlds: the operational complexity of microservices without the independence benefit. If a feature requires simultaneous changes to 6 services, those services share an implicit coupling that should be an explicit bounded context. The boundary cuts were wrong from the start."
+      },
+      {
+        "q": "Two microservices share the same database table. Service A adds a new required column. Service B fails because it doesn't expect the column. What principle was violated?",
+        "options": [
+          "Single Responsibility — each service should have only one reason to change",
+          "Data ownership — each service should own its data exclusively; no two services should share a database table",
+          "Idempotency — the schema migration was not applied idempotently",
+          "Circuit breaker — Service B should have failed fast instead of erroring"
+        ],
+        "answer": 1,
+        "explain": "Data ownership is a fundamental microservices principle. Shared databases create invisible coupling — one service's migration breaks another. Each service must own its schema exclusively, exposing data only via its API. This is the key distinction between microservices and shared-database SOA."
+      },
+      {
+        "q": "When is a modular monolith a better starting point than microservices for a new product?",
+        "options": [
+          "When the team expects internet-scale traffic from day one",
+          "When domain boundaries are unclear, the team is small, and operational overhead of distributed systems would slow feature delivery",
+          "When strong consistency across all operations is required and CAP is not a concern",
+          "When the product uses a single programming language"
+        ],
+        "answer": 1,
+        "explain": "Microservices require clear bounded contexts, independent deployability, and team autonomy — none of which exist in early-stage products. A modular monolith enforces module boundaries in code without distributed systems complexity. Split into services when you can draw a clear boundary, have independent deployment needs, or a team is bottlenecked on another team's service."
+      },
+      {
+        "q": "Service A calls Service B synchronously via HTTP. Service B has a 200ms p99 latency. Service A adds calls to Services C and D in parallel. What is the new p99 latency of Service A, approximately?",
+        "options": [
+          "600ms — the three calls are sequential",
+          "200ms — parallel calls do not add latency",
+          "200ms for the slowest of B, C, D plus Service A's own processing time",
+          "0ms — parallel HTTP calls are non-blocking and add no overhead"
+        ],
+        "answer": 2,
+        "explain": "Parallel calls complete in the time of the slowest call, not the sum. If B, C, D each have ~200ms p99, parallel execution means ~200ms + A's own overhead. This is why fan-out (parallel calls) is valuable: it bounds latency to the max, not the sum. But it also means one slow dependency defines your worst case."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is a bounded context in microservices?",
+        "back": "A bounded context is a domain boundary within which a specific domain model and language are consistent. In microservices each service maps to one bounded context and owns its data exclusively. Crossing context boundaries requires explicit translation (anti-corruption layer). Context mapping diagrams show upstream/downstream relationships."
+      },
+      {
+        "front": "What is a distributed monolith and why is it worse than a regular monolith?",
+        "back": "A distributed monolith has microservice deployment topology (separate processes, network calls) but monolithic coupling (shared databases, tight API contracts, coordinated deploys). It combines the operational complexity of microservices (network failures, distributed tracing) with the coupling problems of a monolith, getting the worst of both."
+      },
+      {
+        "front": "What is the strangler fig pattern?",
+        "back": "A strategy for migrating from a monolith to microservices incrementally. New features are built as separate services; a routing layer (proxy or facade) gradually routes traffic from the monolith to the new services. The monolith is 'strangled' over time without a big-bang rewrite. Safer than a full rewrite because the monolith remains in production."
+      },
+      {
+        "front": "What is data ownership in microservices and why does it matter?",
+        "back": "Each service owns its database schema and is the single source of truth for its data. No other service may directly query or write to another service's database — only via the owning service's API. This enforces encapsulation: schema changes only break the owning service, not hidden dependents."
+      },
+      {
+        "front": "What is a service mesh and what problem does it solve?",
+        "back": "A service mesh (Istio, Linkerd) injects a sidecar proxy alongside each service. The proxies handle cross-cutting concerns: mTLS encryption, retries, circuit breaking, distributed tracing, and traffic shaping — without code changes in the services. It solves the problem of duplicating resilience logic across many services in different languages."
+      },
+      {
+        "front": "When should you NOT use microservices?",
+        "back": "Avoid microservices when: domain boundaries are unclear (you will get them wrong and pay the refactoring cost), the team is too small to own multiple services independently, operational maturity is low (no container orchestration, distributed tracing, or CI/CD), or the product is early-stage and needs to pivot frequently."
+      }
+    ],
+    "exercises": []
+  },
+
+  "sd-arch-gateway": {
+    "quiz": [
+      {
+        "q": "The Order Processing gateway handles auth, routing, rate-limiting, and aggregation. A mobile client needs a single call that returns merged data from the inventory, pricing, and review services. Which gateway pattern best serves this need?",
+        "options": [
+          "A pass-through gateway that forwards the request unchanged to all three services",
+          "A BFF (Backend For Frontend) that aggregates the three service responses into one tailored mobile response",
+          "An API gateway that applies rate limiting only and lets the client make three separate calls",
+          "A message broker that fans out the request to all three services asynchronously"
+        ],
+        "answer": 1,
+        "explain": "The BFF (Backend For Frontend) pattern creates a dedicated aggregation layer per client type (mobile, web, third-party). It reduces client-side complexity and network round trips by composing multiple service responses into one optimised payload. This is ideal for mobile where latency and bandwidth matter most."
+      },
+      {
+        "q": "An API gateway is a single entry point for all services. What is the primary risk this creates, and how is it mitigated?",
+        "options": [
+          "Data loss — the gateway may drop requests; mitigated by a secondary gateway in a different region",
+          "Single point of failure — if the gateway goes down, all services become unreachable; mitigated by running multiple gateway instances behind a load balancer",
+          "Security vulnerability — the gateway decrypts TLS, exposing all traffic; mitigated by end-to-end encryption inside the cluster",
+          "Latency amplification — every request adds an extra hop; mitigated by collocating the gateway with the client"
+        ],
+        "answer": 1,
+        "explain": "Centralising all traffic through one gateway creates a single point of failure. The mitigation is the same as any critical component: run multiple instances behind a load balancer with health checks. The gateway itself should be stateless so instances can be scaled horizontally."
+      },
+      {
+        "q": "A gateway applies a rate limit of 100 req/min per user. User Alice sends 100 requests in the first second, then nothing for 59 seconds. Under a fixed-window counter, what is the problem?",
+        "options": [
+          "Alice's first 100 requests are all rejected because they arrive too fast",
+          "Alice can send 100 more requests at the start of the next minute, meaning 200 requests arrive in a 2-second window around the window boundary",
+          "The fixed window correctly prevents Alice from exceeding 100 req/min",
+          "The gateway resets the counter after each request, so Alice is limited to 1 req/sec"
+        ],
+        "answer": 1,
+        "explain": "Fixed windows create a boundary exploit: 100 requests at 00:59 and 100 at 01:00 are both within separate windows, but 200 requests arrive within ~2 seconds. Sliding window or token bucket rate limiters avoid this by tracking usage over a rolling time window."
+      },
+      {
+        "q": "Which concern is NOT typically handled by an API gateway?",
+        "options": [
+          "JWT authentication and authorisation",
+          "Business logic for pricing calculations",
+          "SSL/TLS termination",
+          "Request routing to backend services"
+        ],
+        "answer": 1,
+        "explain": "An API gateway handles cross-cutting infrastructure concerns: auth, routing, rate limiting, TLS termination, logging. Business logic (pricing, inventory rules, order validation) belongs in domain services — if it lives in the gateway, you have reintroduced a monolith at the infrastructure layer."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the role of an API gateway?",
+        "back": "A single entry point for all client requests. It handles cross-cutting concerns: authentication/authorisation, TLS termination, routing, rate limiting, request/response transformation, logging, and sometimes aggregation. Backend services can be simpler because they delegate these concerns to the gateway."
+      },
+      {
+        "front": "What is the BFF (Backend For Frontend) pattern?",
+        "back": "A dedicated backend service per client type (mobile app, web app, third-party API). Each BFF aggregates calls to multiple services and shapes the response for its specific client. Solves the one-size-fits-all problem of a generic API gateway — mobile needs less data and fewer round trips than a desktop web app."
+      },
+      {
+        "front": "What is TLS termination at the gateway and what does it mean for internal traffic?",
+        "back": "The gateway handles the TLS handshake and decrypts HTTPS from external clients. Internal service-to-service traffic may run over plain HTTP within the cluster (or mTLS for zero-trust). Terminating TLS at the gateway reduces the TLS overhead for every service and centralises certificate management."
+      },
+      {
+        "front": "What is the difference between authentication and authorisation at a gateway?",
+        "back": "Authentication (who are you?) verifies identity — typically via JWT signature validation or API key lookup. Authorisation (what may you do?) checks permissions — may be coarse-grained at the gateway (does this token have 'orders:read'?) and fine-grained inside the service (can this user see this specific order?)."
+      },
+      {
+        "front": "What is rate limiting at the gateway and name two algorithms.",
+        "back": "Rate limiting caps request volume per client/API key/IP to protect backends from abuse or overload. Fixed window: count requests per N-second window. Token bucket: a bucket refills at a constant rate; each request consumes a token. Sliding window and leaky bucket are alternatives. Token bucket is most common because it handles burst traffic gracefully."
+      },
+      {
+        "front": "What is request aggregation and why does it matter for mobile clients?",
+        "back": "The gateway (or BFF) makes parallel calls to multiple services and merges their responses into a single API response. Mobile clients benefit because they have limited bandwidth and battery; one round trip instead of five reduces latency and data usage. It also shields clients from service topology changes."
+      }
+    ],
+    "exercises": []
+  },
+
+  "sd-arch-observability": {
+    "quiz": [
+      {
+        "q": "A request to your order service times out intermittently. You have logs from all 9 microservices. What is the fastest way to trace this specific failed request end-to-end?",
+        "options": [
+          "Search all logs for ERROR level entries in the past hour",
+          "Use a distributed trace ID — a correlation ID propagated through all service calls — to filter logs from all services for that single request",
+          "Check CPU and memory metrics on each service to find the bottleneck",
+          "Replay the request manually against each service in sequence"
+        ],
+        "answer": 1,
+        "explain": "Distributed tracing assigns a trace ID at the entry point (gateway) and propagates it via HTTP headers (X-B3-TraceId, W3C traceparent) to all downstream calls. Every log and span is tagged with this ID. Filtering by trace ID instantly shows all spans for one request across all services — the exact tool for diagnosing intermittent latency."
+      },
+      {
+        "q": "Your SLO states: 99.9% of order creation requests must complete in under 500ms. Your current p99 is 480ms. A deployment raises p99 to 520ms. What should happen?",
+        "options": [
+          "Nothing — you are only 20ms over the SLO, which is within noise",
+          "An alert fires because the SLO is being violated; the deployment should be rolled back or the issue investigated before it burns through the error budget",
+          "The SLO should be revised upward to 600ms to accommodate the new feature",
+          "Wait 30 days before acting — SLOs are measured monthly"
+        ],
+        "answer": 1,
+        "explain": "An SLO defines a measurable target. When p99 crosses 500ms the error budget is being consumed — if sustained, the SLO will be missed. The correct response is to alert immediately and investigate. Error budget depletion controls the pace of risky changes: a depleted budget should freeze non-critical deploys."
+      },
+      {
+        "q": "What is the difference between a metric, a log, and a trace?",
+        "options": [
+          "Metrics are stored in SQL; logs in files; traces in NoSQL",
+          "Metrics are numeric time-series aggregates (counts, latencies); logs are timestamped text records of events; traces are structured records of a request's journey across services with timing per span",
+          "Metrics measure CPU; logs measure memory; traces measure disk I/O",
+          "They are three names for the same concept — structured logging"
+        ],
+        "answer": 1,
+        "explain": "The three pillars of observability are distinct signal types with different strengths. Metrics answer 'how much / how often' with low storage cost. Logs answer 'what happened exactly' with high detail. Traces answer 'what path did this request take' across service boundaries. You need all three: metrics for alerting, logs for debugging, traces for root-cause in distributed systems."
+      },
+      {
+        "q": "A service emits a log line for every request at INFO level. At 10,000 requests/second, log storage costs become prohibitive. What is the standard technique to reduce volume without losing critical information?",
+        "options": [
+          "Switch from structured JSON logs to unstructured text — it compresses better",
+          "Use log sampling (e.g., log 1% of successful requests at DEBUG/INFO, 100% of errors) so high-frequency happy-path requests are sampled while failures are always captured",
+          "Increase log rotation frequency so old logs are deleted faster",
+          "Only log at ERROR level — INFO and DEBUG logs are never useful in production"
+        ],
+        "answer": 1,
+        "explain": "Head-based or tail-based sampling reduces log volume while preserving signal for errors and anomalies. Sampling 1% of 200 OK responses still gives statistical confidence at 100 samples/second while cutting storage 99%. Errors (5xx, exceptions) should always be logged at 100% — they are rare enough that storage cost is negligible."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What are the three pillars of observability?",
+        "back": "Logs: timestamped text or structured records of discrete events. Metrics: numeric time-series aggregates (request count, p99 latency, error rate) with low cardinality for efficient storage. Traces: records of a request's journey across services, with timing for each span. Together they answer what happened, how often, and where time was spent."
+      },
+      {
+        "front": "What is a distributed trace and what is a span?",
+        "back": "A trace represents the full lifecycle of one request across multiple services. It consists of spans — one per operation (service call, DB query, external API). Each span records start time, duration, service name, and metadata. Spans are linked by a shared trace ID and parent-child span IDs. Visualised as a waterfall diagram (Jaeger, Zipkin)."
+      },
+      {
+        "front": "What is an SLO, SLA, and SLI?",
+        "back": "SLI (Service Level Indicator): a measurable metric (p99 latency, error rate, availability). SLO (Service Level Objective): an internal target for an SLI (e.g., p99 < 500ms for 99.9% of requests per month). SLA (Service Level Agreement): a contractual commitment to customers with penalties for violations. SLOs are stricter than SLAs to catch problems before the SLA is breached."
+      },
+      {
+        "front": "What is an error budget?",
+        "back": "Error budget = 1 - SLO target. For a 99.9% availability SLO, the error budget is 0.1% — about 43 minutes of downtime per month. It quantifies how much unreliability is acceptable. When the budget is being burned fast, slow down risky changes. When the budget is healthy, it gives confidence to deploy more aggressively."
+      },
+      {
+        "front": "What is structured logging and why is it better than unstructured text logs?",
+        "back": "Structured logs are JSON (or similar) objects with consistent fields: timestamp, level, traceId, service, userId, message. This makes them machine-parseable and filterable via query (e.g., find all logs where userId=123 and level=ERROR). Unstructured text requires fragile regex parsing. Structured logs are indexed and queried efficiently by tools like Elasticsearch, Loki, and CloudWatch."
+      },
+      {
+        "front": "What is a RED method for service health?",
+        "back": "RED (Rate, Errors, Duration) is a framework for monitoring services. Rate: requests per second. Errors: number of failed requests. Duration: distribution of response times (p50, p95, p99). These three metrics give an immediate picture of service health and are the standard starting point for SLOs."
+      }
+    ],
+    "exercises": []
+  },
+
+  "sd-arch-design": {
+    "quiz": [
+      {
+        "q": "In a system design interview for a URL shortener, the interviewer asks 'how many URLs are created per second?' You estimate 100M new URLs per day. What is the approximate QPS for writes?",
+        "options": [
+          "100 QPS",
+          "1,000 QPS",
+          "~1,157 QPS — 100M / 86,400 seconds",
+          "10,000 QPS"
+        ],
+        "answer": 1,
+        "explain": "100M / 86,400 seconds ≈ 1,157 writes/second. This is the standard capacity estimation step: convert daily volumes to per-second rates (divide by ~100,000 for quick mental math, or 86,400 exactly). This feeds storage sizing, cache sizing, and database choice. Rounding to 1,000 QPS is acceptable."
+      },
+      {
+        "q": "You are designing a rate limiter service. You propose a Redis counter with INCR + EXPIRE. The interviewer asks: 'What happens under a race condition between two servers doing INCR simultaneously?' What is the correct answer and fix?",
+        "options": [
+          "Redis is single-threaded so there are no race conditions with INCR; no fix needed",
+          "Both INCRs succeed atomically because Redis serialises commands — the counter correctly reaches 2",
+          "The EXPIRE only runs on one of the two INCR calls so the key may never expire — fixed with a Lua script or SET with NX+EX to set the counter and TTL atomically in one operation",
+          "The second INCR overwrites the first — use SETNX instead of INCR"
+        ],
+        "answer": 2,
+        "explain": "Redis INCR is atomic (no lost-update race), but the race is between INCR and EXPIRE — if the key doesn't exist and two servers both do INCR, only the first gets EXPIRE applied (the second finds the key already set). The safe pattern is a Lua script that does INCR+EXPIRE atomically, or using SET key 1 EX ttl NX to initialise."
+      },
+      {
+        "q": "In the requirements phase of a design interview, you are given: 'Design Twitter'. What is the FIRST clarifying question to ask?",
+        "options": [
+          "What database should we use — SQL or NoSQL?",
+          "How many users are we designing for, and what are the core features in scope — posting, following, or the home timeline?",
+          "Should we use microservices or a monolith?",
+          "What is the SLA for tweet delivery latency?"
+        ],
+        "answer": 1,
+        "explain": "Design interviews start broad. The first question scopes the problem: scale (10k users vs 10M vs 1B changes the architecture completely) and feature scope (home timeline is the hard problem; posting is trivial). Jumping to technology or architecture decisions before understanding scale and features is the most common interview mistake."
+      },
+      {
+        "q": "You are designing a system with 1 TB of data and 10,000 QPS read traffic. Your interviewer asks how you would handle read scaling. Which answer demonstrates the right sequence of reasoning?",
+        "options": [
+          "Immediately propose sharding the database across 10 nodes",
+          "First add read replicas to scale reads cheaply; add a cache layer (Redis) for hot data; only shard if write throughput is the bottleneck",
+          "Use eventual consistency to reduce read load on the primary",
+          "Introduce microservices so each service handles its own read traffic"
+        ],
+        "answer": 1,
+        "explain": "Good design interviews reason from the cheapest/simplest solution outward. Read replicas scale read QPS without sharding complexity. A cache layer handles hot data and reduces DB load further. Sharding solves write throughput and storage limits — not read load. Proposing sharding first signals you jumped to a complex solution without reasoning through cheaper options."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the standard framework for a system design interview?",
+        "back": "1. Requirements: clarify functional requirements (what it does) and non-functional (scale, latency, consistency). 2. Capacity estimation: QPS, storage, bandwidth. 3. API design: core endpoints. 4. Data model: schema and storage choice. 5. High-level design: components and their interactions. 6. Scale and deep-dive: bottlenecks, sharding, caching, replication. 7. Tradeoffs: what you gave up."
+      },
+      {
+        "front": "How do you estimate QPS from daily active users?",
+        "back": "DAU × actions_per_user_per_day / 86,400 = average QPS. Peak QPS is typically 2–5× the average. Memory trick: 1M actions/day ≈ 12 QPS. 100M/day ≈ 1,200 QPS. 1B/day ≈ 12,000 QPS. Always state assumptions explicitly and round for mental math."
+      },
+      {
+        "front": "How do you estimate storage requirements?",
+        "back": "records_per_day × record_size_bytes × retention_days = total storage. Example: 100M tweets/day × 1 KB × 365 days ≈ 36 TB/year. Add 10× for media, indexes, and replicas. Always separately estimate hot vs cold data to decide cache sizing. State assumptions about record size explicitly."
+      },
+      {
+        "front": "What is the read/write ratio and why does it drive architecture?",
+        "back": "Read/write ratio is the proportion of read requests to write requests. Read-heavy (Twitter timeline: ~100:1) → optimise for read: caches, read replicas, denormalisation. Write-heavy (logging, clickstream: ~10:1 writes) → optimise for write: append-only stores, write-optimised LSM trees (Cassandra), queues. Identifying the ratio early determines the database and caching strategy."
+      },
+      {
+        "front": "What are the three most common bottlenecks in a distributed system design?",
+        "back": "1. Database reads: solved by caching (Redis), read replicas, and query optimisation. 2. Database writes: solved by sharding, CQRS write models, or event sourcing. 3. Single service bottleneck: solved by horizontal scaling (stateless services behind LB) or async offloading via queues. State clearly which bottleneck you are solving before proposing a solution."
+      },
+      {
+        "front": "What is a tradeoff statement and why does it matter in interviews?",
+        "back": "A tradeoff statement names what you gain AND what you give up: 'Caching reduces database load by 90% but introduces cache invalidation complexity and potential staleness.' Interviewers evaluate whether you can reason about second-order effects, not just recall patterns. Every architectural decision has a cost — name it explicitly."
+      },
+      {
+        "front": "What is the fan-out problem in social feeds and two approaches to solve it?",
+        "back": "When user A (10M followers) posts a tweet, naively inserting the tweet into 10M followers' timeline caches is called fan-out on write — takes too long. Options: fan-out on read (compute timeline at read time — slow for readers), fan-out on write (precompute at post time — slow for celebrities), or hybrid (fan-out for normal users, pull for celebrity posts at read time). Twitter uses the hybrid approach."
+      }
+    ],
+    "exercises": []
+  }
+}

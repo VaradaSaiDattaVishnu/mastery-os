@@ -1,0 +1,731 @@
+{
+  "db-mongo-model": {
+    "quiz": [
+      {
+        "q": "Your app reads a blog post and always shows its author's name and avatar alongside it. How should you model this in MongoDB?",
+        "options": [
+          "Always store only a reference (ObjectId) to the users collection",
+          "Embed a snapshot of the author's name and avatar inside each post document",
+          "Store the author in a separate SQL table and JOIN at query time",
+          "Denormalize the entire user document into every post"
+        ],
+        "answer": 1,
+        "explain": "Embed what you read together. A small, stable snapshot (name + avatar) avoids a second round-trip and keeps the read pattern fast. You embed a snapshot rather than the whole user to avoid over-embedding volatile data."
+      },
+      {
+        "q": "A post can have thousands of comments added indefinitely. Which approach avoids the 16 MB document limit?",
+        "options": [
+          "Embed all comments as a nested array inside the post document",
+          "Store comments in a separate collection referencing the post by id",
+          "Base64-encode comments and store them as a string field",
+          "Split the post into multiple documents joined by a shared title field"
+        ],
+        "answer": 1,
+        "explain": "Unbounded arrays inside a document will eventually hit the 16 MB limit. Reference-based modeling stores comments in their own collection, so growth is unconstrained."
+      },
+      {
+        "q": "Which principle best captures MongoDB schema design?",
+        "options": [
+          "Always normalize to third normal form to avoid redundancy",
+          "Always embed everything to keep all data in one document",
+          "Model for your access patterns — embed what you read together, reference what you don't",
+          "Ignore read patterns and optimize for write throughput only"
+        ],
+        "answer": 2,
+        "explain": "MongoDB's core design philosophy is access-pattern-driven modeling. There is no single right answer; the shape of the data should match how the application reads and writes it."
+      },
+      {
+        "q": "Unity has 38 models. Many entities reference a shared 'organization' document that rarely changes. What is the best strategy?",
+        "options": [
+          "Embed the full organization document in every referencing document",
+          "Store only the organization's ObjectId as a reference in each document",
+          "Duplicate the organization collection for each entity type",
+          "Store organization data in Redis instead of MongoDB"
+        ],
+        "answer": 1,
+        "explain": "Stable, shared data that is referenced widely should stay in its own collection. Store only the ObjectId; dereference on demand via $lookup or application-level join to avoid massive duplication when the org name changes."
+      }
+    ],
+    "flashcards": [
+      { "front": "Embed vs Reference — core rule", "back": "Embed what you read together in a single query. Reference what changes independently or grows unbounded." },
+      { "front": "What is the MongoDB document size limit?", "back": "16 MB per document. Unbounded embedded arrays can silently approach this limit over time." },
+      { "front": "What is an access pattern?", "back": "A specific read or write the application performs. Schema design should be driven by the most frequent and latency-sensitive access patterns." },
+      { "front": "When should you prefer a reference over an embed?", "back": "When the sub-document is shared by many parents, grows without bound, or is updated frequently and independently of the parent." },
+      { "front": "What is a snapshot embed?", "back": "Copying a small, stable subset of a related document (e.g., author name + avatar) into the parent to avoid a second read, accepting that the copy may become stale." },
+      { "front": "Polymorphic pattern", "back": "Multiple document shapes stored in one collection, distinguished by a 'type' field. Useful when entities share a query path but differ in fields." },
+      { "front": "Schema-less does not mean schema-free", "back": "MongoDB does not enforce a schema by default, but your application code imposes one. Use JSON Schema validation or ODM validators (Mongoose) to enforce it explicitly." }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `embedOrReference(options)` which decides whether to embed based on two rules: embed if `growsUnbounded` is false AND `sharedByManyParents` is false; otherwise reference. Return the string 'embed' or 'reference'.",
+        "starter": "function embedOrReference(options) {\n  // options: { growsUnbounded: boolean, sharedByManyParents: boolean }\n  // your code\n}",
+        "tests": "check('unbounded -> reference', () => expect(embedOrReference({ growsUnbounded: true, sharedByManyParents: false })).toBe('reference'));\ncheck('shared -> reference', () => expect(embedOrReference({ growsUnbounded: false, sharedByManyParents: true })).toBe('reference'));\ncheck('both false -> embed', () => expect(embedOrReference({ growsUnbounded: false, sharedByManyParents: false })).toBe('embed'));\ncheck('both true -> reference', () => expect(embedOrReference({ growsUnbounded: true, sharedByManyParents: true })).toBe('reference'));",
+        "solution": "function embedOrReference(options) {\n  if (options.growsUnbounded || options.sharedByManyParents) return 'reference';\n  return 'embed';\n}"
+      },
+      {
+        "prompt": "Implement `denormalizeAuthor(posts, users)` — given an array of post objects with a `authorId` field and an array of user objects with `id`, `name`, and `avatar` fields, return a new array of posts where each post has an added `author` object containing only `name` and `avatar` (simulating a snapshot embed).",
+        "starter": "function denormalizeAuthor(posts, users) {\n  // your code\n}",
+        "tests": "const users = [{ id: 1, name: 'Vishnu', avatar: 'v.png', email: 'a@b.com' }, { id: 2, name: 'Ada', avatar: 'a.png', email: 'c@d.com' }];\nconst posts = [{ id: 10, authorId: 1, title: 'Mongo' }, { id: 11, authorId: 2, title: 'Redis' }];\nconst result = denormalizeAuthor(posts, users);\ncheck('author embedded on first post', () => expect(result[0].author).toEqual({ name: 'Vishnu', avatar: 'v.png' }));\ncheck('author embedded on second post', () => expect(result[1].author).toEqual({ name: 'Ada', avatar: 'a.png' }));\ncheck('original post fields preserved', () => expect(result[0].title).toBe('Mongo'));\ncheck('email not leaked into snapshot', () => expect(result[0].author.email).toBe(undefined));",
+        "solution": "function denormalizeAuthor(posts, users) {\n  const userMap = {};\n  for (const u of users) userMap[u.id] = u;\n  return posts.map(p => {\n    const u = userMap[p.authorId];\n    return { ...p, author: { name: u.name, avatar: u.avatar } };\n  });\n}"
+      }
+    ]
+  },
+
+  "db-mongo-query": {
+    "quiz": [
+      {
+        "q": "Which MongoDB operator returns documents where the `status` field is either 'active' or 'pending'?",
+        "options": [
+          "{ status: { $eq: ['active', 'pending'] } }",
+          "{ status: { $in: ['active', 'pending'] } }",
+          "{ status: { $all: ['active', 'pending'] } }",
+          "{ status: { $or: ['active', 'pending'] } }"
+        ],
+        "answer": 1,
+        "explain": "$in matches documents where the field value equals any value in the provided array. $all requires all values to be present in the field's array, and $or is a top-level logical operator, not a field-level one."
+      },
+      {
+        "q": "You only need `title` and `publishedAt` from a posts collection. How do you retrieve exactly those fields?",
+        "options": [
+          "db.posts.find({}, { title: 1, publishedAt: 1 })",
+          "db.posts.find({}, { SELECT: 'title, publishedAt' })",
+          "db.posts.find({ fields: ['title', 'publishedAt'] })",
+          "db.posts.project({ title: 1, publishedAt: 1 })"
+        ],
+        "answer": 0,
+        "explain": "The second argument to find() is the projection document. Setting fields to 1 includes them (the _id is included by default unless explicitly set to 0). This avoids fetching large fields like content."
+      },
+      {
+        "q": "Why does the shape of a MongoDB query determine which index is used?",
+        "options": [
+          "MongoDB randomly picks an index on each run",
+          "The query planner matches query predicates to index key patterns — the index must cover the fields queried in the same order",
+          "Indexes are only used for equality queries, never range queries",
+          "MongoDB uses a single global index regardless of query shape"
+        ],
+        "answer": 1,
+        "explain": "MongoDB's query planner examines the query predicate and finds index key patterns that match. A compound index on (status, createdAt) serves a query filtering by status and sorting by createdAt — but not a query that skips the leading field."
+      },
+      {
+        "q": "Which operator performs a logical AND on an array of query expressions?",
+        "options": [
+          "$or",
+          "$not",
+          "$and",
+          "$nor"
+        ],
+        "answer": 2,
+        "explain": "$and takes an array of conditions and returns documents that satisfy all of them. While MongoDB ANDs multiple field conditions implicitly, $and is required when the same field appears in multiple conditions."
+      }
+    ],
+    "flashcards": [
+      { "front": "MongoDB find() syntax", "back": "db.collection.find(filter, projection). Filter selects documents; projection specifies which fields to return (1 = include, 0 = exclude)." },
+      { "front": "$in vs $all", "back": "$in matches if the field value equals any element in the array. $all matches array fields that contain every element in the provided array." },
+      { "front": "$gt, $gte, $lt, $lte, $ne", "back": "Comparison operators: greater than, greater-than-or-equal, less than, less-than-or-equal, not equal. Used inside a field's filter document: { age: { $gte: 18 } }." },
+      { "front": "Projection: include vs exclude", "back": "You cannot mix inclusions and exclusions in one projection (except for _id). Use all 1s to include specific fields or all 0s to exclude specific fields." },
+      { "front": "$elemMatch", "back": "Matches documents where at least one element in an array field satisfies all specified criteria. Prevents cross-element matching when multiple conditions target the same array element." },
+      { "front": "Query shape and index selection", "back": "The query planner scores candidate plans. A query on { status: 1, createdAt: -1 } benefits from a compound index with those leading keys. Adding $explain() reveals the winning plan." },
+      { "front": "Limit, skip, sort chaining", "back": "db.col.find().sort({ createdAt: -1 }).skip(20).limit(10) — sort is applied before skip/limit regardless of chain order." }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `queryFilter(docs, filter)` — a tiny MongoDB-style find engine. Support equality ({field: value}), $gt, $lt, and $in operators for each field. Return all matching documents.",
+        "starter": "function queryFilter(docs, filter) {\n  // filter example: { age: { $gt: 18 }, status: { $in: ['active','pending'] } }\n  // your code\n}",
+        "tests": "const docs = [\n  { name: 'A', age: 25, status: 'active' },\n  { name: 'B', age: 15, status: 'pending' },\n  { name: 'C', age: 30, status: 'inactive' },\n  { name: 'D', age: 20, status: 'active' }\n];\ncheck('equality', () => expect(queryFilter(docs, { status: 'active' }).length).toBe(2));\ncheck('$gt', () => expect(queryFilter(docs, { age: { $gt: 20 } }).length).toBe(2));\ncheck('$lt', () => expect(queryFilter(docs, { age: { $lt: 20 } }).length).toBe(1));\ncheck('$in', () => expect(queryFilter(docs, { status: { $in: ['active','pending'] } }).length).toBe(3));\ncheck('combined', () => expect(queryFilter(docs, { age: { $gt: 18 }, status: 'active' }).length).toBe(2));",
+        "solution": "function queryFilter(docs, filter) {\n  return docs.filter(doc => {\n    for (const [field, cond] of Object.entries(filter)) {\n      if (cond && typeof cond === 'object') {\n        if ('$gt' in cond && !(doc[field] > cond.$gt)) return false;\n        if ('$lt' in cond && !(doc[field] < cond.$lt)) return false;\n        if ('$in' in cond && !cond.$in.includes(doc[field])) return false;\n      } else {\n        if (doc[field] !== cond) return false;\n      }\n    }\n    return true;\n  });\n}"
+      },
+      {
+        "prompt": "Implement `project(doc, projection)` — apply a MongoDB-style inclusion projection to a single document. All specified fields set to 1 are included; _id is included by default unless set to 0.",
+        "starter": "function project(doc, projection) {\n  // your code\n}",
+        "tests": "const doc = { _id: 1, title: 'Hello', content: 'World', views: 42 };\ncheck('include title only', () => expect(project(doc, { title: 1 })).toEqual({ _id: 1, title: 'Hello' }));\ncheck('exclude _id', () => expect(project(doc, { title: 1, _id: 0 })).toEqual({ title: 'Hello' }));\ncheck('multiple fields', () => expect(project(doc, { title: 1, views: 1 })).toEqual({ _id: 1, title: 'Hello', views: 42 }));",
+        "solution": "function project(doc, projection) {\n  const result = {};\n  const includeId = projection._id !== 0;\n  if (includeId && '_id' in doc) result._id = doc._id;\n  for (const [key, val] of Object.entries(projection)) {\n    if (key === '_id') continue;\n    if (val === 1 && key in doc) result[key] = doc[key];\n  }\n  return result;\n}"
+      }
+    ]
+  },
+
+  "db-mongo-agg": {
+    "quiz": [
+      {
+        "q": "In an aggregation pipeline, why should $match appear as early as possible?",
+        "options": [
+          "Because $match can only run as the first stage",
+          "To reduce the number of documents flowing into later stages, limiting memory and CPU usage",
+          "Because MongoDB ignores $match in later positions",
+          "To enable use of the $lookup operator"
+        ],
+        "answer": 1,
+        "explain": "Each document passing through the pipeline costs memory and CPU. Placing $match early filters out irrelevant documents before expensive stages like $group or $lookup see them, which can dramatically reduce execution time."
+      },
+      {
+        "q": "Which aggregation stage is equivalent to a SQL GROUP BY with aggregate functions?",
+        "options": [
+          "$project",
+          "$sort",
+          "$group",
+          "$unwind"
+        ],
+        "answer": 2,
+        "explain": "$group groups documents by a _id expression and computes accumulator expressions ($sum, $avg, $min, $max, $push, etc.) for each group, mirroring SQL's GROUP BY + aggregate function pattern."
+      },
+      {
+        "q": "You need to join an orders collection with a products collection to enrich each order with product details. Which stage handles this?",
+        "options": [
+          "$merge",
+          "$lookup",
+          "$facet",
+          "$graphLookup"
+        ],
+        "answer": 1,
+        "explain": "$lookup performs a left outer join to another collection in the same database. You specify the foreign collection, local field, foreign field, and output array name. $graphLookup is for recursive graph traversal."
+      },
+      {
+        "q": "What does $unwind do to an array field?",
+        "options": [
+          "Sorts the array field in descending order",
+          "Removes the array field from each document",
+          "Outputs one document per array element, with the array field replaced by each element value",
+          "Merges all array elements into a single string"
+        ],
+        "answer": 2,
+        "explain": "$unwind deconstructs an array into individual documents, one per element. This is commonly used before $group to aggregate over array items, or before $lookup to join on an array of foreign keys."
+      }
+    ],
+    "flashcards": [
+      { "front": "Aggregation pipeline concept", "back": "A sequence of stages; each stage transforms the document stream. Documents flow stage-to-stage like Unix pipes. Think in transformations, not loops." },
+      { "front": "$match", "back": "Filters documents (like find's first arg). Always place as early as possible to reduce downstream document count." },
+      { "front": "$group", "back": "Groups documents by _id expression and computes accumulators: $sum, $avg, $min, $max, $count, $push, $addToSet." },
+      { "front": "$project", "back": "Reshapes documents: include/exclude fields, rename, compute new fields with expressions. Like a SELECT with computed columns." },
+      { "front": "$lookup", "back": "Left outer join from the current collection to a foreign collection. Output is an array of matching documents under the specified 'as' field." },
+      { "front": "$unwind", "back": "Deconstructs an array field — outputs N documents for N array elements. Essential before grouping on array contents." },
+      { "front": "$sort + $limit pattern", "back": "Place $sort before $limit to get the top-N documents. When combined, MongoDB can optimize this into a 'top-K' sort that doesn't materialize the full sorted set." }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `aggregate(docs, pipeline)` supporting three stages: {$match: filter}, {$group: {_id: fieldName, total: {$sum: numField}}}, and {$sort: {field: 1|-1}}. Return the transformed array.",
+        "starter": "function aggregate(docs, pipeline) {\n  // your code — apply each stage in order\n}",
+        "tests": "const orders = [\n  { product: 'A', qty: 2, price: 10 },\n  { product: 'B', qty: 1, price: 20 },\n  { product: 'A', qty: 3, price: 10 },\n  { product: 'C', qty: 1, price: 5 }\n];\nconst result = aggregate(orders, [\n  { $match: { price: { $gte: 10 } } },\n  { $group: { _id: 'product', total: { $sum: 'qty' } } },\n  { $sort: { total: -1 } }\n]);\ncheck('product A total', () => expect(result.find(r => r._id === 'A').total).toBe(5));\ncheck('product B total', () => expect(result.find(r => r._id === 'B').total).toBe(1));\ncheck('C filtered out', () => expect(result.find(r => r._id === 'C')).toBe(undefined));\ncheck('sorted desc by total', () => expect(result[0]._id).toBe('A'));",
+        "solution": "function aggregate(docs, pipeline) {\n  let stream = [...docs];\n  for (const stage of pipeline) {\n    if (stage.$match) {\n      stream = stream.filter(doc => {\n        for (const [f, cond] of Object.entries(stage.$match)) {\n          if (cond && typeof cond === 'object') {\n            if ('$gte' in cond && !(doc[f] >= cond.$gte)) return false;\n            if ('$gt' in cond && !(doc[f] > cond.$gt)) return false;\n          } else {\n            if (doc[f] !== cond) return false;\n          }\n        }\n        return true;\n      });\n    } else if (stage.$group) {\n      const { _id: groupField, ...accumulators } = stage.$group;\n      const map = {};\n      for (const doc of stream) {\n        const key = doc[groupField];\n        if (!map[key]) map[key] = { _id: key };\n        for (const [outField, expr] of Object.entries(accumulators)) {\n          if (expr.$sum) map[key][outField] = (map[key][outField] || 0) + doc[expr.$sum];\n        }\n      }\n      stream = Object.values(map);\n    } else if (stage.$sort) {\n      const [field, dir] = Object.entries(stage.$sort)[0];\n      stream.sort((a, b) => dir * (a[field] > b[field] ? 1 : a[field] < b[field] ? -1 : 0));\n    }\n  }\n  return stream;\n}"
+      }
+    ]
+  },
+
+  "db-mongo-index": {
+    "quiz": [
+      {
+        "q": "What data structure does MongoDB (and most databases) use for its default indexes?",
+        "options": [
+          "Hash table",
+          "Skip list",
+          "B-tree",
+          "Red-black tree"
+        ],
+        "answer": 2,
+        "explain": "MongoDB uses B-trees (specifically B+ trees) for its indexes. B-trees keep keys sorted and balanced, enabling O(log n) point lookups and efficient range scans — critical for $gt/$lt queries and sort operations."
+      },
+      {
+        "q": "What is a covered query in MongoDB?",
+        "options": [
+          "A query whose result is cached in memory",
+          "A query where both the filter and the projection are satisfied entirely from the index without reading the document",
+          "A query that uses a partial index",
+          "A query run inside a transaction"
+        ],
+        "answer": 1,
+        "explain": "A covered query is satisfied entirely from the index — no document fetch required. This is extremely fast because the index is much smaller than the full collection. Achievable when all projected fields are in the index."
+      },
+      {
+        "q": "You have a compound index on (status, createdAt). Which query can use this index efficiently?",
+        "options": [
+          "{ createdAt: { $gt: date } } — filtering only on createdAt",
+          "{ status: 'active', createdAt: { $gt: date } } — filtering on both fields",
+          "{ updatedAt: { $lt: date } } — filtering on a field not in the index",
+          "All of the above equally"
+        ],
+        "answer": 1,
+        "explain": "Compound indexes follow the ESR rule: Equality first, Sort second, Range last. A query using the leading key (status equality) then the second key (createdAt range) can use the index efficiently. Skipping the leading key means the index cannot be used for that query."
+      },
+      {
+        "q": "What is a partial index and when would you use it?",
+        "options": [
+          "An index that only covers half the collection to save disk space randomly",
+          "An index built only on documents matching a filter expression, reducing index size for queries targeting a subset",
+          "A compound index with only one field",
+          "An index that MongoDB marks as deprecated"
+        ],
+        "answer": 1,
+        "explain": "A partial index is built only on documents satisfying a filter (e.g., { status: 'published' }). It is smaller, faster to maintain, and ideal when queries consistently target a subset of documents — a common real-world pattern."
+      }
+    ],
+    "flashcards": [
+      { "front": "B-tree index: what it gives you", "back": "Sorted keys in a balanced tree. O(log n) point lookups, efficient range scans ($gt/$lt), and the ability to satisfy sort operations without a separate sort step." },
+      { "front": "Compound index key order rule (ESR)", "back": "Equality fields first, Sort fields second, Range fields last. This ordering maximizes the number of queries that can use the index efficiently." },
+      { "front": "Covered query", "back": "A query where the filter and all projected fields exist in the index. MongoDB never touches the actual documents — only the index tree is read." },
+      { "front": "Partial index", "back": "Built only on documents matching a filter expression (e.g., { status: { $eq: 'active' } }). Smaller, cheaper to maintain, perfect for high-selectivity subsets." },
+      { "front": "explain('executionStats')", "back": "Returns the query plan including winning plan, stages used (IXSCAN vs COLLSCAN), nReturned, totalDocsExamined, and execution time. Use this to confirm an index is being used." },
+      { "front": "Index selectivity", "back": "A high-cardinality field (e.g., email) has high selectivity — the index quickly narrows to few documents. Low-cardinality fields (e.g., boolean) have low selectivity and may not benefit from an index." },
+      { "front": "createIndex({ field: 1 }) vs { field: -1 }", "back": "1 = ascending, -1 = descending. For single-field indexes the direction only matters when the query includes a sort. For compound indexes it determines traversal direction and affects multi-sort queries." }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `rangeSearch(sortedArr, low, high)` — a prefix B-tree-style range scan over a sorted array of numbers. Return all elements where low <= element <= high. Use binary search to find the start position, then scan forward.",
+        "starter": "function rangeSearch(sortedArr, low, high) {\n  // Binary search for leftmost index >= low, then scan\n  // your code\n}",
+        "tests": "const arr = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19];\ncheck('basic range', () => expect(rangeSearch(arr, 5, 11)).toEqual([5, 7, 9, 11]));\ncheck('exact match', () => expect(rangeSearch(arr, 7, 7)).toEqual([7]));\ncheck('empty range', () => expect(rangeSearch(arr, 6, 6)).toEqual([]));\ncheck('full range', () => expect(rangeSearch(arr, 1, 19)).toEqual(arr));\ncheck('beyond bounds', () => expect(rangeSearch(arr, 0, 2)).toEqual([1]));",
+        "solution": "function rangeSearch(sortedArr, low, high) {\n  let lo = 0, hi = sortedArr.length;\n  while (lo < hi) {\n    const mid = (lo + hi) >> 1;\n    if (sortedArr[mid] < low) lo = mid + 1;\n    else hi = mid;\n  }\n  const result = [];\n  for (let i = lo; i < sortedArr.length && sortedArr[i] <= high; i++) {\n    result.push(sortedArr[i]);\n  }\n  return result;\n}"
+      }
+    ]
+  },
+
+  "db-mongo-tx": {
+    "quiz": [
+      {
+        "q": "Before MongoDB 4.0, which of the following operations was atomic?",
+        "options": [
+          "Any write spanning two collections",
+          "A write concern acknowledged by the majority of replica set members",
+          "A single document write (insert, update, or delete)",
+          "A pipeline with $lookup across two collections"
+        ],
+        "answer": 2,
+        "explain": "MongoDB has always guaranteed atomicity at the single-document level. A write to one document is all-or-nothing, even if that document contains complex nested arrays and sub-objects. Multi-document transactions were added in v4.0."
+      },
+      {
+        "q": "What does write concern { w: 'majority' } guarantee?",
+        "options": [
+          "The write is stored only in memory on the primary",
+          "The write is acknowledged by a majority of voting replica set members before success is returned",
+          "The write is written to disk on all replica set members before success is returned",
+          "The write is flushed to the oplog immediately"
+        ],
+        "answer": 1,
+        "explain": "{ w: 'majority' } means the write must be acknowledged by a majority of voting nodes before the driver receives a success response. This survives a primary failover — the write is on enough nodes that the new primary will have it."
+      },
+      {
+        "q": "Why should multi-document transactions in MongoDB be kept short?",
+        "options": [
+          "Transactions cannot span more than 3 documents",
+          "Transactions hold locks on documents, increasing contention and latency for concurrent operations",
+          "MongoDB automatically rolls back transactions after 1 second",
+          "Transactions are stored in memory only and are lost on restart"
+        ],
+        "answer": 1,
+        "explain": "Multi-document transactions acquire document-level locks. Long-running transactions increase lock contention, block concurrent writes to those documents, and can hit the 60-second transaction timeout, causing an abort."
+      },
+      {
+        "q": "Which read concern level ensures you only read data that has been committed to a majority of replica set members?",
+        "options": [
+          "local",
+          "available",
+          "majority",
+          "linearizable"
+        ],
+        "answer": 2,
+        "explain": "Read concern 'majority' ensures you read only data that has been durably committed to a majority of nodes — it cannot be rolled back. 'local' reads the most recent data on the primary regardless of replication status."
+      }
+    ],
+    "flashcards": [
+      { "front": "MongoDB single-document atomicity", "back": "A single document write is always atomic — the document is either fully written or not at all. This covers embedded arrays and sub-documents too." },
+      { "front": "Multi-document transactions (since v4.0)", "back": "Allow ACID operations across multiple documents and collections within a session. Use sparingly — they add latency and contention. Design schemas to minimize their need." },
+      { "front": "Write concern { w: 1 }", "back": "Acknowledged by the primary only. Fastest but least durable — a primary crash before replication loses the write." },
+      { "front": "Write concern { w: 'majority' }", "back": "Acknowledged by a majority of voting replica set members. Survives a primary failover. Default in MongoDB 5.0+." },
+      { "front": "Write concern { j: true }", "back": "The primary writes to its journal (WAL on disk) before acknowledging. Guarantees the write survives a primary crash." },
+      { "front": "Read concern 'local' vs 'majority'", "back": "'local' reads the latest data on the primary, which may be rolled back. 'majority' reads only committed, non-rollback-able data — safer for financial operations." },
+      { "front": "When to use transactions", "back": "When you need all-or-nothing across multiple documents — e.g., deducting stock AND creating an order record atomically. Schema design should minimize this; embed where possible." }
+    ],
+    "exercises": []
+  },
+
+  "db-redis": {
+    "quiz": [
+      {
+        "q": "Which Redis data structure is best for storing a user's session with multiple fields (userId, role, lastSeen)?",
+        "options": [
+          "String",
+          "List",
+          "Hash",
+          "Sorted Set"
+        ],
+        "answer": 2,
+        "explain": "A Hash stores field-value pairs under one key — ideal for structured objects like sessions. You can GET/SET individual fields with HGET/HSET without serializing/deserializing the entire object, unlike storing JSON in a String."
+      },
+      {
+        "q": "What happens to a Redis key when its TTL expires?",
+        "options": [
+          "It is immediately deleted synchronously",
+          "It is marked as expired and lazily deleted on next access, plus periodically cleaned up in the background",
+          "It is moved to a separate expired-keys database",
+          "It is persisted to disk before deletion"
+        ],
+        "answer": 1,
+        "explain": "Redis uses lazy expiration (delete on access) combined with an active background cycle that periodically samples and removes expired keys. This avoids blocking the main thread for mass expiration events."
+      },
+      {
+        "q": "Which Redis data structure supports O(log n) insertion and retrieval by score, useful for leaderboards?",
+        "options": [
+          "List",
+          "Set",
+          "Hash",
+          "Sorted Set (ZSet)"
+        ],
+        "answer": 3,
+        "explain": "Sorted Sets (ZSETs) maintain members ordered by a floating-point score using a skip list + hash table internally. ZADD is O(log n), ZRANGE/ZREVRANGE are O(log n + k) — perfect for leaderboards, rate limiting windows, and priority queues."
+      },
+      {
+        "q": "What does the Redis eviction policy 'allkeys-lru' do when memory is full?",
+        "options": [
+          "It rejects all new writes with an OOM error",
+          "It evicts the least-recently-used key across all keys, regardless of TTL",
+          "It evicts only keys that have a TTL set",
+          "It flushes all keys and starts fresh"
+        ],
+        "answer": 1,
+        "explain": "'allkeys-lru' evicts the least-recently-used key from the entire keyspace when memory is full. Contrast with 'volatile-lru' which only evicts keys that have a TTL set. Use 'allkeys-lru' when Redis is used as a pure cache."
+      }
+    ],
+    "flashcards": [
+      { "front": "Redis data structures", "back": "String, List (doubly linked), Hash (field-value pairs), Set (unique unordered), Sorted Set (score-ordered), Stream (append-only log). Each has O(1) or O(log n) operations for its primary use case." },
+      { "front": "TTL (Time To Live)", "back": "Set with EXPIRE key seconds or EX option on SET. Redis lazily + periodically purges expired keys. Use TTLs on all cache entries to prevent unbounded memory growth." },
+      { "front": "Redis persistence: RDB vs AOF", "back": "RDB = point-in-time snapshots at intervals (fast recovery, potential data loss). AOF = append-only log of every write command (durable, larger file). Both can be enabled simultaneously." },
+      { "front": "INCR / INCRBY — atomic counter", "back": "INCR key atomically increments a string-stored integer. No read-modify-write race condition. Used for rate limiting counters, view counts, and sequence generation." },
+      { "front": "Sorted Set use cases", "back": "Leaderboards (ZADD score member, ZREVRANGE), sliding window rate limiting (member = request timestamp, score = timestamp), priority queues, and time-series with expiry per entry." },
+      { "front": "Eviction policies", "back": "noeviction (error on full), allkeys-lru, volatile-lru, allkeys-lfu, volatile-lfu, allkeys-random, volatile-random, volatile-ttl. Choose based on whether Redis is a cache (allkeys-lru) or a durable store (noeviction)." },
+      { "front": "Redis single-threaded command execution", "back": "All commands run sequentially on a single thread — no lock needed, no race conditions for atomic operations. I/O is multiplexed. Slow commands (KEYS *, SMEMBERS on huge sets) block the server." }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `LRUCache(capacity)` — a Least Recently Used cache with `get(key)` and `set(key, value)` methods. get returns -1 if not found. When capacity is exceeded, evict the least recently used entry. Use a Map (insertion-order iterable in JS).",
+        "starter": "function LRUCache(capacity) {\n  // return an object with get(key) and set(key, value)\n  // your code\n}",
+        "tests": "const cache = LRUCache(2);\ncache.set('a', 1);\ncache.set('b', 2);\ncheck('get existing', () => expect(cache.get('a')).toBe(1));\ncache.set('c', 3); // evicts 'b' (LRU)\ncheck('evicted key returns -1', () => expect(cache.get('b')).toBe(-1));\ncheck('newer key present', () => expect(cache.get('c')).toBe(3));\ncache.set('d', 4); // evicts 'a' (LRU after 'a' was accessed, then 'c' was set)\ncheck('a evicted', () => expect(cache.get('a')).toBe(-1));\ncheck('d present', () => expect(cache.get('d')).toBe(4));",
+        "solution": "function LRUCache(capacity) {\n  const map = new Map();\n  return {\n    get(key) {\n      if (!map.has(key)) return -1;\n      const val = map.get(key);\n      map.delete(key);\n      map.set(key, val);\n      return val;\n    },\n    set(key, value) {\n      if (map.has(key)) map.delete(key);\n      else if (map.size >= capacity) map.delete(map.keys().next().value);\n      map.set(key, value);\n    }\n  };\n}"
+      }
+    ]
+  },
+
+  "db-redis-patterns": {
+    "quiz": [
+      {
+        "q": "In the cache-aside pattern, what happens on a cache miss?",
+        "options": [
+          "The cache automatically fetches data from the database and populates itself",
+          "The application reads from the database, then writes the result into the cache, then returns it",
+          "The request is rejected and the client must retry",
+          "The write-through layer updates the cache synchronously"
+        ],
+        "answer": 1,
+        "explain": "In cache-aside (lazy loading), the application is responsible for populating the cache on a miss: read from DB, write to cache with a TTL, return to caller. The cache does not auto-populate — hence 'aside' from the data flow."
+      },
+      {
+        "q": "What is the key advantage of write-through caching over cache-aside?",
+        "options": [
+          "It reduces database load by never writing to the database",
+          "The cache is always consistent with the database because writes go to both simultaneously",
+          "It is faster on writes because it skips the database",
+          "It uses less memory than cache-aside"
+        ],
+        "answer": 1,
+        "explain": "Write-through writes data to both cache and database on every write. The cache is never stale for written data. The trade-off is write latency (two writes) and potential cache pollution for data written but rarely read."
+      },
+      {
+        "q": "Redis pub/sub: if no subscriber is listening when a message is published, what happens to the message?",
+        "options": [
+          "It is stored in the channel until a subscriber connects",
+          "It is discarded — pub/sub is fire-and-forget with no persistence",
+          "It is stored in the database as a fallback",
+          "Redis retries delivery for 60 seconds"
+        ],
+        "answer": 1,
+        "explain": "Redis pub/sub is fire-and-forget. If no subscriber is connected, the message is lost. For durable messaging with replay, use Redis Streams (XADD/XREAD) which persist messages with consumer group acknowledgement."
+      },
+      {
+        "q": "How do you implement a distributed lock in Redis safely?",
+        "options": [
+          "SETNX key value, then EXPIRE key seconds as two separate commands",
+          "SET key value NX PX milliseconds — atomic set-if-not-exists with expiry in one command",
+          "LPUSH lock-queue, then LPOP when done",
+          "INCR a counter key and check if it equals 1"
+        ],
+        "answer": 1,
+        "explain": "SET key value NX PX ms is atomic — it sets the key only if it does not exist AND sets the expiry in one command. The two-command approach (SETNX + EXPIRE) has a race: if the process crashes between them, the lock never expires."
+      }
+    ],
+    "flashcards": [
+      { "front": "Cache-aside (lazy loading)", "back": "On miss: app reads DB, writes to cache with TTL, returns data. Cache is populated on demand. Simple and resilient — cache failure degrades to DB reads." },
+      { "front": "Write-through", "back": "On write: app writes to cache AND DB synchronously. Cache is always fresh for written data. Cost: every write hits both stores; infrequently-read data pollutes the cache." },
+      { "front": "Write-behind (write-back)", "back": "App writes to cache only; cache asynchronously flushes to DB. Lowest write latency. Risk: data loss if cache crashes before flush." },
+      { "front": "Redis pub/sub", "back": "PUBLISH channel message / SUBSCRIBE channel. Fire-and-forget — no persistence. Ideal for ephemeral notifications (e.g., user presence). Use Streams for durable messaging." },
+      { "front": "Redis Streams vs pub/sub", "back": "Streams (XADD/XREAD) persist messages and support consumer groups with acknowledgement — messages are not lost if a consumer is offline. Pub/sub delivers only to currently connected subscribers." },
+      { "front": "Distributed lock with SET NX PX", "back": "SET lock:resource owner-token NX PX 30000 — acquires lock only if key doesn't exist, auto-expires in 30s. Release by DEL only if the value matches your token (use Lua script for atomic check-and-delete)." },
+      { "front": "Cache stampede (thundering herd)", "back": "When a popular cache key expires, many concurrent requests all miss and hit the DB simultaneously. Mitigate with probabilistic early expiry, a mutex/lock on the first refill, or background refresh." }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `cacheAside(cache, key, fetchFn, ttl)` — returns the cached value if present, otherwise calls fetchFn() to get the value, stores it with a TTL counter, and returns it. Use a plain object as the cache store: cache[key] = { value, expiresAt }. ttl is in milliseconds.",
+        "starter": "function cacheAside(cache, key, fetchFn, ttl) {\n  // cache is a plain object\n  // fetchFn() returns the fresh value (synchronous for testing)\n  // your code\n}",
+        "tests": "const store = {};\nlet dbCalls = 0;\nconst fetch = () => { dbCalls++; return 'data-' + dbCalls; };\nconst result1 = cacheAside(store, 'k', fetch, 60000);\ncheck('first call hits db', () => expect(dbCalls).toBe(1));\ncheck('first call returns value', () => expect(result1).toBe('data-1'));\nconst result2 = cacheAside(store, 'k', fetch, 60000);\ncheck('second call uses cache', () => expect(dbCalls).toBe(1));\ncheck('second call returns same value', () => expect(result2).toBe('data-1'));\nstore['k'].expiresAt = Date.now() - 1; // simulate expiry\nconst result3 = cacheAside(store, 'k', fetch, 60000);\ncheck('expired key re-fetches', () => expect(dbCalls).toBe(2));\ncheck('expired key returns new value', () => expect(result3).toBe('data-2'));",
+        "solution": "function cacheAside(cache, key, fetchFn, ttl) {\n  const entry = cache[key];\n  if (entry && entry.expiresAt > Date.now()) return entry.value;\n  const value = fetchFn();\n  cache[key] = { value, expiresAt: Date.now() + ttl };\n  return value;\n}"
+      }
+    ]
+  },
+
+  "db-sqlite": {
+    "quiz": [
+      {
+        "q": "What does SQLite's WAL (Write-Ahead Logging) mode enable that the default journal mode does not?",
+        "options": [
+          "Full distributed transaction support across multiple SQLite files",
+          "Concurrent readers and a single writer without blocking each other",
+          "Automatic schema migration when the application restarts",
+          "Network replication to remote SQLite instances"
+        ],
+        "answer": 1,
+        "explain": "WAL mode separates read and write paths. Readers read from the main database file while a writer appends to a separate WAL file. This allows multiple concurrent readers alongside a writer, eliminating the exclusive-lock bottleneck of the default rollback journal."
+      },
+      {
+        "q": "Why is SQLite described as 'embedded'?",
+        "options": [
+          "It requires an embedded Linux OS to run",
+          "The entire database engine is a library that runs in-process with the application — no separate server",
+          "It stores data embedded within the application binary",
+          "It only supports embedded C applications"
+        ],
+        "answer": 1,
+        "explain": "SQLite runs as a library linked directly into the application process. There is no separate database server, no network socket, and no client/server protocol. The database is a single file on disk, making it ideal for local-first and edge deployments."
+      },
+      {
+        "q": "For JARVIS's memory store, why is SQLite a better choice than a plain JSON file?",
+        "options": [
+          "SQLite is faster at serializing JSON than the built-in JSON.stringify",
+          "SQLite provides indexed queries, transactions, and concurrent access without manual locking or full-file rewrites",
+          "JSON files cannot store strings longer than 4KB",
+          "SQLite automatically encrypts data at rest"
+        ],
+        "answer": 1,
+        "explain": "A plain JSON file requires reading and rewriting the entire file on every update, has no indexing for queries, and is not safe for concurrent access. SQLite provides row-level writes, B-tree indexes, ACID transactions, and WAL-based concurrency in a single file."
+      },
+      {
+        "q": "What is a key limitation of SQLite that makes it unsuitable for high-concurrency web services?",
+        "options": [
+          "SQLite does not support SQL joins",
+          "SQLite only supports a single writer at a time — concurrent write contention serializes through a file lock",
+          "SQLite cannot store more than 1 GB of data",
+          "SQLite does not support indexes"
+        ],
+        "answer": 1,
+        "explain": "SQLite serializes writes through a single writer lock (even in WAL mode). For a web service with many concurrent write requests, this becomes a bottleneck. PostgreSQL or MySQL with connection pooling handle concurrent writes far better."
+      }
+    ],
+    "flashcards": [
+      { "front": "SQLite: what it is", "back": "A self-contained, serverless, transactional SQL database engine in a C library. The entire database lives in a single file. The most widely deployed database in the world (every mobile app, browser, OS)." },
+      { "front": "WAL mode", "back": "Write-Ahead Logging: writes go to a WAL file first, then are checkpointed to the main DB. Enables concurrent readers alongside a single writer. Enable with PRAGMA journal_mode=WAL." },
+      { "front": "Local-first architecture", "back": "Data lives on the device; sync to a server is secondary. SQLite is ideal here — full SQL, ACID, no network dependency. Edge computing (Cloudflare D1, Turso) runs SQLite at the edge." },
+      { "front": "PRAGMA settings for performance", "back": "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA cache_size=-64000; PRAGMA temp_store=MEMORY; — these settings dramatically improve SQLite throughput for local workloads." },
+      { "front": "SQLite concurrency limits", "back": "One writer at a time (file-level lock in rollback mode, process-level in WAL). Many concurrent readers. Not suitable for high write-concurrency web services — use PostgreSQL for that." },
+      { "front": "better-sqlite3 vs sqlite3 (Node.js)", "back": "better-sqlite3 is synchronous and faster for local use (no async overhead for in-process DB). sqlite3 is async/callback-based. For server-side SQLite in Node, better-sqlite3 is generally preferred." },
+      { "front": "Turso / Cloudflare D1", "back": "Edge-distributed SQLite: Turso replicates SQLite files globally with libSQL (a SQLite fork). D1 runs SQLite at Cloudflare Workers edge nodes. The local-first model scales globally." }
+    ],
+    "exercises": []
+  },
+
+  "db-sql": {
+    "quiz": [
+      {
+        "q": "Which normal form eliminates transitive dependencies (non-key column depends on another non-key column)?",
+        "options": [
+          "First Normal Form (1NF)",
+          "Second Normal Form (2NF)",
+          "Third Normal Form (3NF)",
+          "Boyce-Codd Normal Form (BCNF)"
+        ],
+        "answer": 2,
+        "explain": "3NF requires that every non-key column depends only on the primary key, not on another non-key column. For example, storing city→zipCode in the same table as userId creates a transitive dependency — city depends on zipCode, not on userId."
+      },
+      {
+        "q": "Which SQL JOIN type returns all rows from the left table and matching rows from the right table (NULLs for non-matches on the right)?",
+        "options": [
+          "INNER JOIN",
+          "RIGHT JOIN",
+          "LEFT JOIN",
+          "CROSS JOIN"
+        ],
+        "answer": 2,
+        "explain": "LEFT JOIN (or LEFT OUTER JOIN) returns every row from the left table. If no matching row exists in the right table, columns from the right table are NULL. Useful for 'show all users even if they have no orders'."
+      },
+      {
+        "q": "Which ACID property ensures that a committed transaction is never lost, even after a system crash?",
+        "options": [
+          "Atomicity",
+          "Consistency",
+          "Isolation",
+          "Durability"
+        ],
+        "answer": 3,
+        "explain": "Durability guarantees that once a transaction is committed, it persists even if the system crashes immediately after. Databases achieve this through write-ahead logging (WAL) — changes are written to a log on durable storage before being acknowledged."
+      },
+      {
+        "q": "What does a UNIQUE constraint on a column enforce?",
+        "options": [
+          "The column must contain only integers",
+          "No two rows may have the same value in that column (NULLs are typically excluded from this check)",
+          "The column is the primary key of the table",
+          "The column value must reference a value in another table"
+        ],
+        "answer": 1,
+        "explain": "A UNIQUE constraint prevents duplicate non-NULL values in the column. Unlike a PRIMARY KEY, a table can have multiple UNIQUE columns and they allow NULL values (most databases allow multiple NULLs in a UNIQUE column since NULL != NULL)."
+      }
+    ],
+    "flashcards": [
+      { "front": "ACID", "back": "Atomicity (all-or-nothing), Consistency (rules never violated), Isolation (concurrent transactions see a consistent view), Durability (committed data survives crashes). The four guarantees that make relational databases trustworthy for financial systems." },
+      { "front": "Normalization purpose", "back": "Remove data anomalies: insertion anomalies (can't add data without unrelated data), update anomalies (must update many rows), and deletion anomalies (deleting one fact accidentally deletes another)." },
+      { "front": "1NF, 2NF, 3NF in brief", "back": "1NF: atomic values, no repeating groups. 2NF: no partial dependency on composite key. 3NF: no transitive dependency (non-key depends only on the primary key)." },
+      { "front": "INNER vs LEFT vs RIGHT vs FULL JOIN", "back": "INNER: only matching rows from both tables. LEFT: all left + matching right (NULL for misses). RIGHT: all right + matching left. FULL OUTER: all rows from both, NULLs where no match." },
+      { "front": "Indexes in SQL", "back": "B-tree by default. Speed up WHERE, JOIN, and ORDER BY at the cost of write overhead. Foreign keys always need an index. Use EXPLAIN or EXPLAIN ANALYZE to verify index usage." },
+      { "front": "Transaction isolation levels", "back": "Read Uncommitted, Read Committed (default in PostgreSQL), Repeatable Read, Serializable. Higher isolation = fewer anomalies (dirty reads, non-repeatable reads, phantom reads) but more contention." },
+      { "front": "NULL in SQL", "back": "NULL means unknown, not zero or empty string. NULL != NULL — use IS NULL / IS NOT NULL. Aggregate functions (SUM, COUNT, AVG) ignore NULLs." }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `innerJoin(left, right, leftKey, rightKey)` — perform a SQL INNER JOIN in JS. Return a new array where each element merges a left row and its matching right row (by leftKey == rightKey). Omit rows with no match on either side.",
+        "starter": "function innerJoin(left, right, leftKey, rightKey) {\n  // your code\n}",
+        "tests": "const users = [{ id: 1, name: 'Vishnu' }, { id: 2, name: 'Ada' }, { id: 3, name: 'Solo' }];\nconst orders = [{ orderId: 'o1', userId: 1, total: 100 }, { orderId: 'o2', userId: 2, total: 200 }, { orderId: 'o3', userId: 1, total: 50 }];\nconst result = innerJoin(users, orders, 'id', 'userId');\ncheck('returns 3 rows (Vishnu has 2 orders)', () => expect(result.length).toBe(3));\ncheck('Solo excluded (no orders)', () => expect(result.find(r => r.name === 'Solo')).toBe(undefined));\ncheck('merged fields present', () => expect(result.find(r => r.orderId === 'o1').name).toBe('Vishnu'));\ncheck('correct total', () => expect(result.find(r => r.orderId === 'o2').total).toBe(200));",
+        "solution": "function innerJoin(left, right, leftKey, rightKey) {\n  const result = [];\n  for (const l of left) {\n    for (const r of right) {\n      if (l[leftKey] === r[rightKey]) result.push({ ...l, ...r });\n    }\n  }\n  return result;\n}"
+      }
+    ]
+  },
+
+  "db-prisma": {
+    "quiz": [
+      {
+        "q": "What is the N+1 query problem in an ORM like Prisma?",
+        "options": [
+          "Running a query that returns N+1 rows more than expected",
+          "Fetching N parent records and then issuing one additional query per parent to load related records, totaling N+1 queries",
+          "A Prisma schema validation error when N+1 relations are defined",
+          "Running the same migration N+1 times accidentally"
+        ],
+        "answer": 1,
+        "explain": "N+1 occurs when code fetches N rows and then fires one query per row to load a related entity. E.g., 10 users fetched, then 10 separate queries for their posts = 11 queries total. Fix with Prisma's `include` or `select` which generates a JOIN or batched query."
+      },
+      {
+        "q": "In Prisma, how do you fetch users AND their related posts in a single query?",
+        "options": [
+          "prisma.user.findMany({ join: 'posts' })",
+          "prisma.user.findMany({ include: { posts: true } })",
+          "prisma.user.findMany().then(u => prisma.post.findMany({ where: { userId: u.id } }))",
+          "prisma.user.findManyWithPosts()"
+        ],
+        "answer": 1,
+        "explain": "Prisma's `include` clause eagerly loads related records in the same operation, generating an efficient JOIN or batched query under the hood. This resolves the N+1 pattern at the ORM level."
+      },
+      {
+        "q": "What does `prisma migrate dev` do?",
+        "options": [
+          "Deploys migrations to a production database",
+          "Generates a new migration file from schema changes and applies it to the dev database",
+          "Resets the database to an empty state",
+          "Validates the Prisma schema without making any changes"
+        ],
+        "answer": 1,
+        "explain": "`prisma migrate dev` detects the diff between the current schema.prisma and the database state, generates a SQL migration file, applies it, and regenerates the Prisma client. It also runs seed scripts if configured."
+      },
+      {
+        "q": "Which Prisma feature ensures your TypeScript code cannot pass invalid data shapes to database queries?",
+        "options": [
+          "Prisma's runtime schema validation middleware",
+          "Generated TypeScript types from the schema — the Prisma client is fully typed, making invalid queries a compile-time error",
+          "An automatic JSON Schema validator that runs before each query",
+          "Prisma middleware that checks types at runtime"
+        ],
+        "answer": 1,
+        "explain": "Prisma generates a TypeScript client from your schema. Every model, relation, and field is typed — including nested include/select shapes. Mismatched types, missing required fields, or invalid filter combinations are caught at compile time, not runtime."
+      }
+    ],
+    "flashcards": [
+      { "front": "Prisma schema-first workflow", "back": "Define models in schema.prisma → run prisma migrate dev → Prisma generates a type-safe client. The schema is the single source of truth for both the database structure and TypeScript types." },
+      { "front": "N+1 in Prisma and the fix", "back": "N+1: loop over findMany results and call findUnique per record. Fix: use include: { relation: true } to eager-load, or select specific fields to avoid fetching entire related records." },
+      { "front": "Prisma include vs select", "back": "include: { posts: true } adds all post fields. select: { name: true, posts: { select: { title: true } } } fetches only specified fields — use select to avoid over-fetching." },
+      { "front": "prisma migrate dev vs deploy", "back": "migrate dev: creates + applies a new migration in development. migrate deploy: applies existing migration files in production without generating new ones. Never run migrate dev in production." },
+      { "front": "Prisma transactions", "back": "prisma.$transaction([op1, op2]) runs multiple operations atomically. Interactive transactions: prisma.$transaction(async (tx) => { ... }) allow conditional logic within the transaction." },
+      { "front": "Prisma client generation", "back": "prisma generate reads schema.prisma and outputs a type-safe client to node_modules/.prisma/client. Must be re-run after any schema change. CI pipelines should run this before building." },
+      { "front": "Relation loading strategies", "back": "Lazy loading (default — load on access, causes N+1), Eager loading (include — JOIN at query time), Select loading (select — precise field control). Always use eager/select loading for production queries." }
+    ],
+    "exercises": [
+      {
+        "prompt": "Simulate the N+1 problem and its batch fix. Implement `fetchWithN1(users, queryPost)` that calls `queryPost(userId)` once per user and returns users with their posts attached. Then implement `fetchBatched(users, queryPosts)` that calls `queryPosts(userIds[])` once for all users and attaches posts. Count calls using the provided counters.",
+        "starter": "function fetchWithN1(users, queryPost) {\n  // call queryPost(user.id) for each user\n  // attach result as user.posts\n  // your code\n}\n\nfunction fetchBatched(users, queryPosts) {\n  // call queryPosts(allUserIds) once\n  // attach matching posts to each user\n  // your code\n}",
+        "tests": "const users = [{ id: 1, name: 'A' }, { id: 2, name: 'B' }, { id: 3, name: 'C' }];\nconst allPosts = [{ id: 10, userId: 1, title: 'p1' }, { id: 11, userId: 2, title: 'p2' }, { id: 12, userId: 1, title: 'p3' }];\nlet n1Calls = 0;\nconst queryPost = (uid) => { n1Calls++; return allPosts.filter(p => p.userId === uid); };\nlet batchCalls = 0;\nconst queryPosts = (uids) => { batchCalls++; return allPosts.filter(p => uids.includes(p.userId)); };\nconst r1 = fetchWithN1(users, queryPost);\ncheck('N+1 makes 3 calls', () => expect(n1Calls).toBe(3));\ncheck('N+1 user 1 has 2 posts', () => expect(r1.find(u => u.id === 1).posts.length).toBe(2));\nconst r2 = fetchBatched(users, queryPosts);\ncheck('batched makes 1 call', () => expect(batchCalls).toBe(1));\ncheck('batched user 2 has 1 post', () => expect(r2.find(u => u.id === 2).posts.length).toBe(1));\ncheck('batched user 3 has 0 posts', () => expect(r2.find(u => u.id === 3).posts.length).toBe(0));",
+        "solution": "function fetchWithN1(users, queryPost) {\n  return users.map(u => ({ ...u, posts: queryPost(u.id) }));\n}\n\nfunction fetchBatched(users, queryPosts) {\n  const ids = users.map(u => u.id);\n  const posts = queryPosts(ids);\n  const postsByUser = {};\n  for (const p of posts) (postsByUser[p.userId] = postsByUser[p.userId] || []).push(p);\n  return users.map(u => ({ ...u, posts: postsByUser[u.id] || [] }));\n}"
+      }
+    ]
+  },
+
+  "db-vectors": {
+    "quiz": [
+      {
+        "q": "What does a vector embedding represent?",
+        "options": [
+          "A compressed image stored as a byte array",
+          "A high-dimensional numerical array that encodes semantic meaning — semantically similar items have nearby vectors",
+          "A sorted index of document keywords for full-text search",
+          "A checksum of a document used for deduplication"
+        ],
+        "answer": 1,
+        "explain": "An embedding model maps text (or images, audio) to a high-dimensional vector where geometric distance reflects semantic similarity. Two sentences about the same topic will have a high cosine similarity even if they share no words."
+      },
+      {
+        "q": "Why is approximate nearest neighbor (ANN) search used instead of exact nearest neighbor for large vector stores?",
+        "options": [
+          "ANN is more accurate than exact search for high-dimensional spaces",
+          "Exact nearest neighbor requires computing cosine distance to every vector in O(n*d) — ANN indexes (HNSW, IVF) trade a small accuracy loss for orders-of-magnitude faster search",
+          "ANN is required because cosine similarity cannot be computed exactly",
+          "Vector stores do not support exact similarity search due to floating-point errors"
+        ],
+        "answer": 1,
+        "explain": "Brute-force exact search is O(n*d) — for 10M vectors at 1536 dimensions it is too slow. ANN indexes like HNSW (hierarchical navigable small world) build a graph structure that narrows the search space, returning near-exact results in O(log n) or O(sqrt(n)) time."
+      },
+      {
+        "q": "Cosine similarity between two vectors returns 1.0. What does this indicate?",
+        "options": [
+          "The vectors are orthogonal (completely unrelated)",
+          "The vectors point in exactly the same direction — maximum semantic similarity",
+          "The vectors have the same magnitude",
+          "The vectors are exact duplicates stored twice"
+        ],
+        "answer": 1,
+        "explain": "Cosine similarity measures the cosine of the angle between two vectors. A value of 1.0 means the angle is 0° — the vectors are parallel, indicating maximum similarity. 0 means orthogonal (no similarity), -1 means opposite directions."
+      },
+      {
+        "q": "In a RAG pipeline for JARVIS, what is the purpose of chunking documents before embedding?",
+        "options": [
+          "To reduce the number of API calls by batching documents",
+          "Because embedding models have a token limit — chunking splits long documents so each chunk fits, and smaller chunks improve retrieval precision",
+          "To compress documents before storing them in the vector database",
+          "To prevent the embedding model from memorizing entire documents"
+        ],
+        "answer": 1,
+        "explain": "Embedding models (e.g., MiniLM, text-embedding-ada-002) have context window limits. More importantly, smaller, semantically coherent chunks lead to more precise retrieval — a 512-token chunk about a specific topic will match a query better than a 10,000-token document."
+      }
+    ],
+    "flashcards": [
+      { "front": "Vector embedding", "back": "A fixed-dimension float array produced by an embedding model. Encodes semantic meaning — nearby vectors (by cosine distance) represent similar content. Dimensionality: 384 (MiniLM), 1536 (ada-002), 3072 (text-embedding-3-large)." },
+      { "front": "Cosine similarity formula", "back": "cos(A, B) = (A · B) / (|A| * |B|). Range: -1 to 1. 1 = identical direction (same meaning), 0 = orthogonal (unrelated), -1 = opposite. Most vector search uses cosine distance = 1 - cosine_similarity." },
+      { "front": "ANN indexes: HNSW", "back": "Hierarchical Navigable Small World — a graph where each node links to its nearest neighbours at multiple hierarchy levels. Search traverses from coarse to fine levels. Used by pgvector, Pinecone, Weaviate. Sub-linear search time." },
+      { "front": "RAG pipeline", "back": "Retrieval-Augmented Generation: chunk document → embed each chunk → store in vector DB → at query time, embed the query → find top-k similar chunks → inject chunks into LLM prompt → generate grounded answer." },
+      { "front": "Chunking strategy", "back": "Fixed-size (e.g., 512 tokens, 50 overlap), recursive character splitting, or semantic chunking. Overlap preserves context across chunk boundaries. Chunk size trades recall (larger) vs precision (smaller)." },
+      { "front": "pgvector", "back": "PostgreSQL extension that adds a vector data type and similarity search operators. Supports exact and ANN (HNSW / IVF-Flat) indexes. Run vector search alongside your relational data — no separate vector DB needed." },
+      { "front": "Top-k retrieval and re-ranking", "back": "Retrieve the top-k most similar chunks by cosine similarity. Optionally re-rank with a cross-encoder (slower but more accurate). k=3 to 10 is typical for RAG. Too many chunks dilutes the prompt signal." }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `cosineSimilarity(a, b)` — compute the cosine similarity between two numeric arrays (vectors) of equal length. Return a number between -1 and 1.",
+        "starter": "function cosineSimilarity(a, b) {\n  // your code\n}",
+        "tests": "check('identical vectors = 1', () => expect(cosineSimilarity([1,2,3],[1,2,3])).toBeCloseTo(1, 5));\ncheck('orthogonal = 0', () => expect(cosineSimilarity([1,0],[0,1])).toBeCloseTo(0, 5));\ncheck('opposite = -1', () => expect(cosineSimilarity([1,0],[-1,0])).toBeCloseTo(-1, 5));\ncheck('similar vectors high score', () => expect(cosineSimilarity([1,1,0],[1,0.9,0.1])).toBeCloseTo(0.994, 2));",
+        "solution": "function cosineSimilarity(a, b) {\n  let dot = 0, magA = 0, magB = 0;\n  for (let i = 0; i < a.length; i++) {\n    dot += a[i] * b[i];\n    magA += a[i] * a[i];\n    magB += b[i] * b[i];\n  }\n  return dot / (Math.sqrt(magA) * Math.sqrt(magB));\n}"
+      },
+      {
+        "prompt": "Implement `topKNearest(query, vectors, k)` — brute-force nearest neighbor search. Each element in `vectors` is an object { id, vec }. Return the top-k objects sorted by descending cosine similarity to the query vector.",
+        "starter": "function cosineSimilarity(a, b) {\n  let dot = 0, magA = 0, magB = 0;\n  for (let i = 0; i < a.length; i++) { dot += a[i]*b[i]; magA += a[i]*a[i]; magB += b[i]*b[i]; }\n  return dot / (Math.sqrt(magA) * Math.sqrt(magB));\n}\n\nfunction topKNearest(query, vectors, k) {\n  // your code\n}",
+        "tests": "const vecs = [\n  { id: 'a', vec: [1, 0, 0] },\n  { id: 'b', vec: [0, 1, 0] },\n  { id: 'c', vec: [0.9, 0.1, 0] },\n  { id: 'd', vec: [0, 0, 1] }\n];\nconst q = [1, 0, 0];\nconst result = topKNearest(q, vecs, 2);\ncheck('top result is a', () => expect(result[0].id).toBe('a'));\ncheck('second result is c', () => expect(result[1].id).toBe('c'));\ncheck('returns exactly k=2', () => expect(result.length).toBe(2));\ncheck('result has similarity score', () => expect(typeof result[0].score).toBe('number'));",
+        "solution": "function cosineSimilarity(a, b) {\n  let dot = 0, magA = 0, magB = 0;\n  for (let i = 0; i < a.length; i++) { dot += a[i]*b[i]; magA += a[i]*a[i]; magB += b[i]*b[i]; }\n  return dot / (Math.sqrt(magA) * Math.sqrt(magB));\n}\nfunction topKNearest(query, vectors, k) {\n  return vectors\n    .map(v => ({ ...v, score: cosineSimilarity(query, v.vec) }))\n    .sort((a, b) => b.score - a.score)\n    .slice(0, k);\n}"
+      }
+    ]
+  }
+}

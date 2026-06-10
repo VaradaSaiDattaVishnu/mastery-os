@@ -1,0 +1,1239 @@
+{
+  "ops-overview": {
+    "quiz": [
+      {
+        "q": "In the Order Processing System, why are nine separate services run behind a single gateway rather than deploying one Express monolith?",
+        "options": [
+          "To avoid writing a single large database schema",
+          "To allow each service to be deployed, scaled, and failed in isolation without affecting the others",
+          "Because Node.js cannot handle more than a few hundred requests per second in one process",
+          "To satisfy a Docker Compose requirement that limits one process per container"
+        ],
+        "answer": 1,
+        "explain": "Microservices isolate failure domains and scaling units. The gateway abstracts the topology; any individual service can crash, scale, or be redeployed without a full-system redeploy. The monolith would be simpler but loses that isolation."
+      },
+      {
+        "q": "A new engineer looks at the C4 context diagram and asks: 'Why does order-service publish an event instead of calling inventory-service directly after writing the order?' What is the best answer?",
+        "options": [
+          "RabbitMQ is faster than an HTTP call for small payloads",
+          "Publishing an event decouples order-service from downstream consumers; inventory-service can be unavailable without blocking the order write",
+          "Direct HTTP calls are forbidden by the JWT policy in the gateway",
+          "Event publishing is required so that the DLQ can store the message"
+        ],
+        "answer": 1,
+        "explain": "Temporal decoupling is the core benefit. When order-service publishes order.created it does not need to know which services exist downstream or whether they are up. Inventory-service being down delays fulfillment but does not fail the order write."
+      },
+      {
+        "q": "Which component in the Order Processing System is responsible for enforcing authentication, RBAC, and rate-limiting so that individual business services do not need to re-implement those concerns?",
+        "options": [
+          "packages/shared",
+          "order-service",
+          "api-gateway (Express)",
+          "notification-service"
+        ],
+        "answer": 2,
+        "explain": "The Express api-gateway is the single front door. JWT verification, role checks, and token-bucket rate limiting all live there. Individual services can trust that any request that reached them has already been authenticated."
+      },
+      {
+        "q": "The system currently uses RabbitMQ topic exchanges. If inventory-service needs to receive order.created events AND a future analytics-service also needs the same events, which RabbitMQ mechanism handles this without modifying order-service?",
+        "options": [
+          "Add a second direct exchange and re-publish from order-service",
+          "Have inventory-service forward the message to analytics-service after processing",
+          "Each service binds its own queue to the topic exchange with a matching routing key — the exchange fans out to all bound queues",
+          "Use a fanout exchange instead — topic exchanges only support one consumer per routing key"
+        ],
+        "answer": 2,
+        "explain": "Topic exchanges fan a message to every queue whose binding key matches the routing key. Multiple queues can independently bind order.* or order.created, so analytics-service just adds a binding without any change to the publisher."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the role of the api-gateway in the Order Processing System?",
+        "back": "Single entry point for all client requests. It handles JWT validation, RBAC enforcement, and rate-limiting, then proxies requests to the appropriate downstream service. Individual services never deal with these cross-cutting concerns."
+      },
+      {
+        "front": "Why does order-service publish order.created instead of calling downstream services synchronously?",
+        "back": "Temporal decoupling — order-service does not need to know which services consume the event or whether they are healthy. Downstream services (inventory, payment, notification) can be restarted or scaled without affecting the order write path."
+      },
+      {
+        "front": "What is a C4 context diagram and what level does it describe?",
+        "back": "Level 1 of the C4 model. Shows the system as a single box and draws arrows to external actors (users, external services). It answers 'what does this system do and who uses it?' without showing internal structure."
+      },
+      {
+        "front": "What does 'service boundary' mean in the Order Processing System?",
+        "back": "Each service owns a distinct business capability (ordering, inventory, payment, etc.) and owns its own data store. No two services share a database. Communication happens via the gateway (sync) or RabbitMQ (async)."
+      },
+      {
+        "front": "What is the packages/shared package and why does it exist?",
+        "back": "A TypeScript workspace package that exports typed event interfaces (e.g. OrderCreatedEvent) and shared middleware. It gives all nine services a single source of truth for event contracts so a producer and consumer can't drift apart silently."
+      },
+      {
+        "front": "What distinguishes 'event-driven' from 'request-driven' communication between services?",
+        "back": "Request-driven (REST/gRPC) requires the caller to know the callee's address and wait for a response. Event-driven has the publisher emit a fact onto a broker; any number of subscribers react asynchronously with no coupling to the publisher."
+      },
+      {
+        "front": "How many services sit behind the api-gateway, and name at least four of them?",
+        "back": "Nine services. Includes: order-service, inventory-service, payment-service, notification-service, ml-service (FastAPI), plus supporting services for auth/users, and shared infrastructure consumers. The gateway is the tenth process but is not a business service."
+      }
+    ],
+    "exercises": []
+  },
+
+  "ops-lifecycle": {
+    "quiz": [
+      {
+        "q": "A client calls POST /orders. Which of the following correctly describes the synchronous vs asynchronous boundary in the order lifecycle?",
+        "options": [
+          "The gateway waits for inventory-service to confirm stock before returning 201 to the client",
+          "order-service persists the order, publishes order.created to RabbitMQ, and returns 201 immediately; downstream saga steps run asynchronously",
+          "The saga completes fully before order-service writes to its database, ensuring atomicity",
+          "notification-service sends a confirmation email before the gateway responds to the client"
+        ],
+        "answer": 1,
+        "explain": "The sync boundary is at the order write + event publish. The client receives 201 as soon as the order is durable and the event is on the broker. The saga (inventory → payment → notification) executes asynchronously so a slow payment provider does not block the API response."
+      },
+      {
+        "q": "order-service uses the outbox pattern before publishing order.created. What problem does this solve?",
+        "options": [
+          "It prevents duplicate orders from the same client",
+          "It guarantees the event is published even if the broker is temporarily unavailable at write time, by writing the event to the database in the same transaction as the order",
+          "It compresses the event payload before sending to RabbitMQ",
+          "It validates the order schema against packages/shared before persistence"
+        ],
+        "answer": 1,
+        "explain": "Without an outbox, a crash between the database write and the RabbitMQ publish would leave a persisted order with no event. The outbox writes the event row atomically with the order row; a relay process publishes and clears the outbox, guaranteeing at-least-once delivery."
+      },
+      {
+        "q": "After order.created is consumed by inventory-service and stock is reserved, payment-service receives payment.requested. The external payment provider returns a 500 error. What happens next in the saga?",
+        "options": [
+          "payment-service immediately emails the customer that their order failed",
+          "payment-service retries with exponential backoff; if retries are exhausted the message goes to the DLQ and a compensation releases the reserved inventory",
+          "order-service detects the failure via a health check and cancels the order directly",
+          "The gateway returns an error to the original client request that is still waiting"
+        ],
+        "answer": 1,
+        "explain": "payment-service retries using exponential backoff. Messages that exhaust retries are routed to the dead-letter queue. A DLQ consumer triggers the saga compensation chain: release inventory reservation, mark order failed, and optionally notify the customer."
+      },
+      {
+        "q": "Which statement about the sync vs async boundary is most accurate for this system?",
+        "options": [
+          "Synchronous means the request blocks until all saga steps complete",
+          "The gateway uses HTTP/2 server-push to notify the client when the saga finishes",
+          "The 201 response confirms the order is accepted; eventual consistency means the order's final status (confirmed/failed) arrives later via status polling or a webhook",
+          "Async events are only used for notifications; inventory and payment are synchronous HTTP calls"
+        ],
+        "answer": 2,
+        "explain": "The system embraces eventual consistency. The 201 means 'accepted' not 'fully processed'. Clients either poll an order status endpoint or subscribe to webhooks/notifications to learn the final outcome. This lets the API remain fast even when downstream services are slow."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What does order-service do immediately after writing an order to MongoDB?",
+        "back": "It publishes an order.created event to the RabbitMQ topic exchange, then returns HTTP 201 to the caller. The downstream saga (inventory → payment → notification) executes asynchronously."
+      },
+      {
+        "front": "What is the outbox pattern and why does order-service use it?",
+        "back": "Writing the event to an 'outbox' table in the same database transaction as the order, then having a relay process publish the event. This prevents the lost-event problem if the broker is unavailable when the order is written."
+      },
+      {
+        "front": "What is the 'sync vs async boundary' in the order lifecycle?",
+        "back": "The synchronous path ends when order-service responds 201. Everything from inventory reservation through payment and notification is asynchronous, decoupled via RabbitMQ events."
+      },
+      {
+        "front": "What is 'eventual consistency' in the context of the order lifecycle?",
+        "back": "The order's final state (confirmed, payment_failed, shipped) is reached through a sequence of asynchronous steps rather than a single atomic operation. At any point between steps the system is in an intermediate state."
+      },
+      {
+        "front": "What routing key does order-service use when publishing, and which exchange does it target?",
+        "back": "Routing key: order.created. Exchange: the orders topic exchange. Queues bound with patterns like order.* or order.# will receive the message."
+      },
+      {
+        "front": "Why does the client receive a 201 before payment completes?",
+        "back": "Waiting for external payment would hold an HTTP connection open for seconds and tie up server resources. The asynchronous design returns immediately and lets the client poll or receive a push notification when payment settles."
+      }
+    ],
+    "exercises": []
+  },
+
+  "ops-shared": {
+    "quiz": [
+      {
+        "q": "inventory-service and order-service are written by different team members. Without packages/shared, what failure mode becomes likely as the system evolves?",
+        "options": [
+          "RabbitMQ will reject messages that don't conform to AMQP 0-9-1",
+          "The publisher adds a new field to order.created but the consumer silently ignores it; a later consumer that needs the field discovers it was never there and the bug is hard to trace",
+          "TypeScript will refuse to compile either service",
+          "The api-gateway will block messages that lack a Content-Type header"
+        ],
+        "answer": 1,
+        "explain": "Without a shared contract, event schema drift is silent. The publisher and consumer evolve independently; a missing or renamed field causes runtime bugs that only appear when that code path executes in production."
+      },
+      {
+        "q": "packages/shared exports an OrderCreatedEvent interface used by both order-service (publisher) and inventory-service (consumer). A developer adds a required 'warehouseId' field to the interface. What happens at compile time across the monorepo?",
+        "options": [
+          "Only order-service fails to compile because it is the publisher",
+          "Both services fail to compile if either constructs or destructures the event without the new field — the type error surfaces immediately",
+          "Nothing changes at compile time; TypeScript interfaces are erased at runtime",
+          "RabbitMQ validates the message against the interface and rejects it"
+        ],
+        "answer": 1,
+        "explain": "Because both services import the same interface, any code that constructs or pattern-matches the event without the new required field produces a TypeScript error. The monorepo typecheck step catches this before deployment."
+      },
+      {
+        "q": "packages/shared also exports an authenticateJWT middleware used by every service. The gateway already authenticates requests. Why do individual services still use this middleware?",
+        "options": [
+          "Because the gateway strips the Authorization header before forwarding",
+          "For defense-in-depth: a misconfigured proxy or direct internal call should not bypass auth; services validate the JWT themselves as a second layer",
+          "Because JWT is stateless and the gateway cannot cache validation results",
+          "Because packages/shared requires all exports to be imported to avoid tree-shaking"
+        ],
+        "answer": 1,
+        "explain": "Defense-in-depth. If a service is accidentally exposed directly (misconfigured network, internal tooling) the JWT middleware still rejects unauthenticated requests. It also means a single shared implementation — any security patch in packages/shared propagates everywhere."
+      },
+      {
+        "q": "A new version of the OrderCreatedEvent needs to add an optional field while remaining backward-compatible. What versioning strategy keeps old consumers working without redeployment?",
+        "options": [
+          "Rename the event to OrderCreatedEventV2 and update every consumer immediately",
+          "Add the field as optional (field?: Type) in the shared interface so existing consumers compile without changes and can start using the new field when ready",
+          "Bump the major version of packages/shared and mandate all services be updated in the same PR",
+          "Delete the old interface and replace it with a generic Record<string, unknown>"
+        ],
+        "answer": 1,
+        "explain": "Making new fields optional is an additive, backward-compatible change. Existing consumers compile and run correctly; they ignore the new field. New consumers can start reading it. This is the basis of Postel's Law: be conservative in what you send, liberal in what you accept."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is packages/shared in the Order Processing System monorepo?",
+        "back": "A TypeScript workspace package that is the single source of truth for event schemas (interfaces like OrderCreatedEvent), shared middleware (JWT, error handlers), and utility types consumed by all nine services."
+      },
+      {
+        "front": "What problem does a shared event-type package solve in a distributed system?",
+        "back": "It prevents silent schema drift. Without it a publisher and consumer can evolve independently until a field mismatch causes a runtime bug. With it, a breaking schema change is a compile-time error caught before deployment."
+      },
+      {
+        "front": "What is an 'event contract' and who owns it?",
+        "back": "An event contract defines the exact shape (fields, types) of a message on the broker. In this system packages/shared owns the contracts. The publisher must produce events conforming to it; consumers can rely on it."
+      },
+      {
+        "front": "How does TypeScript enforce event-contract correctness across the monorepo?",
+        "back": "All services import shared interfaces. The workspace-level tsc --noEmit (or tsc -b) compiles every package together. A field rename or type change in packages/shared immediately produces type errors in every service that touches that event."
+      },
+      {
+        "front": "What is Postel's Law and how does it apply to event versioning?",
+        "back": "Be conservative in what you emit, liberal in what you accept. In practice: add new fields as optional so old consumers are not broken; do not remove fields that consumers depend on; never change the type of an existing field."
+      },
+      {
+        "front": "Besides event types, what other concerns does packages/shared centralise?",
+        "back": "JWT authentication middleware, error-response shapes, rate-limit helpers, and shared TypeScript utility types. Centralising these ensures a security patch or interface change propagates to every service in one commit."
+      },
+      {
+        "front": "What is 'silent drift' in a distributed event-driven system?",
+        "back": "When a publisher and consumer evolve their event schemas independently without a shared contract, differences accumulate undetected until a runtime failure. The bug is hard to trace because there is no compile-time signal."
+      }
+    ],
+    "exercises": []
+  },
+
+  "ops-rabbit": {
+    "quiz": [
+      {
+        "q": "order-service publishes with routing key order.created to a topic exchange. inventory-service binds a queue with pattern order.*. payment-service binds with order.#. A future analytics-service binds with #. Which services receive the order.created message?",
+        "options": [
+          "Only inventory-service because it has the most specific binding",
+          "inventory-service and payment-service only",
+          "All three: inventory-service (order.* matches one word), payment-service (order.# matches zero or more after 'order'), and analytics-service (# matches everything)",
+          "None — topic exchanges require an exact key match"
+        ],
+        "answer": 2,
+        "explain": "order.* matches any key with exactly two dot-separated words where the first is 'order', so order.created matches. order.# matches 'order' followed by zero or more words, so order.created matches. # matches any routing key."
+      },
+      {
+        "q": "A consumer calls channel.ack(msg) after successfully processing a message. What happens if the service crashes before calling ack?",
+        "options": [
+          "The message is permanently lost because it was already dequeued",
+          "RabbitMQ re-queues the message to be delivered to another consumer (or the same one after restart) because the channel was closed without an ack",
+          "The message moves to the DLQ immediately",
+          "The exchange republishes the message to all bound queues"
+        ],
+        "answer": 1,
+        "explain": "RabbitMQ tracks 'unacked' messages per channel. If the channel closes (crash, disconnect) without an ack, the broker re-queues them. This is the foundation of at-least-once delivery — a message is only considered consumed after an explicit ack."
+      },
+      {
+        "q": "payment-service sets prefetch count to 1. What does this change about how it receives messages?",
+        "options": [
+          "It can receive a maximum of one message per second",
+          "RabbitMQ will only deliver the next message to this consumer after it has acked the current one, preventing the consumer from being overwhelmed with unprocessed messages",
+          "The consumer will reject all messages except the first one",
+          "Prefetch 1 enables exactly-once delivery semantics"
+        ],
+        "answer": 1,
+        "explain": "Prefetch (QoS) limits the number of unacked messages per consumer. Prefetch 1 means the broker waits for an ack before sending the next message. This back-pressures payment-service, keeping in-flight payment calls bounded and preventing memory exhaustion."
+      },
+      {
+        "q": "Why does the Order Processing System use a topic exchange rather than a fanout exchange for order events?",
+        "options": [
+          "Fanout exchanges do not support AMQP 0-9-1",
+          "Topic exchanges allow consumers to selectively subscribe using routing key patterns, so a future shipment-service can bind order.created without receiving unrelated events like inventory.reserved",
+          "Fanout exchanges require consumers to be online when the message is published",
+          "Topic exchanges compress messages automatically"
+        ],
+        "answer": 1,
+        "explain": "A fanout exchange sends every message to every bound queue regardless of content. A topic exchange routes by pattern, allowing fine-grained subscriptions. As the system grows, new services bind only what they need — reducing unnecessary processing and coupling."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is a RabbitMQ topic exchange?",
+        "back": "An exchange that routes messages to queues based on pattern-matching the message's routing key against queue binding patterns. '*' matches exactly one word; '#' matches zero or more dot-separated words."
+      },
+      {
+        "front": "Routing key 'order.created' — which binding patterns match it?",
+        "back": "order.created (exact), order.* (one word after 'order'), order.# (zero or more words after 'order'), *.created (one word before 'created'), and # (matches everything)."
+      },
+      {
+        "front": "What is channel.ack() and why is it critical?",
+        "back": "An explicit acknowledgement sent back to RabbitMQ after a message is successfully processed. Until acked, the broker holds the message as 'unacked'. If the consumer crashes, unacked messages are re-queued and redelivered — this is how at-least-once delivery works."
+      },
+      {
+        "front": "What is channel.nack(msg, false, false) and when should a consumer use it?",
+        "back": "Negative acknowledgement with requeue=false. Used when a message is permanently unprocessable (e.g., schema validation failure). The broker routes it to the dead-letter exchange/queue instead of re-queuing it infinitely."
+      },
+      {
+        "front": "What does prefetch count control in RabbitMQ?",
+        "back": "The maximum number of unacked messages the broker delivers to a consumer before waiting for an ack. Prefetch=1 gives each message to one consumer at a time, providing back-pressure. Higher values increase throughput but risk overwhelming a slow consumer."
+      },
+      {
+        "front": "What is a dead-letter exchange (DLX) and when does a message reach it?",
+        "back": "A designated exchange that receives messages that are nacked with requeue=false, or that exceed their TTL, or that are rejected from a queue that has exceeded its max-length. The DLX routes them to a dead-letter queue (DLQ) for inspection."
+      },
+      {
+        "front": "What is the difference between a direct exchange and a topic exchange?",
+        "back": "A direct exchange routes by exact routing key match. A topic exchange routes by wildcard pattern matching (* = one word, # = zero or more). Topic exchanges support the publish-subscribe fan-out patterns needed in the Order Processing System."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `routeMatch(pattern, key)` for RabbitMQ topic routing where `*` matches exactly one dot-separated word and `#` matches zero or more dot-separated words.",
+        "starter": "function routeMatch(pattern, key) {\n  // your code here\n}",
+        "tests": "check('exact match', () => expect(routeMatch('order.created', 'order.created')).toBe(true));\ncheck('star matches one word', () => expect(routeMatch('order.*', 'order.created')).toBe(true));\ncheck('star rejects two words', () => expect(routeMatch('order.*', 'order.created.eu')).toBe(false));\ncheck('hash matches one word', () => expect(routeMatch('order.#', 'order.created')).toBe(true));\ncheck('hash matches two words', () => expect(routeMatch('order.#', 'order.created.eu')).toBe(true));\ncheck('hash matches zero words', () => expect(routeMatch('order.#', 'order')).toBe(false));\ncheck('leading hash', () => expect(routeMatch('#', 'order.created')).toBe(true));\ncheck('no match', () => expect(routeMatch('order.*', 'payment.done')).toBe(false));\ncheck('star prefix', () => expect(routeMatch('*.created', 'order.created')).toBe(true));",
+        "solution": "function routeMatch(pattern, key) {\n  const parts = pattern.split('.');\n  const keyParts = key.split('.');\n  function match(pi, ki) {\n    if (pi === parts.length && ki === keyParts.length) return true;\n    if (pi === parts.length) return false;\n    if (parts[pi] === '#') {\n      for (let j = ki; j <= keyParts.length; j++) {\n        if (match(pi + 1, j)) return true;\n      }\n      return false;\n    }\n    if (ki === keyParts.length) return false;\n    if (parts[pi] === '*' || parts[pi] === keyParts[ki]) return match(pi + 1, ki + 1);\n    return false;\n  }\n  return match(0, 0);\n}"
+      }
+    ]
+  },
+
+  "ops-saga": {
+    "quiz": [
+      {
+        "q": "The saga in the Order Processing System runs: reserve inventory → charge payment → send notification. Payment fails. In what order should compensations run?",
+        "options": [
+          "Notification cancellation → inventory release → payment reversal",
+          "Inventory release only — payment never succeeded so nothing else needs undoing",
+          "Payment reversal → inventory release (reverse execution order, skipping notification which never ran)",
+          "The saga re-runs from the beginning automatically"
+        ],
+        "answer": 2,
+        "explain": "Saga compensations undo completed steps in reverse order. Notification was never sent, so it has no compensation to run. Payment failed (no charge), so only inventory — which did succeed — needs to be released. Reverse order matters because step N may depend on state set by step N-1."
+      },
+      {
+        "q": "Why is it impossible to use a single distributed ACID transaction across inventory-service, payment-service, and notification-service?",
+        "options": [
+          "MongoDB does not support transactions",
+          "Each service owns its own database and process; a 2-phase commit would require all three to hold locks simultaneously, which is impractical across independent services with different failure modes",
+          "Distributed transactions work fine — the team chose the saga pattern for simplicity",
+          "ACID transactions are only available in relational databases"
+        ],
+        "answer": 1,
+        "explain": "2-phase commit across independent services requires a coordinator to hold all participants in a locked state. Network partitions, service crashes, or slow external APIs (payment provider) make this extremely fragile. Sagas replace distributed locks with local transactions + compensating actions."
+      },
+      {
+        "q": "inventory-service reserves stock as step 1. Notification-service fails at step 3. What does the compensation for inventory-service do?",
+        "options": [
+          "It deletes the inventory record entirely",
+          "It releases (un-reserves) the stock that was reserved in step 1, returning it to the available pool",
+          "It reorders the stock from the supplier automatically",
+          "Nothing — inventory is not affected by a notification failure"
+        ],
+        "answer": 1,
+        "explain": "The inventory compensation releases the reservation, making the stock available for future orders. This is a domain-level undo, not a database rollback. The compensation must be idempotent so that retrying it doesn't double-release stock."
+      },
+      {
+        "q": "The saga is described as 'choreography-based' in the Order Processing System. What does this mean?",
+        "options": [
+          "A central saga orchestrator service coordinates each step via direct API calls",
+          "Each service reacts to an event from the previous step, emitting its own event when done — no central coordinator exists",
+          "Choreography means all steps run in parallel",
+          "The saga is triggered manually by an operator dashboard"
+        ],
+        "answer": 1,
+        "explain": "In choreography, services communicate by emitting and consuming events. inventory-service listens for order.created, does its work, emits inventory.reserved. payment-service listens for inventory.reserved, etc. No central orchestrator is needed. The failure mode is harder to trace but the coupling is lower."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is a saga and what problem does it solve?",
+        "back": "A sequence of local transactions where each step emits an event or message that triggers the next. If a step fails, compensating transactions undo the completed steps. It solves distributed consistency without a distributed lock or 2-phase commit."
+      },
+      {
+        "front": "What is a compensating transaction?",
+        "back": "A domain-level operation that semantically undoes a completed saga step. Example: if 'reserve inventory' succeeded, its compensation is 'release inventory reservation'. Compensations must be idempotent — safe to run more than once."
+      },
+      {
+        "front": "What are the three saga steps in the Order Processing System?",
+        "back": "1. inventory-service reserves stock (triggered by order.created). 2. payment-service charges the customer (triggered by inventory.reserved). 3. notification-service sends confirmation (triggered by payment.processed)."
+      },
+      {
+        "front": "Choreography vs orchestration in sagas — what is the difference?",
+        "back": "Choreography: services react to events, no central coordinator. Each service knows what to do when it receives an event. Orchestration: a central saga orchestrator sends commands to services and tracks state. Choreography has lower coupling; orchestration is easier to trace and debug."
+      },
+      {
+        "front": "Why must saga compensations be idempotent?",
+        "back": "A compensation may be triggered multiple times if the message is re-delivered by RabbitMQ or the saga coordinator retries. If releasing inventory twice reduces stock, the system is left in an invalid state. Idempotency ensures repeated execution produces the same result."
+      },
+      {
+        "front": "What is 'atomic stock reservation' and why is it a local transaction?",
+        "back": "inventory-service reads current stock, checks quantity, and decrements it in a single atomic operation (MongoDB findOneAndUpdate with $inc and a $gt:0 condition). This is local — it only touches inventory-service's database, requiring no coordination with other services."
+      },
+      {
+        "front": "What happens in the saga if the payment provider returns a 500 error on step 2?",
+        "back": "payment-service retries with exponential backoff. If retries are exhausted, the message goes to the DLQ. A DLQ consumer triggers compensations in reverse order: release the inventory reservation (step 1 compensation), then mark the order as payment_failed."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `runSaga(steps, context)` where `steps` is an array of `{execute, compensate}` objects. Run steps in order; if any `execute` throws, run all previously completed `compensate` functions in reverse order and rethrow the error.",
+        "starter": "async function runSaga(steps, context) {\n  // your code here\n}",
+        "tests": "check('all steps succeed', async () => {\n  const log = [];\n  const steps = [\n    { execute: async () => log.push('inv'), compensate: async () => log.push('undo-inv') },\n    { execute: async () => log.push('pay'), compensate: async () => log.push('undo-pay') },\n    { execute: async () => log.push('notify'), compensate: async () => log.push('undo-notify') }\n  ];\n  await runSaga(steps, {});\n  expect(log).toEqual(['inv', 'pay', 'notify']);\n});\ncheck('step 2 fails — compensate step 1 only', async () => {\n  const log = [];\n  const steps = [\n    { execute: async () => log.push('inv'), compensate: async () => log.push('undo-inv') },\n    { execute: async () => { throw new Error('payment failed'); }, compensate: async () => log.push('undo-pay') },\n    { execute: async () => log.push('notify'), compensate: async () => log.push('undo-notify') }\n  ];\n  let threw = false;\n  try { await runSaga(steps, {}); } catch(e) { threw = true; }\n  expect(threw).toBe(true);\n  expect(log).toEqual(['inv', 'undo-inv']);\n});\ncheck('step 3 fails — compensate steps 2 and 1 in reverse', async () => {\n  const log = [];\n  const steps = [\n    { execute: async () => log.push('inv'), compensate: async () => log.push('undo-inv') },\n    { execute: async () => log.push('pay'), compensate: async () => log.push('undo-pay') },\n    { execute: async () => { throw new Error('notify failed'); }, compensate: async () => log.push('undo-notify') }\n  ];\n  try { await runSaga(steps, {}); } catch(e) {}\n  expect(log).toEqual(['inv', 'pay', 'undo-pay', 'undo-inv']);\n});",
+        "solution": "async function runSaga(steps, context) {\n  const completed = [];\n  for (const step of steps) {\n    try {\n      await step.execute(context);\n      completed.push(step);\n    } catch (err) {\n      for (let i = completed.length - 1; i >= 0; i--) {\n        await completed[i].compensate(context);\n      }\n      throw err;\n    }\n  }\n}"
+      }
+    ]
+  },
+
+  "ops-idem": {
+    "quiz": [
+      {
+        "q": "The payment provider times out. payment-service retries the same charge request. Without idempotency keys, what is the risk?",
+        "options": [
+          "The payment provider will reject the second request because it already has an open connection",
+          "The customer could be charged twice — once for the original request that the provider processed but whose response was lost in transit, and once for the retry",
+          "RabbitMQ will prevent the second message from being delivered",
+          "The database transaction will roll back both charges automatically"
+        ],
+        "answer": 1,
+        "explain": "A timeout means the response was lost, not necessarily that the operation failed. The provider may have already charged the customer. Retrying without an idempotency key causes a double charge. The key lets the provider recognise the retry and return the original result."
+      },
+      {
+        "q": "payment-service receives the same RabbitMQ message twice (at-least-once delivery). It checks Redis with the message's idempotency key and finds an existing result. What should it do?",
+        "options": [
+          "Process the payment again and overwrite the stored result",
+          "Return the cached result immediately without re-processing, then ack the message",
+          "Nack the message and send it to the DLQ",
+          "Delete the Redis key and process from scratch"
+        ],
+        "answer": 1,
+        "explain": "The idempotency key is a dedupe mechanism. If the key exists in the store, the operation already completed. Returning the cached result and acking is correct — it is safe, it removes the message from the queue, and it does not charge the customer again."
+      },
+      {
+        "q": "A message in payment-service fails 3 retries with exponential backoff and is sent to the dead-letter queue. What is the purpose of a human or automated DLQ consumer?",
+        "options": [
+          "To re-process all DLQ messages automatically at full speed",
+          "To inspect failed messages, identify root causes (bug, bad payload, provider outage), and decide whether to correct and republish or discard — preventing silent data loss",
+          "To purge the DLQ when it reaches a size limit",
+          "To notify the customer that their payment failed immediately on first delivery"
+        ],
+        "answer": 1,
+        "explain": "The DLQ is a holding area, not a trash can. Messages there represent failures that exceeded retry tolerance. Operators or automated consumers inspect them to determine cause: a fixable bug means fix + replay; a bad payload means discard + alert; a provider outage means wait + replay."
+      },
+      {
+        "q": "Which Redis data structure is most appropriate for storing idempotency keys with a TTL so they expire automatically?",
+        "options": [
+          "A Redis sorted set (ZADD) keyed by score",
+          "A Redis hash (HSET) with one field per order",
+          "Redis string (SET key value EX ttl) — one key per idempotency token, with expiry matching business SLA",
+          "A Redis list (LPUSH) for FIFO processing"
+        ],
+        "answer": 2,
+        "explain": "SET key value EX seconds stores the result with an automatic TTL. When the key expires, a late retry will re-process (safe because the window is chosen to be longer than any legitimate retry window). A hash would share one key for all tokens, making fine-grained TTL impossible."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is an idempotency key?",
+        "back": "A unique token (UUID, order-id, or derived hash) included in a request. If the server has already processed a request with that key, it returns the stored result without re-processing. This makes retries safe under at-least-once delivery."
+      },
+      {
+        "front": "What is 'at-least-once delivery' and what does it imply for consumers?",
+        "back": "RabbitMQ guarantees a message will be delivered at least once but may deliver it multiple times (on nack, channel close, or broker restart). Consumers must be idempotent — processing the same message twice must produce the same result as processing it once."
+      },
+      {
+        "front": "What is a dead-letter queue (DLQ)?",
+        "back": "A queue that receives messages that could not be processed successfully after all retries are exhausted, or were explicitly nacked with requeue=false. It prevents infinite retry loops and preserves failed messages for inspection."
+      },
+      {
+        "front": "What is exponential backoff in the context of payment-service retries?",
+        "back": "Waiting an exponentially increasing time between retries (e.g., 1s, 2s, 4s, 8s). This avoids hammering a recovering provider, reduces thundering herd, and gives transient failures time to resolve. Often combined with jitter to desynchronise multiple retrying consumers."
+      },
+      {
+        "front": "How does Redis store idempotency keys in payment-service?",
+        "back": "SET idempotencyKey serialisedResult EX ttlSeconds. The TTL is set to slightly longer than the maximum expected retry window. On lookup, GETSET or GET returns the stored result if it exists; on miss, the payment proceeds and the result is stored."
+      },
+      {
+        "front": "What is 'exactly-once' delivery and why is it a myth at the distributed systems level?",
+        "back": "Exactly-once means every message is processed precisely once — no duplicates, no loss. This is impossible to guarantee across independent services with network failures without a distributed transaction. Systems achieve exactly-once semantics through idempotent consumers + at-least-once delivery."
+      },
+      {
+        "front": "What is the difference between a message TTL and a queue TTL in RabbitMQ?",
+        "back": "Message TTL (x-message-ttl on the queue, or per-message expiration) is how long a message lives before being dead-lettered if unacked. Queue TTL (x-expires) is how long a queue survives without consumers. Both can feed into DLQ routing."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `makeIdempotent(store, fn)` which wraps an async function `fn(key, ...args)` so that if `store` already contains a result for `key`, the stored result is returned immediately without calling `fn` again. The store has `get(key)` and `set(key, value)` methods.",
+        "starter": "function makeIdempotent(store, fn) {\n  // return a wrapped async function\n}",
+        "tests": "check('first call executes fn', async () => {\n  let calls = 0;\n  const store = new Map();\n  const wrapped = makeIdempotent({ get: k => store.get(k), set: (k,v) => store.set(k,v) }, async (key, amount) => { calls++; return { charged: amount }; });\n  const result = await wrapped('key-1', 99);\n  expect(result).toEqual({ charged: 99 });\n  expect(calls).toBe(1);\n});\ncheck('second call with same key skips fn', async () => {\n  let calls = 0;\n  const store = new Map();\n  const wrapped = makeIdempotent({ get: k => store.get(k), set: (k,v) => store.set(k,v) }, async (key, amount) => { calls++; return { charged: amount }; });\n  await wrapped('key-2', 50);\n  const result = await wrapped('key-2', 50);\n  expect(calls).toBe(1);\n  expect(result).toEqual({ charged: 50 });\n});\ncheck('different keys both execute fn', async () => {\n  let calls = 0;\n  const store = new Map();\n  const wrapped = makeIdempotent({ get: k => store.get(k), set: (k,v) => store.set(k,v) }, async (key) => { calls++; return calls; });\n  await wrapped('a');\n  await wrapped('b');\n  expect(calls).toBe(2);\n});",
+        "solution": "function makeIdempotent(store, fn) {\n  return async function(key, ...args) {\n    const cached = await store.get(key);\n    if (cached !== undefined) return cached;\n    const result = await fn(key, ...args);\n    await store.set(key, result);\n    return result;\n  };\n}"
+      }
+    ]
+  },
+
+  "ops-ml-features": {
+    "quiz": [
+      {
+        "q": "ml-service computes 'velocity_1h' (number of orders placed by a user in the last hour) at both training time and at inference time. Why must these computations be identical?",
+        "options": [
+          "Python requires functions to be reused to avoid import errors",
+          "If the feature is computed differently at train vs serve time, the model sees a different distribution at inference than it was trained on, causing unpredictable and degraded scores — this is train/serve skew",
+          "RabbitMQ serialises features before sending them to the model",
+          "The Isolation Forest algorithm requires features to sum to 1.0"
+        ],
+        "answer": 1,
+        "explain": "Train/serve skew is one of the most common and damaging ML bugs. If velocity_1h is computed with a 60-minute window at training but a 65-minute window at serving, the model's learned isolation boundaries no longer apply correctly. Exact parity is mandatory."
+      },
+      {
+        "q": "Which of these features would introduce data leakage into the training set for fraud detection?",
+        "options": [
+          "user's total order count in the last 30 days",
+          "order amount in USD",
+          "whether this specific order was later manually marked as fraud (the label computed using future information)",
+          "time of day the order was placed"
+        ],
+        "answer": 2,
+        "explain": "Leakage occurs when a feature is computed using information that would not be available at the time of prediction. 'Was this order later flagged as fraud' uses future knowledge — the model learns to detect the label, not the signal, and performs perfectly in training but poorly in production."
+      },
+      {
+        "q": "The feature 'avg_order_value_30d' represents a user's rolling 30-day average order value. A new user places their first order. What is the correct approach for this cold-start case?",
+        "options": [
+          "Return a 404 from ml-service",
+          "Use the global population median as the fallback value so the feature is numerically valid and the model can still score the order",
+          "Skip the fraud check entirely for new users",
+          "Use 0 as the fallback because new users have no history"
+        ],
+        "answer": 1,
+        "explain": "Zero is often a bad imputation — it may signal a very unusual pattern (avg order value of $0). The global median or mean is a neutral imputation that puts the new user close to the centre of the training distribution, producing a near-baseline score rather than a spuriously high or low one."
+      },
+      {
+        "q": "ml-service uses 'time_since_last_order' as a feature. How does making this feature 'time-aware' differ from a naive implementation?",
+        "options": [
+          "The naive implementation uses a UTC timestamp; time-aware uses a local timezone",
+          "A time-aware implementation computes the feature relative to a reference timestamp passed in with the request (same logic at train time using historical timestamps) rather than 'now', ensuring the feature has the same distribution during training replay",
+          "Time-aware features use a neural network layer to encode time",
+          "The difference is only relevant for the notification-service"
+        ],
+        "answer": 1,
+        "explain": "At training time, 'now' would be the training run date, not the historical order date. The feature must be computed relative to the event timestamp in the training record so it reflects the actual gap between that order and the previous one. This makes training reproducible and avoids temporal leakage."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is train/serve skew?",
+        "back": "A mismatch between how features are computed during model training and how they are computed during inference. The model learned boundaries based on training-time features; if serving-time features have a different distribution, scores become unreliable."
+      },
+      {
+        "front": "Name three per-user time-aware features used by ml-service.",
+        "back": "1. velocity_1h: order count in the last hour. 2. avg_order_value_30d: rolling 30-day average order value. 3. time_since_last_order: seconds since the user's most recent previous order. All computed from the event's own timestamp, not 'now'."
+      },
+      {
+        "front": "What is feature leakage?",
+        "back": "Including information in a training feature that would not be available at prediction time, or that is causally derived from the label. It inflates training metrics while producing useless or misleading models in production."
+      },
+      {
+        "front": "What is the cold-start problem in per-user feature engineering?",
+        "back": "New users have no history, so features like 'avg_order_value_30d' cannot be computed. The standard approach is to impute with the global population median/mean so the model scores the user near baseline rather than as anomalous."
+      },
+      {
+        "front": "Why must feature computation use the event timestamp rather than 'datetime.now()'?",
+        "back": "Using 'now' at training time would compute features relative to the training date, not the historical order date. This destroys the meaning of time-relative features and makes training non-reproducible. The event timestamp makes the computation deterministic."
+      },
+      {
+        "front": "What is feature standardisation (z-score) and why is it used before Isolation Forest?",
+        "back": "Subtracting the mean and dividing by the standard deviation so each feature has mean 0, std 1. Isolation Forest partitions the feature space randomly; without standardisation, high-variance features dominate the random splits unfairly."
+      },
+      {
+        "front": "What is the difference between a 'feature' and a 'raw event field' in ml-service?",
+        "back": "A raw field is the original value in the order event (e.g., amount, user_id, timestamp). A feature is an engineered representation derived from one or more raw fields to capture a signal (e.g., how unusual is this amount relative to this user's history). Features have predictive power; raw fields may not."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `zScore(value, mean, std)` that returns the z-score, and `featureAblation(features, baseline, scorer)` that returns an array of `{feature, contribution}` objects — each is the absolute drop in score when that feature is replaced with its baseline value. A higher drop means more important.",
+        "starter": "function zScore(value, mean, std) {\n  // your code here\n}\n\nfunction featureAblation(features, baseline, scorer) {\n  // features: { [name]: number }\n  // baseline: { [name]: number }  (e.g. global medians)\n  // scorer: (featureObj) => number  (higher = more anomalous)\n  // return array sorted by contribution descending\n}",
+        "tests": "check('zScore basic', () => expect(zScore(10, 5, 2)).toBeCloseTo(2.5, 4));\ncheck('zScore zero', () => expect(zScore(5, 5, 2)).toBeCloseTo(0, 4));\ncheck('zScore negative', () => expect(zScore(3, 5, 2)).toBeCloseTo(-1, 4));\ncheck('ablation returns one entry per feature', () => {\n  const features = { amount: 100, velocity: 5 };\n  const baseline = { amount: 50, velocity: 1 };\n  const scorer = (f) => f.amount * 0.1 + f.velocity * 2;\n  const result = featureAblation(features, baseline, scorer);\n  expect(result.length).toBe(2);\n});\ncheck('ablation identifies top feature', () => {\n  const features = { amount: 100, velocity: 5 };\n  const baseline = { amount: 50, velocity: 1 };\n  const scorer = (f) => f.amount * 0.01 + f.velocity * 10;\n  const result = featureAblation(features, baseline, scorer);\n  expect(result[0].feature).toBe('velocity');\n});",
+        "solution": "function zScore(value, mean, std) {\n  return (value - mean) / std;\n}\n\nfunction featureAblation(features, baseline, scorer) {\n  const fullScore = scorer(features);\n  return Object.keys(features)\n    .map(name => {\n      const ablated = { ...features, [name]: baseline[name] };\n      const drop = Math.abs(fullScore - scorer(ablated));\n      return { feature: name, contribution: drop };\n    })\n    .sort((a, b) => b.contribution - a.contribution);\n}"
+      }
+    ]
+  },
+
+  "ops-ml-iforest": {
+    "quiz": [
+      {
+        "q": "Isolation Forest detects anomalies without any labelled fraud examples. Which property of anomalous points makes this possible?",
+        "options": [
+          "Anomalies always have feature values greater than 3 standard deviations from the mean",
+          "Anomalous points are few and different — they are isolated with fewer random partitions than normal points, resulting in shorter average path lengths in isolation trees",
+          "The algorithm clusters points and marks outliers as those far from cluster centres",
+          "FastAPI sends anomalies to a separate endpoint that applies a higher threshold"
+        ],
+        "answer": 1,
+        "explain": "Isolation Forest builds an ensemble of random trees. Normal points, being dense and similar, require many partitions to isolate. Anomalous points, being sparse and different, are isolated near the root with fewer partitions. The anomaly score is inversely proportional to average path length."
+      },
+      {
+        "q": "ml-service uses scikit-learn's IsolationForest with `contamination='auto'`. What does the contamination parameter control?",
+        "options": [
+          "The percentage of the dataset that is randomly dropped during training",
+          "The proportion of the training set expected to be anomalies, used to set the decision threshold — 'auto' uses the original paper's theoretical bound",
+          "The number of trees in the ensemble",
+          "The maximum feature depth for each tree"
+        ],
+        "answer": 1,
+        "explain": "Contamination sets the threshold on the anomaly score that separates inliers from outliers. With 'auto', scikit-learn uses 0.1 (10%) as per the original paper. In the Order Processing System the raw score is used rather than the binary decision, and calibration maps it to [0,1]."
+      },
+      {
+        "q": "ml-service returns an anomaly score for a new order using a model trained on historical data. The model has never seen any labelled fraud. What are the limits of this approach?",
+        "options": [
+          "It cannot handle numerical features",
+          "It can detect unusual patterns but cannot distinguish between genuine fraud and legitimate unusual behaviour (e.g., a VIP customer placing a very large order) — high scores need human review",
+          "Unsupervised models always have higher accuracy than supervised models",
+          "The model requires at least 1 million training examples"
+        ],
+        "answer": 1,
+        "explain": "Isolation Forest learns 'normal'. Anything unusual gets a high score — whether it's fraud, a new market, a promotional campaign, or a VIP customer. False positives are inevitable. The system pairs the score with human-readable explanations so operators can make informed decisions."
+      },
+      {
+        "q": "ml-service is built with FastAPI. An order event arrives via RabbitMQ, is processed by order-service, and then a score request is sent to ml-service. What is the correct architectural boundary here?",
+        "options": [
+          "ml-service subscribes directly to RabbitMQ and scores orders asynchronously",
+          "order-service (or a dedicated scoring consumer) makes an HTTP POST to ml-service's FastAPI endpoint synchronously or asynchronously after the order is written",
+          "The api-gateway calls ml-service directly before persisting the order",
+          "ml-service polls the order-service database every second for new orders"
+        ],
+        "answer": 1,
+        "explain": "ml-service is a pure inference service — it exposes a prediction endpoint (FastAPI). The consumer (order-service or a dedicated process) calls it when a score is needed. This keeps ml-service stateless with respect to message routing and lets it be scaled independently."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "How does Isolation Forest compute an anomaly score?",
+        "back": "It builds an ensemble of random binary trees by repeatedly choosing a random feature and a random split value. The anomaly score for a point is based on its average path length across all trees: short path = easy to isolate = anomalous. Score is normalised to [0, 1] where 1 is most anomalous."
+      },
+      {
+        "front": "Why does Isolation Forest not need labelled fraud examples?",
+        "back": "It is unsupervised. It learns the density of the normal data: dense, normal points require many partitions to isolate. Sparse, unusual points are isolated early. No fraud labels are needed — only historical 'normal' orders as training data."
+      },
+      {
+        "front": "What is the cold-start bootstrap problem for ml-service?",
+        "back": "At system launch, there are no historical orders to train on. The bootstrap strategy: seed training data with synthetic orders sampled from plausible distributions, or use a small hand-crafted seed set. The model is retrained as real orders accumulate."
+      },
+      {
+        "front": "What is FastAPI and why is it chosen for ml-service?",
+        "back": "FastAPI is an async Python web framework with automatic OpenAPI docs. It runs on Uvicorn (ASGI). It is chosen for ml-service because Python has the best ML library ecosystem (scikit-learn, numpy, pandas), and FastAPI provides high-performance async request handling."
+      },
+      {
+        "front": "What is 'contamination' in IsolationForest(contamination=0.05)?",
+        "back": "The expected fraction of anomalies in the training set. It sets the score threshold that separates inliers from outliers when calling predict(). A value of 0.05 means the model expects about 5% of training orders to be anomalous."
+      },
+      {
+        "front": "What is a Pydantic model in FastAPI, and how does it relate to packages/shared's event contracts?",
+        "back": "A Pydantic BaseModel subclass defines the input/output schema of a FastAPI endpoint with automatic validation. It plays the same role as TypeScript interfaces in packages/shared — it is the Python-side event contract that validates request bodies before they reach model code."
+      },
+      {
+        "front": "Why is the Isolation Forest model persisted to disk (e.g., with joblib) after training?",
+        "back": "Training takes time and requires the full historical dataset. The fitted model object (trained trees) is serialised so ml-service can load it at startup without retraining. A new model file is written after each scheduled retrain, then loaded atomically."
+      }
+    ],
+    "exercises": []
+  },
+
+  "ops-ml-explain": {
+    "quiz": [
+      {
+        "q": "ml-service returns score=0.91 for an order. Without calibration, what does this number mean?",
+        "options": [
+          "There is a 91% probability the order is fraudulent",
+          "The raw Isolation Forest score is a relative rank within the training distribution — 0.91 means 'very unusual' but is not a calibrated probability",
+          "The order is exactly 0.91 standard deviations above the user's historical mean",
+          "91% of training orders had a lower score than this order"
+        ],
+        "answer": 1,
+        "explain": "Isolation Forest scores are not probabilities. They rank anomalousness relative to the training distribution. Without calibration, comparing 0.91 vs 0.87 across different model versions or different feature distributions is meaningless. Calibration maps scores to interpretable probabilities."
+      },
+      {
+        "q": "ml-service produces the explanation: 'velocity_1h is 24σ above this user's normal'. What technique generates this explanation?",
+        "options": [
+          "SHAP TreeExplainer on the Isolation Forest",
+          "Feature ablation: the score drops most when velocity_1h is replaced with the user's baseline, indicating it is the primary driver",
+          "The Isolation Forest algorithm natively identifies the most-split feature",
+          "A separate neural network trained to explain the Isolation Forest's decisions"
+        ],
+        "answer": 1,
+        "explain": "Feature ablation replaces each feature with its baseline value (e.g., global median) and measures the score drop. The feature with the largest drop is the primary driver. The '24σ' is a z-score computed separately to express how unusual the feature value is in human terms."
+      },
+      {
+        "q": "Why does ml-service use min-max calibration to map raw Isolation Forest scores to [0,1] rather than returning raw scores?",
+        "options": [
+          "Isolation Forest returns scores in [−1, 1] which RabbitMQ cannot serialise",
+          "Calibrated scores are comparable across model versions and meaningful to downstream systems — an operator can set a threshold like 'review orders with score > 0.8' and have that threshold remain stable across retrains",
+          "Min-max calibration improves the accuracy of the Isolation Forest",
+          "FastAPI requires all response fields to be in [0,1]"
+        ],
+        "answer": 1,
+        "explain": "Raw scores shift when the training distribution changes. Calibrated [0,1] scores allow stable thresholds and meaningful comparisons. An alert rule 'score > 0.8 → manual review' remains interpretable across model versions after calibration."
+      },
+      {
+        "q": "An operator sees a high-score order and reads the explanation: 'amount is $4200 vs user baseline $45'. What makes this a trustworthy explanation rather than a post-hoc rationalisation?",
+        "options": [
+          "The explanation is generated by GPT-4 which is inherently trustworthy",
+          "Feature ablation is grounded in the actual model — it measures the real score change caused by that feature, not a separate approximation trained to mimic the model",
+          "The Isolation Forest is a white-box model so all decisions are directly readable",
+          "The explanation is automatically verified against the MongoDB order record"
+        ],
+        "answer": 1,
+        "explain": "Feature ablation measures actual score impact using the real model. It is not a proxy explanation. Replacing the amount feature with the user's baseline and observing a large score drop directly quantifies the model's dependence on that feature for this specific prediction."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is model calibration and why does ml-service need it?",
+        "back": "Calibration maps raw model scores to meaningful probabilities or [0,1] values that are consistent across model versions. Without calibration, a score of 0.7 from model v1 may mean something different than 0.7 from model v2 after retraining on new data."
+      },
+      {
+        "front": "What is min-max normalisation and what formula does it use?",
+        "back": "calibrated = (score - min_score) / (max_score - min_score). Maps raw scores to [0,1] where the training minimum maps to 0 and the training maximum maps to 1. min_score and max_score are computed over the training set and stored alongside the model."
+      },
+      {
+        "front": "What is feature ablation and how is it used for explanations?",
+        "back": "Each feature is temporarily replaced with its baseline value (global median). The score is recomputed. The drop in score measures how much that feature contributed. The feature with the largest absolute drop is the top driver. The result: 'velocity_1h contributed 0.34 to the anomaly score'."
+      },
+      {
+        "front": "What does '24σ above normal' mean in an ml-service explanation?",
+        "back": "The z-score of the feature value: (observed - user_mean) / user_std = 24. This means the value is 24 standard deviations above this user's historical average — an extraordinary outlier. This number is computed separately from the ablation and added for human interpretability."
+      },
+      {
+        "front": "What is the difference between a 'score' and an 'explanation' in ml-service's response?",
+        "back": "The score (0–1) quantifies how anomalous the order is. The explanation (list of {feature, contribution, zScore}) says why. A score alone tells operators what to do; the explanation tells them why, enabling them to override false positives or escalate true positives with confidence."
+      },
+      {
+        "front": "Why is Isolation Forest described as a 'black-box' model in the context of explainability?",
+        "back": "Unlike a decision tree, you cannot read the Isolation Forest's internal splits to understand why a specific prediction was made. Feature ablation is a model-agnostic wrapper that probes the model externally rather than inspecting its internals."
+      },
+      {
+        "front": "What is the risk of relying only on an anomaly score without an explanation?",
+        "back": "Operators cannot distinguish between a genuine fraud signal and a false positive (new market, promotional order, VIP customer). Without an explanation they either over-block (harming customers) or under-act (missing fraud). Explanations enable calibrated human judgement."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `minMaxCalibrate(scores)` that returns a `calibrate(score)` function mapping any score to [0,1] using the min and max of the training set scores. Then implement `topDriver(features, baseline, scorer)` returning the feature name with the largest ablation drop.",
+        "starter": "function minMaxCalibrate(scores) {\n  // returns a function: calibrate(score) => number in [0,1]\n}\n\nfunction topDriver(features, baseline, scorer) {\n  // features: { [name]: number }\n  // baseline: { [name]: number }\n  // scorer: (featureObj) => number\n  // return the feature name with largest ablation contribution\n}",
+        "tests": "check('calibrate min -> 0', () => {\n  const calibrate = minMaxCalibrate([0.2, 0.5, 0.8]);\n  expect(calibrate(0.2)).toBeCloseTo(0, 4);\n});\ncheck('calibrate max -> 1', () => {\n  const calibrate = minMaxCalibrate([0.2, 0.5, 0.8]);\n  expect(calibrate(0.8)).toBeCloseTo(1, 4);\n});\ncheck('calibrate mid', () => {\n  const calibrate = minMaxCalibrate([0.0, 1.0]);\n  expect(calibrate(0.5)).toBeCloseTo(0.5, 4);\n});\ncheck('topDriver finds highest contribution', () => {\n  const features = { amount: 500, velocity: 3 };\n  const baseline = { amount: 50, velocity: 1 };\n  const scorer = f => f.amount * 0.001 + f.velocity * 10;\n  expect(topDriver(features, baseline, scorer)).toBe('velocity');\n});\ncheck('topDriver with dominant amount', () => {\n  const features = { amount: 5000, velocity: 2 };\n  const baseline = { amount: 50, velocity: 1 };\n  const scorer = f => f.amount * 1 + f.velocity * 0.01;\n  expect(topDriver(features, baseline, scorer)).toBe('amount');\n});",
+        "solution": "function minMaxCalibrate(scores) {\n  const min = Math.min(...scores);\n  const max = Math.max(...scores);\n  return function calibrate(score) {\n    if (max === min) return 0;\n    return (score - min) / (max - min);\n  };\n}\n\nfunction topDriver(features, baseline, scorer) {\n  const fullScore = scorer(features);\n  let best = null;\n  let bestDrop = -Infinity;\n  for (const name of Object.keys(features)) {\n    const ablated = { ...features, [name]: baseline[name] };\n    const drop = Math.abs(fullScore - scorer(ablated));\n    if (drop > bestDrop) { bestDrop = drop; best = name; }\n  }\n  return best;\n}"
+      }
+    ]
+  },
+
+  "ops-ml-retrain": {
+    "quiz": [
+      {
+        "q": "ml-service retrains the Isolation Forest on a schedule. What problem does scheduled retraining solve that the original trained model cannot handle?",
+        "options": [
+          "The scikit-learn library requires models to be retrained every 24 hours",
+          "Order patterns change over time (seasonal demand, new product categories, fraud pattern evolution) — a model trained months ago may have drift: normal orders look anomalous or new fraud patterns look normal",
+          "Docker containers reset memory on each restart, so the model must be retrained",
+          "Scheduled retraining prevents the DLQ from filling up"
+        ],
+        "answer": 1,
+        "explain": "Concept drift means the statistical relationship between features and anomalousness changes. Black Friday orders look like fraud on a model trained in March. Scheduled retraining incorporates recent order history so the model's notion of 'normal' stays current."
+      },
+      {
+        "q": "After retraining, ml-service serialises the new model with joblib to disk. What is the safest way to replace the running model in production without a gap in scoring?",
+        "options": [
+          "Stop ml-service, overwrite the model file, restart ml-service",
+          "Write the new model to a temporary file, then atomically rename it to the model path; ml-service's periodic reload or next-request load picks up the new file without ever reading a partially-written model",
+          "Delete the old model file before writing the new one so there is no confusion",
+          "Send a SIGKILL to the FastAPI process and let Docker Compose restart it"
+        ],
+        "answer": 1,
+        "explain": "An atomic rename (os.rename or shutil.move on POSIX) is atomic at the filesystem level — readers either see the old file or the new file, never a partial write. Overwriting in-place risks a reader loading a partially-written model. Stop-the-world restarts create a scoring gap."
+      },
+      {
+        "q": "ml-service stores the min_score and max_score from the training run alongside the model file. Why?",
+        "options": [
+          "These values are required by joblib to deserialise the model",
+          "Calibration (min-max normalisation) uses these values to map raw scores to [0,1]; if they are not from the same training run the calibrated scores will be wrong",
+          "FastAPI validates the model file using min_score and max_score as a checksum",
+          "RabbitMQ uses min_score to filter messages below a threshold"
+        ],
+        "answer": 1,
+        "explain": "Min-max calibration is: (score - train_min) / (train_max - train_min). If a new model is deployed with old calibration parameters, scores are shifted incorrectly. The calibration parameters must come from the same training run as the model they calibrate."
+      },
+      {
+        "q": "How would you detect that a retrained model has significantly degraded before deploying it to production?",
+        "options": [
+          "Retrained models are always better — more data means higher quality",
+          "Hold out a validation set (e.g., recent orders known to be normal) and verify that the anomaly rate on that set is within expected bounds; alert if the new model flags more than X% as anomalous",
+          "Run the retrained model in Docker and check that the container starts without errors",
+          "Compare the model file size — a larger file indicates a better model"
+        ],
+        "answer": 1,
+        "explain": "A sanity check on a held-out validation set catches bugs like incorrect feature scaling, training on corrupted data, or a contamination parameter that was accidentally set very high. If the new model flags 50% of recent normal orders as anomalous, it should not be deployed."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is model drift and why does it affect fraud detection over time?",
+        "back": "Drift occurs when the statistical distribution of production data changes relative to the training data. For fraud detection: legitimate order patterns change (seasonality, new users, new products), so the model's baseline of 'normal' becomes stale and anomaly rates become unreliable."
+      },
+      {
+        "front": "What does 'scheduled retraining' mean in ml-service?",
+        "back": "A cron-style job (e.g., nightly) that: pulls recent orders from the database, re-engineers features, fits a new IsolationForest on the fresh data, computes new calibration parameters, serialises the model+params to disk, and signals the serving process to load the new model."
+      },
+      {
+        "front": "Why is joblib preferred over pickle for saving scikit-learn models?",
+        "back": "joblib uses memory-mapped arrays for large numpy arrays inside sklearn objects, making serialisation and deserialisation faster. It is the scikit-learn project's recommended serialisation method."
+      },
+      {
+        "front": "What is 'model persistence' in the context of ml-service?",
+        "back": "Saving the trained model object (fitted IsolationForest + calibration params) to a file so ml-service can load it at startup without retraining. This separates the training process (batch, periodic) from the serving process (real-time, always-on)."
+      },
+      {
+        "front": "How does ml-service handle the window between old model expiry and new model loading?",
+        "back": "The serving process keeps the current model in memory and continues scoring with it until the new model file is detected (via a file watcher or periodic check). There is no gap in scoring — the old model handles requests while the new one loads."
+      },
+      {
+        "front": "What is a validation gate in a retraining pipeline?",
+        "back": "A check run on the newly trained model before deployment. Example: score a held-out set of known-normal orders and verify the anomaly rate is below a threshold. If the gate fails, the old model is retained and an alert is sent."
+      },
+      {
+        "front": "Why must the feature engineering code at retrain time be identical to the feature engineering code at serving time?",
+        "back": "The model learns boundaries in the space defined by the training-time features. If retraining uses a slightly different feature computation (different window, different imputation), the new model is still trained on different features than it serves — train/serve skew persists."
+      }
+    ],
+    "exercises": []
+  },
+
+  "ops-gateway": {
+    "quiz": [
+      {
+        "q": "A request arrives at the api-gateway with Authorization: Bearer <token>. The gateway verifies the JWT. Which claim in the JWT payload does the RBAC middleware use to authorise access to DELETE /orders/:id?",
+        "options": [
+          "The 'sub' (subject) claim which is the user's ID",
+          "The 'iat' (issued-at) claim",
+          "The 'role' or 'roles' claim, which the gateway checks against the required permission for the DELETE /orders route",
+          "The 'aud' (audience) claim"
+        ],
+        "answer": 2,
+        "explain": "RBAC (role-based access control) maps roles to permissions. The JWT carries the user's role(s). The gateway middleware extracts the role claim and checks it against a permission table. Sub identifies who; role determines what they may do."
+      },
+      {
+        "q": "The api-gateway uses a token bucket rate limiter. A client sends 10 requests per second, but the bucket allows 5 per second with burst capacity of 10. What happens to the 11th request in the first two seconds?",
+        "options": [
+          "The gateway queues the request and delivers it when tokens are available",
+          "The gateway returns HTTP 429 Too Many Requests because the burst capacity of 10 is consumed and no new tokens have refilled yet",
+          "The gateway forwards the request but marks it as low priority",
+          "The JWT is invalidated for the remainder of the rate-limit window"
+        ],
+        "answer": 1,
+        "explain": "The token bucket starts with 10 tokens (burst). The client fires 10 requests instantly, consuming all tokens. At 5 tokens/sec refill rate, by second 2 only 10 new tokens have arrived. The 11th request finds no token and receives 429. Queuing is not done — it would exhaust server memory under attack."
+      },
+      {
+        "q": "Why does the gateway forward the decoded JWT payload to downstream services rather than the raw token?",
+        "options": [
+          "Raw JWT tokens are too large to fit in HTTP headers",
+          "Downstream services should not need to re-verify the signature — the gateway vouches for the request; forwarding decoded claims (user_id, role) as headers lets services use them without cryptographic overhead",
+          "The raw JWT is invalidated after the gateway reads it",
+          "This is a RabbitMQ requirement for event routing"
+        ],
+        "answer": 1,
+        "explain": "The gateway is the trust boundary. Once it verifies the JWT signature and expiry, it forwards the claims as X-User-Id and X-User-Role headers. Downstream services trust the gateway's vouching and skip re-verification. This avoids distributing the JWT secret to every service."
+      },
+      {
+        "q": "Which HTTP status code should the api-gateway return when a valid JWT is presented but the user's role does not have permission to access the requested resource?",
+        "options": [
+          "401 Unauthorized",
+          "403 Forbidden",
+          "404 Not Found",
+          "429 Too Many Requests"
+        ],
+        "answer": 1,
+        "explain": "401 means 'not authenticated' — no or invalid token. 403 means 'authenticated but not authorised' — you are known but you may not do this. RBAC failures are 403. Returning 404 is sometimes done to avoid leaking resource existence, but 403 is semantically correct."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What are the three main responsibilities of the api-gateway in the Order Processing System?",
+        "back": "1. Authentication: verify JWT signature and expiry on every incoming request. 2. RBAC: check that the token's role claim has permission for the requested route. 3. Rate limiting: enforce per-client request rate using a token bucket stored in Redis."
+      },
+      {
+        "front": "What is a token bucket rate limiter?",
+        "back": "A bucket holds up to 'burst' tokens. Each request consumes one token. Tokens refill at a constant rate (e.g., 5/sec). If the bucket is empty, the request is rejected (429). Burst capacity allows short spikes; the refill rate sets the sustained limit."
+      },
+      {
+        "front": "Why is Redis used for the rate limiter state rather than in-process memory?",
+        "back": "In-process memory is per-instance. If two gateway instances run behind a load balancer, a client could send 10 req/s to each instance and appear to each as 10 req/s within limit, while actually sending 20 req/s. Redis provides a shared, consistent bucket across all instances."
+      },
+      {
+        "front": "What is JWT and what three parts does it have?",
+        "back": "JSON Web Token — a signed, optionally encrypted token. Three base64url parts separated by dots: 1. Header (algorithm, type). 2. Payload (claims: sub, role, iat, exp, etc.). 3. Signature (HMAC-SHA256 or RS256 of header.payload). The gateway verifies the signature against the secret/public key."
+      },
+      {
+        "front": "What is the difference between authentication and authorisation?",
+        "back": "Authentication answers 'who are you?' — verifying identity via JWT signature. Authorisation answers 'what may you do?' — checking the authenticated identity's role against the required permission for the resource. Both happen in the gateway middleware pipeline."
+      },
+      {
+        "front": "What HTTP status codes does the gateway return for auth failures?",
+        "back": "401 Unauthorized: missing, malformed, expired, or invalid-signature JWT. 403 Forbidden: valid JWT but insufficient role/permission for the requested resource. 429 Too Many Requests: rate limit exceeded."
+      },
+      {
+        "front": "What is a Bearer token scheme?",
+        "back": "An HTTP Authorization header scheme: Authorization: Bearer <token>. The gateway extracts the token after 'Bearer ', verifies it as a JWT, and extracts claims. 'Bearer' means possession of the token is sufficient proof of identity (no additional credential needed)."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `makeTokenBucket(capacity, refillRate)` returning a bucket object with `consume(clientId)` that returns `true` if a token is available (and consumes it) or `false` if the bucket is empty. Use a simple in-memory map. Tokens refill based on elapsed time since last consume.",
+        "starter": "function makeTokenBucket(capacity, refillRate) {\n  // capacity: max tokens per client\n  // refillRate: tokens added per millisecond\n  // returns { consume(clientId, nowMs?) }\n}",
+        "tests": "check('allows up to capacity requests', () => {\n  const bucket = makeTokenBucket(3, 0);\n  expect(bucket.consume('a', 0)).toBe(true);\n  expect(bucket.consume('a', 0)).toBe(true);\n  expect(bucket.consume('a', 0)).toBe(true);\n  expect(bucket.consume('a', 0)).toBe(false);\n});\ncheck('different clients independent', () => {\n  const bucket = makeTokenBucket(2, 0);\n  expect(bucket.consume('x', 0)).toBe(true);\n  expect(bucket.consume('x', 0)).toBe(true);\n  expect(bucket.consume('x', 0)).toBe(false);\n  expect(bucket.consume('y', 0)).toBe(true);\n});\ncheck('tokens refill over time', () => {\n  const bucket = makeTokenBucket(2, 1);\n  bucket.consume('b', 0);\n  bucket.consume('b', 0);\n  expect(bucket.consume('b', 0)).toBe(false);\n  expect(bucket.consume('b', 1500)).toBe(true);\n});",
+        "solution": "function makeTokenBucket(capacity, refillRate) {\n  const buckets = new Map();\n  return {\n    consume(clientId, nowMs = Date.now()) {\n      if (!buckets.has(clientId)) {\n        buckets.set(clientId, { tokens: capacity, lastMs: nowMs });\n      }\n      const b = buckets.get(clientId);\n      const elapsed = Math.max(0, nowMs - b.lastMs);\n      b.tokens = Math.min(capacity, b.tokens + elapsed * refillRate);\n      b.lastMs = nowMs;\n      if (b.tokens >= 1) {\n        b.tokens -= 1;\n        return true;\n      }\n      return false;\n    }\n  };\n}"
+      }
+    ]
+  },
+
+  "ops-data": {
+    "quiz": [
+      {
+        "q": "order-service and inventory-service each have their own MongoDB database. A developer proposes a JOIN-style query that reads from both to build an order fulfilment report. Why is this problematic?",
+        "options": [
+          "MongoDB does not support any form of cross-collection query",
+          "Cross-service data access violates the database-per-service principle — it creates a hidden coupling; if inventory-service changes its schema, the query breaks. The correct approach is to compose data at the application layer or use an event-sourced read model",
+          "The api-gateway blocks queries that span multiple databases",
+          "Cross-database queries require a distributed transaction"
+        ],
+        "answer": 1,
+        "explain": "Database-per-service means no service reads another service's database directly. A cross-DB join creates a tight schema coupling that undermines independent evolution and deployment. Reports are built by emitting events that a read model (or reporting service) aggregates."
+      },
+      {
+        "q": "payment-service uses Redis to store idempotency keys. Which Redis command is most appropriate for setting a key with automatic expiry?",
+        "options": [
+          "LPUSH key value",
+          "ZADD key score member",
+          "SET key value EX seconds",
+          "HSET key field value"
+        ],
+        "answer": 2,
+        "explain": "SET key value EX seconds stores the value with a TTL. When the TTL expires, the key is automatically deleted. This is the correct pattern for idempotency keys — they only need to exist for long enough to cover the retry window, after which they can be garbage-collected."
+      },
+      {
+        "q": "order-service caches GET /orders/:id responses in Redis with a TTL of 60 seconds. A mutation (order status updated) happens. What cache strategy should order-service use to prevent stale reads?",
+        "options": [
+          "Let the TTL expire naturally — 60 seconds of staleness is acceptable",
+          "Invalidate (DEL) the Redis key for that order immediately when the status update is written to MongoDB, so the next read fetches fresh data",
+          "Increase the TTL to 1 hour so fewer invalidations are needed",
+          "Use a Redis sorted set to track which orders need invalidation"
+        ],
+        "answer": 1,
+        "explain": "Cache-aside with explicit invalidation: on write, delete the cache key. The next read is a cache miss, fetches from MongoDB, and repopulates the cache. This prevents stale data without requiring a write-through to both MongoDB and Redis atomically."
+      },
+      {
+        "q": "Why does the Order Processing System use Redis for the rate-limiter state in the gateway rather than MongoDB?",
+        "options": [
+          "MongoDB does not support TTL indexes",
+          "Redis operates entirely in memory, giving sub-millisecond reads/writes. Rate-limit checks happen on every request — the overhead must be negligible. MongoDB's disk-backed storage would add unacceptable latency to the hot path",
+          "Redis supports RBAC natively; MongoDB does not",
+          "The RabbitMQ client library only integrates with Redis"
+        ],
+        "answer": 1,
+        "explain": "Rate-limit checks happen on every single request before the gateway proxies it. Even a 1ms database round-trip adds 1ms to every request's latency. Redis at ~0.1ms is the right choice for this hot path. MongoDB is appropriate for durable document storage, not microsecond-sensitive counters."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the 'database per service' pattern?",
+        "back": "Each microservice owns its own database (or schema), and no other service accesses it directly. Communication between services happens via APIs or events. This ensures schema changes in one service cannot break another, enabling independent evolution and deployment."
+      },
+      {
+        "front": "What does each service in the Order Processing System use for its primary store?",
+        "back": "Each business service (order, inventory, payment, notification, user) has its own MongoDB database. Redis is used as a shared cache and idempotency store, accessed per-service with key namespacing to avoid collisions."
+      },
+      {
+        "front": "What is the cache-aside pattern and how does order-service use it?",
+        "back": "On read: check Redis cache first; on cache hit return cached value; on miss fetch from MongoDB, store in Redis with TTL, return value. On write: update MongoDB and delete (invalidate) the Redis key so the next read gets fresh data."
+      },
+      {
+        "front": "What Redis commands are used for the idempotency pattern in payment-service?",
+        "back": "GET idempotencyKey to check existence. If nil: process payment, then SET idempotencyKey result EX ttl. If not nil: return the cached result. The TTL should exceed the maximum retry window (e.g., 24 hours)."
+      },
+      {
+        "front": "What is a Redis TTL and how is it set?",
+        "back": "Time-to-live in seconds. Set at key creation with SET key value EX seconds or EXPIRE key seconds. After TTL expires, the key is automatically deleted. Used for cache entries, idempotency keys, and rate-limit counters."
+      },
+      {
+        "front": "What is key namespacing in Redis and why does it matter in a multi-service system?",
+        "back": "Prefixing Redis keys with a service identifier (e.g., payment:idem:key123, order:cache:orderId456) to prevent key collisions between services sharing the same Redis instance. Without namespacing, two services could accidentally overwrite each other's keys."
+      },
+      {
+        "front": "Why is MongoDB chosen over a relational database for order-service?",
+        "back": "Orders are hierarchical documents (order → line items → addresses) that map naturally to MongoDB's document model. Schema flexibility lets order documents evolve without migrations. For this access pattern (read/write by orderId, list by userId) MongoDB's query performance is excellent."
+      }
+    ],
+    "exercises": []
+  },
+
+  "ops-compose": {
+    "quiz": [
+      {
+        "q": "order-service depends on both MongoDB and RabbitMQ. Without health checks in Docker Compose, what failure mode occurs?",
+        "options": [
+          "Docker Compose starts services in alphabetical order so order-service always starts last",
+          "Docker Compose marks MongoDB and RabbitMQ as 'started' when their containers start, not when they are ready to accept connections — order-service may try to connect before the broker is listening, crashing on startup",
+          "Docker networks are not available until all containers have started",
+          "RabbitMQ requires a 30-second warm-up that Docker Compose enforces automatically"
+        ],
+        "answer": 1,
+        "explain": "'depends_on' without condition: service_healthy only waits for the container process to start, not for the service inside to be ready. A healthcheck (e.g., rabbitmq-diagnostics check_port_connectivity) lets Compose wait until RabbitMQ is truly accepting connections before starting order-service."
+      },
+      {
+        "q": "A developer changes only the inventory-service code and wants to rebuild just that service without restarting MongoDB, RabbitMQ, or other services. Which command achieves this?",
+        "options": [
+          "docker compose up --build (rebuilds and restarts all services)",
+          "docker compose up --build inventory-service (rebuilds and restarts only inventory-service)",
+          "docker compose restart (restarts all containers without rebuilding images)",
+          "docker compose build && docker compose restart inventory-service"
+        ],
+        "answer": 1,
+        "explain": "docker compose up --build inventory-service rebuilds only the inventory-service image and recreates only that container, leaving all other services running. This is the fast inner dev loop for microservices."
+      },
+      {
+        "q": "All nine services share the same Docker Compose network. How does order-service connect to RabbitMQ?",
+        "options": [
+          "Via localhost:5672 because all containers share the host network",
+          "Using the service name as hostname (amqp://rabbitmq:5672) — Docker Compose creates a DNS entry for each service name on the shared network",
+          "Via a NAT rule in the host's iptables",
+          "Using the container's IP address from docker inspect"
+        ],
+        "answer": 1,
+        "explain": "Docker Compose creates a default bridge network and registers each service name as a DNS hostname. Services communicate by name (rabbitmq, mongodb, redis) not by IP, which changes on every container restart. This is why connection strings in .env use service names."
+      },
+      {
+        "q": "ml-service is a FastAPI (Python) service running alongside eight Node.js services. How does Docker Compose handle this heterogeneous runtime requirement?",
+        "options": [
+          "All services must use the same base Docker image",
+          "Each service defines its own Dockerfile with its own base image (node:20-alpine vs python:3.11-slim) — Compose simply builds and runs each container independently regardless of runtime",
+          "Compose uses a polyglot plugin that automatically detects the language",
+          "Python services must be in a separate Compose file"
+        ],
+        "answer": 1,
+        "explain": "Docker containers are fully isolated — each service specifies build: context: ./ml-service pointing to a Dockerfile with FROM python:3.11-slim. Compose coordinates startup order and networking but does not care about what runtime is inside each container."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What does a Docker Compose healthcheck do?",
+        "back": "Runs a command (e.g., curl http://localhost:3000/health) inside the container at a specified interval. The container transitions from 'starting' to 'healthy' when the command exits 0. Other services using condition: service_healthy will wait until this point before starting."
+      },
+      {
+        "front": "What is 'depends_on with condition: service_healthy' vs plain 'depends_on'?",
+        "back": "Plain depends_on: Compose starts the dependency first but does not wait for readiness. condition: service_healthy: Compose waits until the dependency's healthcheck passes before starting the dependent service. The latter is required for services that need MongoDB/RabbitMQ to be fully ready."
+      },
+      {
+        "front": "How do services discover each other's addresses in Docker Compose?",
+        "back": "By service name. Compose creates a DNS record for each service on the default network. order-service connects to MongoDB at mongodb:27017, RabbitMQ at rabbitmq:5672, Redis at redis:6379 — all using the Compose service names as hostnames."
+      },
+      {
+        "front": "What is the purpose of an .env file in a Docker Compose project?",
+        "back": "Stores environment-specific configuration (connection strings, JWT secrets, port numbers) outside of code. Compose automatically loads .env and makes variables available to docker-compose.yml via ${VAR_NAME} interpolation. Secrets stay out of version control."
+      },
+      {
+        "front": "What is a Docker image layer and how does it speed up builds?",
+        "back": "Each Dockerfile instruction (FROM, COPY, RUN) creates a layer. Docker caches layers; if a layer's content hasn't changed, the cache is used. Copying package.json and running npm install before COPY . ensures the dependency layer is cached unless package.json changes."
+      },
+      {
+        "front": "What is 'docker compose up --build' vs 'docker compose up'?",
+        "back": "docker compose up starts containers from existing images. --build forces a rebuild of images before starting. Use --build after changing Dockerfile or application code; omit it when only config/env changes, as rebuilding all nine images takes time."
+      },
+      {
+        "front": "How does ml-service (Python/FastAPI) coexist with Node.js services in one Compose file?",
+        "back": "Each service in docker-compose.yml points to its own build context directory containing a service-specific Dockerfile. The Node services use FROM node:20-alpine; ml-service uses FROM python:3.11-slim. Compose coordinates them uniformly regardless of runtime."
+      }
+    ],
+    "exercises": []
+  },
+
+  "ops-test": {
+    "quiz": [
+      {
+        "q": "The ml-service test suite uses pytest. A test verifies that a retrained model gives a higher anomaly score to an order with velocity_1h=50 than to an order with velocity_1h=1. What kind of test is this?",
+        "options": [
+          "A unit test — it tests the Isolation Forest's internal tree structure",
+          "A behavioural integration test — it tests that the full feature-engineering and scoring pipeline produces scores consistent with the expected signal direction, without inspecting model internals",
+          "A load test — it verifies performance under 50 concurrent requests",
+          "A smoke test — it only verifies that ml-service starts without errors"
+        ],
+        "answer": 1,
+        "explain": "The test exercises the real feature pipeline and the real model. It checks behaviour (high velocity → higher score) rather than implementation (tree structure). This is an integration test because it exercises multiple components together: feature engineering + model + scoring."
+      },
+      {
+        "q": "A saga integration test verifies that when payment-service returns a failure, the inventory reservation is released. What is the minimum set of components that must be running for this test to be meaningful?",
+        "options": [
+          "Only order-service and a mock payment-service",
+          "order-service, inventory-service, a real or in-process RabbitMQ broker, and a controllable (stub) payment-service that returns a configurable failure",
+          "All nine services plus MongoDB and Redis",
+          "Only the saga coordinator with mocked services"
+        ],
+        "answer": 1,
+        "explain": "The saga test needs to verify that a message flows through the broker from order-service to inventory-service, and that the compensation event flows back after payment failure. A real or in-process broker is essential. MongoDB for persistence and a controllable payment stub are needed. The other five services are irrelevant to this scenario."
+      },
+      {
+        "q": "The workspace package.json has a 'typecheck' script that runs tsc -b. What does this verify that a standard jest test run does not?",
+        "options": [
+          "That all npm packages are installed correctly",
+          "That the TypeScript types across all packages (including packages/shared interfaces) are mutually consistent — a type error that jest would silently compile away with ts-jest is caught as a hard error",
+          "That Docker images build without errors",
+          "That no circular imports exist between packages"
+        ],
+        "answer": 1,
+        "explain": "Jest (even with ts-jest) often transpiles TypeScript without strict project references. tsc -b builds the full project graph and enforces all type constraints, including cross-package interface compatibility. It catches 'OrderCreatedEvent has no field X' errors that tests might miss if the test mocks the event."
+      },
+      {
+        "q": "Why is it important to test saga compensations explicitly rather than inferring they work from the happy-path test?",
+        "options": [
+          "RabbitMQ requires explicit acknowledgement of compensation messages",
+          "The happy path never executes compensation code — it can be silently broken (throws, wrong order, not idempotent) for months until a real failure occurs in production, at which point a double-charge or permanently reserved inventory results",
+          "TypeScript cannot infer compensation logic from happy-path types",
+          "Docker Compose health checks detect compensation failures automatically"
+        ],
+        "answer": 1,
+        "explain": "Compensation logic is dead code during normal operation. It only runs on failure. If the compensation itself has a bug, you discover it during the worst possible time: a production failure that you are trying to recover from. Explicit tests that force failure paths are the only way to build confidence."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the testing pyramid and how does it apply to the Order Processing System?",
+        "back": "Wide base of unit tests (fast, isolated, no I/O) → smaller layer of integration tests (real broker, real DB, stub external) → thin layer of end-to-end tests (all services running). The pyramid keeps the suite fast: most coverage from cheap unit tests, integration tests for wiring, E2E for critical paths."
+      },
+      {
+        "front": "What does 'tsc -b' (or tsc --build) do in the monorepo?",
+        "back": "Builds all TypeScript packages in the correct topological order (respecting project references in tsconfig.json). Catches type errors across package boundaries — including breaking changes in packages/shared that would not surface until runtime in a non-typed system."
+      },
+      {
+        "front": "What is a stub vs a mock in testing?",
+        "back": "A stub provides canned responses to calls (payment-service returns {status:'failed'}). A mock additionally verifies that specific calls were made with specific arguments. Use stubs when you care about output; use mocks when you care about interaction (was this function called?)."
+      },
+      {
+        "front": "What is a pytest fixture and how is it used in ml-service tests?",
+        "back": "A pytest fixture is a function decorated with @pytest.fixture that sets up test dependencies (e.g., a trained model, a sample feature vector). Fixtures are dependency-injected into test functions by name, enabling clean, reusable test setup without global state."
+      },
+      {
+        "front": "What does a saga compensation test need to verify?",
+        "back": "1. The correct compensations fire when a specific step fails. 2. Compensations fire in reverse order. 3. Each compensation is idempotent (running it twice leaves the system in the same state). 4. The order's final status reflects the failure correctly."
+      },
+      {
+        "front": "What is an integration test boundary for RabbitMQ?",
+        "back": "Integration tests that involve RabbitMQ can use testcontainers (spin up a real RabbitMQ in Docker for the test run) or an in-process fake broker. The test publishes a real message, verifies the consumer processes it and produces the expected downstream event or database state."
+      },
+      {
+        "front": "Why is type checking run as a separate CI step rather than relying on test compilation?",
+        "back": "Test frameworks (Jest with ts-jest) may skip strict type-checking for speed. tsc -b applies the full set of TypeScript compiler checks including noImplicitAny, strictNullChecks, and cross-package interface compatibility. Running both gives complete coverage."
+      }
+    ],
+    "exercises": []
+  },
+
+  "ops-design-review": {
+    "quiz": [
+      {
+        "q": "At 100× current load, a senior engineer predicts that order-service will be the first bottleneck. Which change has the highest impact per unit of implementation effort?",
+        "options": [
+          "Rewriting order-service in Rust for lower CPU usage",
+          "Horizontally scaling order-service behind a load balancer (stateless services scale out trivially) and ensuring the MongoDB write concern is set appropriately for throughput vs durability",
+          "Moving order-service into a single monolith with inventory-service to eliminate network hops",
+          "Switching from RabbitMQ to HTTP polling between services"
+        ],
+        "answer": 1,
+        "explain": "order-service is stateless (no session state, no local cache that needs coordination). Stateless services scale horizontally with a load balancer in front. This is the highest-leverage first step. Rewriting in Rust would take months for marginal CPU gain. Merging services destroys fault isolation."
+      },
+      {
+        "q": "The original ml-service ran a naive z-score threshold ('is amount > 3σ?'). The design review called this 'ML wearing a costume'. What is the key architectural difference with Isolation Forest?",
+        "options": [
+          "Isolation Forest uses more CPU, making it more legitimate",
+          "Isolation Forest learns multivariate patterns in feature space — combinations of features trigger anomaly scores even when each individual feature is within normal bounds. A single-feature z-score misses correlated fraud signals",
+          "The difference is purely cosmetic; both approaches produce the same scores",
+          "Isolation Forest requires labelled data; z-score does not"
+        ],
+        "answer": 1,
+        "explain": "A z-score on one feature misses cases where no single feature is unusual but the combination is (moderate amount + unusual time + new device). Isolation Forest partitions the multivariate feature space and detects joint anomalies. This is a qualitative improvement in detection capability."
+      },
+      {
+        "q": "In a design review, the team identifies that RabbitMQ is a single point of failure. What is the recommended approach to address this without replacing RabbitMQ?",
+        "options": [
+          "Use a Redis list as a fallback queue when RabbitMQ is down",
+          "Deploy RabbitMQ in a clustered configuration with mirrored queues (or quorum queues in RabbitMQ 3.8+) so a broker node failure does not lose messages or stop delivery",
+          "Wrap every RabbitMQ publish in a try/catch that silently discards the error",
+          "Move to synchronous HTTP calls between services as the primary communication path"
+        ],
+        "answer": 1,
+        "explain": "RabbitMQ supports clustering and quorum queues (replicated across multiple nodes). A node failure loses no messages and consumers reconnect to surviving nodes. This eliminates the broker as a single point of failure. Redis as a fallback would require building a complete message routing system."
+      },
+      {
+        "q": "The design review recommends adding distributed tracing. Which information does a trace that is absent from logs alone?",
+        "options": [
+          "The list of environment variables set in each service",
+          "A correlated timeline showing how a single request/event flowed across all nine services, with latency for each hop, so a slowdown in payment-service can be attributed to the external provider call vs the database write",
+          "The Docker Compose health check results for each service",
+          "The number of orders processed per minute"
+        ],
+        "answer": 1,
+        "explain": "Distributed tracing (OpenTelemetry, Jaeger) attaches a trace ID that propagates through every service. You see the full call graph with per-span latency. Logs are per-service and unconnected; a trace connects log entries across services into a single causal chain."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the first question to ask in a system bottleneck analysis?",
+        "back": "Where does the queue build up? The service that accumulates the most unprocessed work (slowest throughput relative to arrival rate) is the bottleneck. Identify it with metrics: queue depth, CPU, DB connection wait time, and p99 latency per service."
+      },
+      {
+        "front": "What does 'ML wearing a costume' mean in the design review context?",
+        "back": "A system that uses the vocabulary of ML (anomaly detection, scoring) but implements trivial statistics (single-feature z-score threshold) that could be expressed as a two-line if statement. True ML value requires multivariate, adaptive, or learned models that exceed what handcoded rules can express."
+      },
+      {
+        "front": "What is observability and why is it essential at scale?",
+        "back": "Observability is the ability to understand a system's internal state from its external outputs. The three pillars: metrics (RED: requests, errors, duration), structured logs (per-request context, trace IDs), and distributed traces (end-to-end latency across services). Without it, 100× scale means 100× harder debugging."
+      },
+      {
+        "front": "What is a quorum queue in RabbitMQ and why does it matter for resilience?",
+        "back": "A queue type (RabbitMQ 3.8+) that replicates each message to a majority of cluster nodes before acknowledging. If a node fails, the remaining nodes elect a new leader and continue serving messages. No messages are lost. This replaces the older, less safe mirrored queues."
+      },
+      {
+        "front": "What is an SLO (Service Level Objective) and how does it guide architecture decisions?",
+        "back": "A target reliability or performance level: e.g., '99.9% of POST /orders requests complete within 500ms'. SLOs make 'good enough' concrete. Architecture decisions (e.g., sync vs async, consistency vs availability) are evaluated against whether they help or hurt the SLO."
+      },
+      {
+        "front": "What is a bottleneck in a distributed system and what is Little's Law?",
+        "back": "The bottleneck is the stage with the lowest throughput — it limits the whole system. Little's Law: L = λW (average items in system = arrival rate × average time in system). If W increases for one service (slower), L grows (queue builds). The bottleneck always has the deepest queue."
+      },
+      {
+        "front": "What architectural change would allow the payment-service to handle 100× current volume without horizontal scaling alone?",
+        "back": "Connection pooling to the payment provider (avoid opening a new HTTP connection per payment), async processing with higher prefetch and worker concurrency, circuit breakers to fail fast during provider outages, and caching provider responses for idempotent retries. These reduce per-request latency and increase throughput per instance."
+      }
+    ],
+    "exercises": []
+  }
+}

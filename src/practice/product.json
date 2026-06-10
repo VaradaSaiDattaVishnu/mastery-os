@@ -1,0 +1,328 @@
+{
+  "prod-ethical": {
+    "quiz": [
+      {
+        "q": "A meditation app wants to increase daily retention. The PM proposes adding a 30-day streak counter that resets on any missed day, with a prominent flame emoji shown to the user every session. From an ethical UX perspective, what is the most accurate characterisation of this feature?",
+        "options": [
+          "A helpful engagement nudge that aligns user and product goals",
+          "A dark pattern that exploits loss aversion to manufacture compulsion rather than serve the user's wellbeing",
+          "A gamification win because it increases DAU, which proves user value",
+          "Fine as long as users can toggle it off in settings"
+        ],
+        "answer": 1,
+        "explain": "The streak counter weaponises loss aversion — fear of losing the streak, not the value of practice, drives the behaviour. This is anti-gamification: it optimises engagement metrics while undermining the user's actual goal (sustainable practice). tapasya deliberately removes streaks for this reason."
+      },
+      {
+        "q": "A user is on a cancellation flow. The product team has placed the 'Confirm cancellation' button in small grey text at the bottom, while 'Keep my subscription' is a large, high-contrast primary button. Which pattern best describes this design?",
+        "options": [
+          "Progressive disclosure — saving the destructive action for last",
+          "Roach motel — easy to get in, deliberately hard to get out",
+          "Confirmshaming — using guilt-laden microcopy to deter cancellation",
+          "Visual hierarchy — the safer action deserves more prominence"
+        ],
+        "answer": 1,
+        "explain": "Making exit from a flow artificially difficult by hiding or obscuring the exit action is the roach motel dark pattern. Confirmshaming (option C) would involve guilt-laden button labels like 'No thanks, I enjoy paying more'; that is a separate (also unethical) pattern."
+      },
+      {
+        "q": "You are designing a journaling app for people managing anxiety. The onboarding asks for very personal distress scores. Which approach best reflects trauma-informed UX?",
+        "options": [
+          "Gate access to the app behind completing all onboarding questions so you have a clean baseline dataset",
+          "Make all sensitive questions optional, explain clearly why each is asked and how data is stored, and let users skip or revisit later",
+          "Use engaging illustrations and positive microcopy to make the questions feel lighter and less clinical",
+          "Delay the questions until day 7 so users are already invested in the product"
+        ],
+        "answer": 1,
+        "explain": "Trauma-informed design centres user agency (always optional), transparency (why and how), and pacing (no forced march). Delaying or prettying up coercive data collection (options C and D) still violates consent. Gating access (option A) uses data collection as a toll — a dark pattern."
+      },
+      {
+        "q": "tapasya's core design principle is 'the right design sometimes slows the user down.' In which scenario does intentional friction serve the user ethically?",
+        "options": [
+          "Adding a CAPTCHA to a checkout form to reduce bot purchases",
+          "Requiring a 10-second pause before confirming deletion of all journal entries, with a plain-language explanation of what will be lost",
+          "Splitting one form into five steps to increase time-on-site metrics",
+          "Making the free-tier limits unclear so users accidentally exceed them and upgrade"
+        ],
+        "answer": 1,
+        "explain": "Ethical friction protects the user from irreversible, high-stakes actions (here: data loss). The pause + explanation gives the user genuine informed agency. Increasing steps for metric inflation (C) and obscuring limits (D) are dark patterns; CAPTCHAs (A) protect the business, not the user."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is a dark pattern?",
+        "back": "A UI design that uses psychological principles (loss aversion, urgency, obscured exits) to steer users toward actions that benefit the product at the expense of the user's interests or informed choice."
+      },
+      {
+        "front": "Anti-gamification principle",
+        "back": "Deliberately removing mechanics (streaks, badges, leaderboards) when those mechanics would drive compulsive use rather than genuine user value — the ethos behind tapasya's no-streak design."
+      },
+      {
+        "front": "Roach motel pattern",
+        "back": "A flow that is easy to enter but deliberately difficult to exit — e.g., a subscription that requires a phone call to cancel while sign-up is one click."
+      },
+      {
+        "front": "Confirmshaming",
+        "back": "Writing decline/exit copy to induce guilt: 'No thanks, I don't want to save money.' The framing manipulates rather than informs."
+      },
+      {
+        "front": "Trauma-informed UX — three pillars",
+        "back": "1. Agency: every sensitive question is optional and skippable. 2. Transparency: explain what data is collected and why. 3. Pacing: do not force high-disclosure moments early; let users proceed at their own pace."
+      },
+      {
+        "front": "Ethical friction vs. dark friction",
+        "back": "Ethical friction slows irreversible, high-stakes user actions to protect the user (delete confirmation). Dark friction slows actions the business dislikes (cancellation) to benefit the business at the user's expense."
+      },
+      {
+        "front": "Consent as a design primitive",
+        "back": "Real consent requires: a genuine default of 'no', a plain-language explanation, no bundled opt-ins, and the ability to withdraw at any time without penalty."
+      }
+    ],
+    "exercises": []
+  },
+
+  "prod-motion": {
+    "quiz": [
+      {
+        "q": "A card expands from a list item into a full-screen detail view. Which easing curve is most appropriate for the expansion animation?",
+        "options": [
+          "linear — so the motion feels consistent throughout",
+          "ease-in — starts slow, builds speed, communicates urgency",
+          "ease-out — starts fast (energetic response to click) then decelerates naturally into the resting position",
+          "ease-in-out — symmetric deceleration is always the safest default"
+        ],
+        "answer": 2,
+        "explain": "ease-out (decelerate) is the Material/HIG default for elements entering the screen or expanding — they start quickly (response to user input feels instant) and slow to a natural stop. ease-in is for exits (elements leaving accelerate away). ease-in-out works for elements that start and end at rest within the viewport (e.g. a modal reposition)."
+      },
+      {
+        "q": "A user has enabled 'Reduce Motion' in their OS. Your page uses a large parallax scroll animation and animated hero text. What is the correct approach?",
+        "options": [
+          "Disable all CSS transitions site-wide when prefers-reduced-motion is set",
+          "Replace vestibular-triggering animations (parallax, large-scale movement) with opacity/cross-fades; keep small, purposeful transitions that do not cause motion sickness",
+          "Respect the preference by slowing all animations to 500ms so they are less intense",
+          "Show a banner warning users that the site uses motion"
+        ],
+        "answer": 1,
+        "explain": "prefers-reduced-motion targets vestibular disorder triggers: parallax, zoom, spinning, large translations. The correct response is to replace those with static or cross-fade alternatives, not to kill all motion. Small state-feedback animations (a button press pulse at 100ms) are still appropriate and should be kept."
+      },
+      {
+        "q": "You are designing a multi-step form. When the user moves from step 2 to step 3, the new step slides in from the right. When they press 'Back', what should happen to honour choreography principles?",
+        "options": [
+          "The same right-to-left slide in both directions for consistency",
+          "No animation on Back — only forward steps deserve motion",
+          "The previous step slides in from the left, reversing the spatial metaphor to match the user's mental model of navigating backward",
+          "A fade-out/fade-in so direction is irrelevant"
+        ],
+        "answer": 2,
+        "explain": "Choreography means motion communicates spatial relationships. If forward = slide from right, backward must = slide from left. This maps the animation to the user's mental model of a linear sequence, making the interface feel physically coherent rather than arbitrary."
+      },
+      {
+        "q": "Which of the following micro-interactions is purely decorative and therefore most likely to be cut in a production review?",
+        "options": [
+          "A button that shakes horizontally when an invalid form is submitted",
+          "A checkbox that animates from unchecked to checked with a checkmark draw-on",
+          "A loading spinner that changes colour through a rainbow sequence while data fetches",
+          "A tooltip that fades in with a 150ms ease-out on hover"
+        ],
+        "answer": 2,
+        "explain": "The rainbow colour cycle communicates nothing about state, cause, or progress — it is visual noise. The shake (A) signals error, the checkmark draw (B) confirms state change, the fade tooltip (D) softens an abrupt appearance. Motion must carry meaning."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "ease-in vs ease-out vs ease-in-out — when to use each",
+        "back": "ease-in (accelerate): elements leaving the screen / exits. ease-out (decelerate): elements entering or expanding — responds immediately, lands softly. ease-in-out: elements repositioning within the viewport that start and end at rest."
+      },
+      {
+        "front": "Choreography in motion design",
+        "back": "The principle that multiple animated elements should move in a coordinated, directionally consistent sequence that reflects spatial and causal relationships — not randomly or simultaneously."
+      },
+      {
+        "front": "prefers-reduced-motion — what to replace, what to keep",
+        "back": "Replace: parallax, large translations, zoom, rotation, spinning. Keep (as cross-fades or very small pulses): state-feedback micro-interactions that communicate system status without vestibular motion."
+      },
+      {
+        "front": "Motion duration heuristics",
+        "back": "Micro-interactions (button feedback): 100–200ms. Transitions within a view (expand/collapse): 200–300ms. Full-screen or page transitions: 300–500ms. Durations > 500ms feel laggy; < 100ms feel invisible."
+      },
+      {
+        "front": "What is a micro-interaction?",
+        "back": "A single-purpose animation triggered by a specific user action or system event that confirms state change, guides attention, or provides feedback (e.g., a toggle animating on/off, a success checkmark appearing)."
+      },
+      {
+        "front": "Motion as communication — three purposes",
+        "back": "1. Cause & effect: animate what the user acted on. 2. Continuity: shared-element transitions show the same object morphed, not replaced. 3. State: motion shows something is loading, complete, or invalid."
+      },
+      {
+        "front": "spring vs tween animation",
+        "back": "Tween: interpolates between values over a fixed duration using an easing curve. Spring: physics-based; duration emerges from mass, stiffness, damping — overshoots and settles naturally, often feeling more alive for UI elements."
+      }
+    ],
+    "exercises": []
+  },
+
+  "prod-design-systems": {
+    "quiz": [
+      {
+        "q": "A designer changes the brand's primary colour from #2563EB to #1D4ED8 across all products. With a well-implemented design token system, what is the minimum change required?",
+        "options": [
+          "Update every component file that references the old hex value",
+          "Update the token value for 'color.brand.primary' in the token definition file; all consuming components update automatically",
+          "Re-export the component library with the new colour and bump the semver major version",
+          "Update the Storybook theme configuration and then rebuild all stories"
+        ],
+        "answer": 1,
+        "explain": "Design tokens are the single source of truth. A component references 'color.brand.primary', not the hex directly. Changing the token propagates everywhere without touching component code — this is the entire point of the abstraction."
+      },
+      {
+        "q": "Your team has built a Button component. A new feature needs a Button that is slightly larger with different padding. What is the correct design-systems response?",
+        "options": [
+          "Create a new ButtonLarge component by copying the Button source and adjusting the padding",
+          "Expose a 'size' prop ('sm' | 'md' | 'lg') on the existing Button component, documented in Storybook with all variants",
+          "Add an inline style override in the feature component so the change is isolated",
+          "Request a one-off CSS class from the design team for this specific use case"
+        ],
+        "answer": 1,
+        "explain": "A design system scales through composition and variants, not duplication. A 'size' prop keeps the API surface clean, the implementation in one place, and all variants documented. Copying components (A) fragments the system; inline overrides (C) and one-offs (D) create undocumented debt."
+      },
+      {
+        "q": "CUBE's component library has 150+ Storybook stories. A new engineer asks what Storybook is actually for. Which answer is most complete?",
+        "options": [
+          "Storybook is a unit testing framework for React components",
+          "Storybook is a visual documentation and isolated development environment — it catalogues all component states, enables visual regression testing, and allows designers and engineers to work on components outside the full application",
+          "Storybook is a performance profiling tool for React",
+          "Storybook generates the design tokens from Figma"
+        ],
+        "answer": 1,
+        "explain": "Storybook serves as living documentation (every variant in one place), an isolated development sandbox (no need to replicate app state to see edge-case UI), and a target for visual regression tests. It is not a test runner itself, but integrates with tools like Chromatic."
+      },
+      {
+        "q": "Which of the following token naming conventions best supports a multi-theme (light/dark) design system?",
+        "options": [
+          "color-white, color-black, color-blue-500 — communicate the literal value",
+          "text-primary, surface-default, border-subtle — semantic names that map to different values per theme",
+          "font-color-1, background-1, border-1 — numeric identifiers for flexibility",
+          "light-text, dark-text — embed the theme in the token name"
+        ],
+        "answer": 1,
+        "explain": "Semantic token names describe intent (text-primary), not value (#FFFFFF). In dark mode 'text-primary' maps to near-white; in light mode it maps to near-black. Literal colour names (A) must be duplicated per theme; embedding theme in the name (D) defeats multi-theme composability."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is a design token?",
+        "back": "A named variable for a design decision (colour, spacing, radius, duration) stored as the single source of truth. Components reference tokens, not raw values, so a single token change propagates everywhere."
+      },
+      {
+        "front": "Primitive tokens vs semantic tokens",
+        "back": "Primitive: raw values (blue-500 = #3B82F6). Semantic: intent-named aliases (color.interactive.default = blue-500 in light theme, blue-400 in dark theme). Components consume semantic tokens; themes swap the mapping."
+      },
+      {
+        "front": "Component API design — the variant pattern",
+        "back": "Encode visual variants through a 'variant' or 'size' prop rather than creating new components. Keeps one implementation, one test surface, one Storybook entry with all states documented."
+      },
+      {
+        "front": "Why Storybook matters in a design system",
+        "back": "It creates a living catalogue of every component state (loading, error, empty, disabled) that is impossible to reproduce reliably inside a running application. Doubles as visual regression test target and onboarding documentation."
+      },
+      {
+        "front": "Design system versioning contract",
+        "back": "Semver applies: patch = bug fix (no API change), minor = new component or prop (additive), major = breaking API change. Consumer apps pin to minor; major version upgrades are planned migrations."
+      },
+      {
+        "front": "Composition over inheritance in component design",
+        "back": "Prefer building complex components by composing simpler primitives (Button inside DropdownItem) rather than adding props indefinitely. This limits API surface and keeps each component's responsibility narrow."
+      },
+      {
+        "front": "CUBE's MUI-based library — key lesson",
+        "back": "MUI provides a baseline component set; CUBE's value is the token layer (brand colours, spacing scale) and the documented variants that enforce consistent usage. The library is not the palette — the token system is."
+      }
+    ],
+    "exercises": []
+  },
+
+  "prod-perf-ux": {
+    "quiz": [
+      {
+        "q": "A user submits a 'Like' on a post. The server call takes 400ms. Which implementation best serves perceived performance?",
+        "options": [
+          "Show a loading spinner on the Like button until the server responds, then update the count",
+          "Update the Like count and filled-heart icon immediately on click, then silently confirm with the server; on failure, revert the UI and show a subtle error toast",
+          "Debounce the click for 300ms in case the user double-clicks, then show a spinner for the remaining 100ms",
+          "Cache the last known like count and refresh it every 30 seconds"
+        ],
+        "answer": 1,
+        "explain": "Optimistic UI makes the 99% success case feel instant. The user's intent is executed immediately; the network call is a background confirmation. The critical requirement is a rollback path — on failure, revert and notify. Spinners (A) make 400ms feel like 400ms; debouncing (C) adds latency before anything happens."
+      },
+      {
+        "q": "When should you use a skeleton screen instead of a spinner?",
+        "options": [
+          "Only for full-page loads; spinners are better for component-level loading",
+          "When the shape of the incoming content is known in advance — the skeleton sets spatial expectations and reduces perceived layout shift",
+          "Skeletons are purely aesthetic; choose based on brand guidelines",
+          "Use skeletons for data < 200ms and spinners for data > 200ms"
+        ],
+        "answer": 1,
+        "explain": "Skeletons communicate spatial layout before content arrives, reducing the perceived jarring shift when content loads. They are most valuable when you know the content shape (a list of cards, a profile header). For unknown shapes (e.g., a search result of arbitrary length) a spinner may be more honest. The 200ms rule (D) is unrelated to the skeleton/spinner decision."
+      },
+      {
+        "q": "A user clicks a 'Save' button. The operation takes 1.8 seconds. During that time the button remains in its default state with no feedback. What is the primary UX problem?",
+        "options": [
+          "The operation violates the 100ms response threshold for perceived instantaneity",
+          "The lack of feedback breaks the cause-and-effect contract — users cannot tell whether their action was registered, causing them to click again or assume failure",
+          "1.8 seconds is acceptable for a save operation; no change is needed",
+          "The button should be disabled to prevent double submission, but no visual feedback is necessary beyond that"
+        ],
+        "answer": 1,
+        "explain": "Nielsen's 1-second threshold: beyond 1s, users notice the delay and need a visual indicator that the system is working. The real failure here is the broken feedback loop — users have no confirmation their action was received, which erodes trust and causes repeated clicks (creating duplicate operations). Disabling alone (D) prevents duplicates but still breaks the feedback loop."
+      },
+      {
+        "q": "CUBE uses optimistic UI for task status updates. An engineer proposes applying the same pattern to a 'Transfer $500 to account' banking action. What is the correct position?",
+        "options": [
+          "Optimistic UI always improves UX, so apply it universally for consistency",
+          "Optimistic UI is appropriate here because bank transfers are usually fast",
+          "Optimistic UI is inappropriate for high-stakes, hard-to-reverse financial actions — confirmed server state must be the source of truth; show a pending state instead",
+          "Add optimistic UI but extend the revert window to 10 seconds to give the user time to cancel"
+        ],
+        "answer": 2,
+        "explain": "Optimistic UI is a perceived-performance tool for low-risk, reversible actions (likes, task toggles, preference saves). For irreversible high-stakes actions (financial transfers, permanent deletes of important data), showing false confirmation before server validation is dangerous. A clear 'pending' state with real server confirmation is the correct UX here."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "Optimistic UI — definition and requirement",
+        "back": "Immediately reflect the user's intended action in the UI before server confirmation. Requirement: a rollback path — on server failure, revert the UI to the pre-action state and notify the user clearly."
+      },
+      {
+        "front": "Skeleton screen vs spinner — when to use each",
+        "back": "Skeleton: use when the content shape is known; reduces perceived layout shift and sets spatial expectations. Spinner: use for indeterminate waits or when content shape cannot be predicted in advance."
+      },
+      {
+        "front": "Nielsen's response time thresholds",
+        "back": "< 100ms: feels instant (no feedback needed beyond state change). 100ms–1s: user notices delay, no explicit indicator needed. > 1s: show a progress indicator. > 10s: show a progress bar with estimated time remaining."
+      },
+      {
+        "front": "Perceived performance vs actual performance",
+        "back": "Perceived performance is the user's subjective experience of speed, shaped by feedback immediacy, skeleton screens, and optimistic updates. A 300ms operation with instant visual feedback feels faster than a 150ms operation that shows a spinner."
+      },
+      {
+        "front": "Optimistic update — rollback pattern",
+        "back": "Store pre-mutation state snapshot, apply optimistic update immediately, send server request, on failure restore snapshot and display error. In Redux Toolkit this is: dispatch action → optimistic reducer → await thunk → on rejection dispatch revert."
+      },
+      {
+        "front": "Latency perception — the 400ms cliff",
+        "back": "Users begin attributing delay to the system (not network) at around 400ms. Actions that cross this threshold without feedback erode perceived reliability. Optimistic UI moves the perceived response to 0ms regardless of network latency."
+      },
+      {
+        "front": "When NOT to use optimistic UI",
+        "back": "Irreversible actions (permanent delete), high-stakes financial operations, actions with complex server-side validation that the client cannot predict, and multi-user collaborative scenarios where conflicts are likely."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement optimisticReducer(state, action) — a reducer that supports three action types:\n- { type: 'OPTIMISTIC_UPDATE', id, newValue, prevValue } → apply newValue immediately\n- { type: 'COMMIT', id } → the server confirmed; remove the rollback entry\n- { type: 'ROLLBACK', id } → the server failed; revert item to prevValue\n\nstate shape: { items: { [id]: string }, pending: { [id]: string } }\n'pending' stores prevValue for each in-flight optimistic update.\nReturn the next state (do not mutate).",
+        "starter": "function optimisticReducer(state, action) {\n  // state: { items: {}, pending: {} }\n  // return next state\n}",
+        "tests": "check('optimistic update stores prevValue and applies newValue', () => {\n  const s0 = { items: { a: 'hello' }, pending: {} };\n  const s1 = optimisticReducer(s0, { type: 'OPTIMISTIC_UPDATE', id: 'a', newValue: 'world', prevValue: 'hello' });\n  expect(s1.items.a).toBe('world');\n  expect(s1.pending.a).toBe('hello');\n});\ncheck('commit removes pending entry, keeps new value', () => {\n  const s0 = { items: { a: 'world' }, pending: { a: 'hello' } };\n  const s1 = optimisticReducer(s0, { type: 'COMMIT', id: 'a' });\n  expect(s1.items.a).toBe('world');\n  expect(s1.pending.a).toBe(undefined);\n});\ncheck('rollback reverts item to prevValue and clears pending', () => {\n  const s0 = { items: { a: 'world' }, pending: { a: 'hello' } };\n  const s1 = optimisticReducer(s0, { type: 'ROLLBACK', id: 'a' });\n  expect(s1.items.a).toBe('hello');\n  expect(s1.pending.a).toBe(undefined);\n});",
+        "solution": "function optimisticReducer(state, action) {\n  switch (action.type) {\n    case 'OPTIMISTIC_UPDATE':\n      return {\n        items: { ...state.items, [action.id]: action.newValue },\n        pending: { ...state.pending, [action.id]: action.prevValue }\n      };\n    case 'COMMIT': {\n      const pending = { ...state.pending };\n      delete pending[action.id];\n      return { ...state, pending };\n    }\n    case 'ROLLBACK': {\n      const pending = { ...state.pending };\n      const prevValue = pending[action.id];\n      delete pending[action.id];\n      return {\n        items: { ...state.items, [action.id]: prevValue },\n        pending\n      };\n    }\n    default:\n      return state;\n  }\n}"
+      }
+    ]
+  }
+}

@@ -7,6 +7,8 @@ import { AISettingsModal } from './components/AISettingsModal'
 import { Home } from './pages/Home'
 import { TrackPage } from './pages/TrackPage'
 import { LessonPage } from './pages/LessonPage'
+import { Review } from './pages/Review'
+import { Atlas } from './pages/Atlas'
 
 function GlobalKeys() {
   const togglePalette = useStore((s) => s.togglePalette)
@@ -34,6 +36,8 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/track/:id" element={<TrackPage />} />
           <Route path="/lesson/:id" element={<LessonPage />} />
+          <Route path="/review" element={<Review />} />
+          <Route path="/atlas" element={<Atlas />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

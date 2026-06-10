@@ -8,10 +8,13 @@ An interactive **AI course** that turns Varada Sai Datta Vishnu's own projects i
 
 A self‑paced learning console mapped directly from real projects (JARVIS, Unity, gharKa, the Order‑Processing System, scale‑quest, mongo‑mastery, tapasya, ToDoApp, and CUBE work).
 
-- **8 tracks · 82 lessons** — Frontend, Backend & APIs, Databases, System Design & Distributed Systems, AI/ML Engineering, CS Foundations, Architecture & Craft, Product/UX.
+- **9 tracks · 97 lessons** — Frontend, Backend & APIs, Databases, a full **Order‑Processing‑System deep‑dive**, System Design & Distributed Systems, AI/ML Engineering, CS Foundations, Architecture & Craft, Product/UX.
 - **Deep, to‑the‑core lessons** — each authored by a domain specialist: the concept, the internals, the tradeoffs, real code, common pitfalls, a *Top‑1% insight*, and *how it shows up in your project*.
-- **Built‑in AI Tutor** — grounded in each lesson. *Teach to the core · Go deeper · Show code · Quiz me · Challenge me · In my project*. Bring your own **free Gemini key** (or any OpenAI‑compatible endpoint like Groq). Key is stored only in your browser.
-- **Progress tracking, ⌘K command palette, deep links** — everything client‑side.
+- **Code Dojo** — 66 runnable JavaScript exercises with a live, sandboxed test runner. Do it, don't just read it.
+- **Auto‑graded quizzes** (328 questions) and **spaced‑repetition flashcards** (550+ cards, SM‑2) with a daily Review queue — all offline, no key needed.
+- **A real mastery model** — per‑concept mastery from reading + quizzes + exercises + recall strength, visualized in **The Atlas** skill‑tree.
+- **AI Tutor v2** — streaming, grounded in each lesson. *Teach to the core · Go deeper · Show code · Quiz me · Challenge me · Explain it back (Feynman) · Mock interview · In my project*. Bring your own **free Gemini key** (or any OpenAI‑compatible endpoint like Groq). Key stored only in your browser.
+- **Progress + ⌘K command palette + deep links** — everything client‑side.
 
 ## AI Tutor setup
 

@@ -50,3 +50,21 @@ export interface LessonContent {
 
 /** keyed by lesson id */
 export type TrackContent = Record<string, LessonContent>
+
+// ── Practice (quizzes, flashcards, runnable exercises) ───────────────────────
+/** a runnable JS coding exercise checked live in a sandboxed worker */
+export interface Exercise {
+  prompt: string
+  starter: string
+  tests: string
+  solution?: string
+}
+
+export interface LessonPractice {
+  quiz?: QuizQ[]
+  flashcards?: Flashcard[]
+  exercises?: Exercise[]
+}
+
+/** keyed by lesson id */
+export type TrackPractice = Record<string, LessonPractice>

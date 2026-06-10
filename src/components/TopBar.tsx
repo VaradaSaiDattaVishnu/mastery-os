@@ -26,6 +26,12 @@ export function TopBar() {
               {done}/{TOTAL_LESSONS} · {pct}%
             </span>
           </div>
+          <Link to="/atlas" className="hidden font-mono text-[0.7rem] text-ink-secondary transition-colors hover:text-ink sm:block">
+            atlas
+          </Link>
+          <Link to="/review" className="hidden font-mono text-[0.7rem] text-ink-secondary transition-colors hover:text-ink sm:block">
+            review
+          </Link>
           <button
             onClick={() => togglePalette(true)}
             className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 font-mono text-[0.7rem] text-ink-secondary transition-colors hover:border-aurora-cyan/40 hover:text-ink"

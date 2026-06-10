@@ -184,6 +184,58 @@ export const tracks: Track[] = [
   },
 
   {
+    id: 'ops',
+    title: 'Deep-Dive: Order Processing System',
+    tagline: 'Your 9-service, event-driven, ML-scored order platform — wired end to end, the applied capstone.',
+    color: '#F59E0B',
+    modules: [
+      {
+        id: 'ops-arch',
+        title: 'Architecture & request lifecycle',
+        summary: 'The nine services, why event-driven, and how one order flows through all of them.',
+        lessons: [
+          { id: 'ops-overview', title: 'The system at a glance', coreIdea: 'Nine focused services behind a gateway, talking over RabbitMQ — deliberately not a monolith.', project: 'Order Processing System', concepts: ['microservices', 'event-driven', 'service boundaries', 'C4 map'] },
+          { id: 'ops-lifecycle', title: 'An order’s journey, end to end', coreIdea: 'POST /orders persists, publishes order.created, and a saga reserves stock → pays → notifies.', project: 'Order Processing System', concepts: ['request lifecycle', 'sync vs async boundary', 'order.created'] },
+          { id: 'ops-shared', title: 'The shared contract (packages/shared)', coreIdea: 'Shared event types + middleware keep services decoupled without silently drifting apart.', project: 'Order Processing System', concepts: ['event contracts', 'shared package', 'typed events', 'versioning'] },
+        ],
+      },
+      {
+        id: 'ops-messaging',
+        title: 'Messaging, saga & resilience',
+        summary: 'RabbitMQ topology, the inventory→payment→notification saga, and surviving failure.',
+        lessons: [
+          { id: 'ops-rabbit', title: 'RabbitMQ topology', coreIdea: 'Topic exchanges + routing keys fan events to the right queues; ack and prefetch control flow.', project: 'Order Processing System', concepts: ['topic exchange', 'routing key', 'ack/nack', 'prefetch'] },
+          { id: 'ops-saga', title: 'The saga: inventory → payment → notification', coreIdea: 'A chain of local steps with compensations replaces an impossible distributed transaction.', project: 'Order Processing System', concepts: ['saga', 'compensation', 'atomic stock reservation'] },
+          { id: 'ops-idem', title: 'Idempotency, DLQ & retries', coreIdea: 'Payment is at-least-once; idempotency keys + a dead-letter queue make retries safe.', project: 'Order Processing System', concepts: ['idempotency key', 'DLQ', 'retry/backoff', 'outbox'] },
+        ],
+      },
+      {
+        id: 'ops-ml',
+        title: 'The ML anomaly pipeline',
+        summary: 'From raw order history to a calibrated, explainable fraud score served by FastAPI.',
+        lessons: [
+          { id: 'ops-ml-features', title: 'Time-aware per-user features', coreIdea: 'Features computed identically at train and serve time — the only way to avoid train/serve skew.', project: 'Order Processing System', concepts: ['feature engineering', 'train/serve parity', 'leakage'] },
+          { id: 'ops-ml-iforest', title: 'Isolation Forest scoring (FastAPI)', coreIdea: 'Unsupervised isolation learns “normal” and flags the unusual — no labels, no magic thresholds.', project: 'Order Processing System', concepts: ['Isolation Forest', 'FastAPI', 'cold-start bootstrap'] },
+          { id: 'ops-ml-explain', title: 'Calibration & the “24σ” explanation', coreIdea: 'A calibrated 0–1 score plus feature ablation turns a flag into a reason a human can trust.', project: 'Order Processing System', concepts: ['calibration', 'feature ablation', 'explainability'] },
+          { id: 'ops-ml-retrain', title: 'Self-updating models', coreIdea: 'Scheduled retraining + model persistence keep the detector current as real orders accumulate.', project: 'Order Processing System', concepts: ['retraining', 'model persistence', 'drift'] },
+        ],
+      },
+      {
+        id: 'ops-run',
+        title: 'Running & operating it',
+        summary: 'The gateway, data-per-service, Docker Compose, testing, and a senior design review.',
+        lessons: [
+          { id: 'ops-gateway', title: 'The API gateway', coreIdea: 'One front door owns auth (JWT), RBAC, rate-limiting and routing so every service stays simple.', project: 'Order Processing System', concepts: ['API gateway', 'JWT', 'RBAC', 'rate limit'] },
+          { id: 'ops-data', title: 'Data per service: MongoDB + Redis', coreIdea: 'Each service owns its database; Redis handles caching and idempotency — never a shared DB.', project: 'Order Processing System', concepts: ['database per service', 'Redis', 'cache', 'idempotency store'] },
+          { id: 'ops-compose', title: 'Docker Compose & the dev loop', coreIdea: 'Compose brings up nine services + infra with health checks so the whole system boots with one command.', project: 'Order Processing System', concepts: ['docker compose', 'healthcheck', 'service dependencies'] },
+          { id: 'ops-test', title: 'Testing the system', coreIdea: 'pytest for the ML service, workspace typecheck for TS, and saga tests that prove compensations fire.', project: 'Order Processing System', concepts: ['pytest', 'integration tests', 'CI'] },
+          { id: 'ops-design-review', title: 'Design review: surviving 100× scale', coreIdea: 'Where it bends first — and why replacing “ML wearing a costume” was the most important fix.', project: 'Order Processing System', concepts: ['bottlenecks', 'observability', 'evolution', 'tradeoffs'] },
+        ],
+      },
+    ],
+  },
+
+  {
     id: 'aiml',
     title: 'AI / ML Engineering',
     tagline: 'LLMs, agents, RAG, and the real ML behind anomaly detection and audio analysis.',

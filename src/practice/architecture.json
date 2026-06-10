@@ -1,0 +1,735 @@
+{
+  "arch-patterns": {
+    "quiz": [
+      {
+        "q": "In the Strategy pattern, what does the context object hold?",
+        "options": [
+          "A hard-coded algorithm implementation",
+          "A reference to a strategy interface, swapped at runtime",
+          "A list of all available algorithms as subclasses",
+          "A registry of observers waiting for events"
+        ],
+        "answer": 1,
+        "explain": "The context holds a reference to a strategy (interface/function), delegating the varying behaviour to whichever concrete strategy is injected — enabling algorithm swap without touching the context."
+      },
+      {
+        "q": "JARVIS uses provider adapters to swap Groq for Claude. Which pattern does this best illustrate?",
+        "options": [
+          "Observer — the adapter emits events when a response arrives",
+          "Factory — a factory creates the right LLM client",
+          "Adapter — wraps an incompatible interface behind a common contract",
+          "Decorator — adds retry logic around each call"
+        ],
+        "answer": 2,
+        "explain": "An adapter translates an incompatible third-party interface (Groq SDK, Anthropic SDK) into the interface your system expects, letting you swap providers without changing call sites."
+      },
+      {
+        "q": "Which SOLID principle most directly explains why adding a new LLM provider should NOT require editing existing provider code?",
+        "options": [
+          "Single Responsibility Principle",
+          "Liskov Substitution Principle",
+          "Interface Segregation Principle",
+          "Open/Closed Principle"
+        ],
+        "answer": 3,
+        "explain": "Open/Closed: classes should be open for extension (add a new provider) but closed for modification (don't edit existing ones). New behaviour arrives via new code, not edits to stable code."
+      },
+      {
+        "q": "The Observer pattern keeps the subject and its listeners loosely coupled. What is the main trade-off?",
+        "options": [
+          "Observers cannot be added at runtime",
+          "Debugging becomes harder because causality is indirect — an event triggers unknown subscribers",
+          "The subject must know every observer's concrete type",
+          "It only works with synchronous notification"
+        ],
+        "answer": 1,
+        "explain": "Loose coupling is the benefit; the cost is observability. When something breaks, you trace through an indirect chain of subscribers rather than a direct call stack."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "Strategy pattern — one-line definition",
+        "back": "Define a family of algorithms, encapsulate each, and make them interchangeable so the algorithm varies independently from the client using it."
+      },
+      {
+        "front": "Adapter pattern — one-line definition",
+        "back": "Converts the interface of a class into another interface clients expect, letting incompatible interfaces work together."
+      },
+      {
+        "front": "Observer pattern — one-line definition",
+        "back": "Defines a one-to-many dependency; when the subject changes state, all registered observers are notified automatically."
+      },
+      {
+        "front": "Open/Closed Principle",
+        "back": "Software entities should be open for extension (new behaviour via new code) but closed for modification (stable existing code is not edited)."
+      },
+      {
+        "front": "Dependency Inversion Principle",
+        "back": "High-level modules should not depend on low-level modules; both should depend on abstractions. Abstractions should not depend on details."
+      },
+      {
+        "front": "Factory pattern vs Strategy pattern — key difference",
+        "back": "Factory is about object creation (which concrete type to instantiate). Strategy is about behaviour delegation (which algorithm to run). Both use an interface, but their intent differs."
+      },
+      {
+        "front": "When should you NOT apply a design pattern?",
+        "back": "When it adds indirection without solving a real problem you have now. Premature abstraction is as harmful as no abstraction — introduce patterns at the second or third variation, not the first."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `makeDispatcher(strategies)` where `strategies` is an object mapping string keys to handler functions `(payload) => result`. Return a `dispatch(type, payload)` function that calls the matching strategy or throws if the type is unknown. This is the Strategy pattern as a function dispatcher.",
+        "starter": "function makeDispatcher(strategies) {\n  // return { dispatch(type, payload) }\n}",
+        "tests": "const d = makeDispatcher({\n  greet: (p) => 'hello ' + p.name,\n  shout: (p) => p.text.toUpperCase()\n});\ncheck('calls correct strategy', () => {\n  expect(d.dispatch('greet', { name: 'Vishnu' })).toBe('hello Vishnu');\n});\ncheck('delegates shout', () => {\n  expect(d.dispatch('shout', { text: 'hi' })).toBe('HI');\n});\ncheck('throws on unknown type', () => {\n  expect(() => d.dispatch('unknown', {})).toThrow();\n});",
+        "solution": "function makeDispatcher(strategies) {\n  return {\n    dispatch(type, payload) {\n      if (!strategies[type]) throw new Error('Unknown strategy: ' + type);\n      return strategies[type](payload);\n    }\n  };\n}"
+      },
+      {
+        "prompt": "Implement `memoize(fn)` — a higher-order function that caches results by serialising arguments to a string key. Subsequent calls with identical arguments return the cached value without calling `fn` again.",
+        "starter": "function memoize(fn) {\n  // your code\n}",
+        "tests": "let calls = 0;\nconst add = memoize((a, b) => { calls++; return a + b; });\ncheck('returns correct result', () => {\n  expect(add(2, 3)).toBe(5);\n});\ncheck('caches on repeat call', () => {\n  calls = 0;\n  add(2, 3); add(2, 3);\n  expect(calls).toBe(0);\n});\ncheck('recomputes for new args', () => {\n  calls = 0;\n  add(1, 1);\n  expect(calls).toBe(1);\n});",
+        "solution": "function memoize(fn) {\n  const cache = new Map();\n  return function(...args) {\n    const key = JSON.stringify(args);\n    if (cache.has(key)) return cache.get(key);\n    const result = fn(...args);\n    cache.set(key, result);\n    return result;\n  };\n}"
+      }
+    ]
+  },
+
+  "arch-clean": {
+    "quiz": [
+      {
+        "q": "In Clean Architecture, which direction should dependencies point?",
+        "options": [
+          "Outward — from domain to infrastructure",
+          "Inward — from infrastructure to domain, never the other way",
+          "Bidirectionally, so layers can call each other freely",
+          "There is no rule — dependency direction is a performance concern"
+        ],
+        "answer": 1,
+        "explain": "The Dependency Rule: source code dependencies must always point inward toward higher-level policy. Frameworks and databases depend on business rules; business rules never import a database driver."
+      },
+      {
+        "q": "A `packages/core` shared library in Unity/gharKa is kept platform-agnostic. What does this achieve?",
+        "options": [
+          "It forces all teams to use the same runtime version",
+          "It allows business logic to be tested and reused without any platform adapter present",
+          "It prevents any package from depending on core",
+          "It eliminates the need for integration tests"
+        ],
+        "answer": 1,
+        "explain": "A platform-agnostic core can be tested in pure Node (no HTTP, no DB) and reused by multiple apps. Adapters (Express, React, Prisma) sit outside core and depend on it, not the reverse."
+      },
+      {
+        "q": "What is the main cost of deep modularity with strict boundary enforcement?",
+        "options": [
+          "Business logic becomes harder to test",
+          "You must update many files to make a cross-cutting change, and indirection adds cognitive overhead",
+          "Hot-reload tooling stops working",
+          "Database queries become slower"
+        ],
+        "answer": 1,
+        "explain": "Strict modularity trades ease of cross-cutting change for isolation. A feature that cuts across three layers requires changes in three places. The benefit is that each module is independently testable and replaceable."
+      },
+      {
+        "q": "Dependency Inversion is satisfied when…",
+        "options": [
+          "A controller imports a service directly by file path",
+          "An interface is defined in the domain layer and both the domain and the infrastructure layer depend on that interface",
+          "The database adapter is injected via the constructor but still imported at the top of the domain file",
+          "Modules are co-located in the same folder regardless of coupling"
+        ],
+        "answer": 1,
+        "explain": "The interface lives in the high-level module (domain). The low-level module (infra adapter) implements it. The high-level module never names the concrete class — it only uses the interface."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "The Dependency Rule (Clean Architecture)",
+        "back": "Source code dependencies must always point inward. Outer layers (UI, DB, frameworks) depend on inner layers (use cases, entities). Inner layers know nothing about outer layers."
+      },
+      {
+        "front": "What makes a module boundary 'clean'?",
+        "back": "Crossing the boundary requires going through a public interface, not a file import. Internal implementation can change freely without callers needing to know."
+      },
+      {
+        "front": "Anti-corruption layer (ACL)",
+        "back": "A translation layer that isolates your domain from an external system's model. The external model does not leak into your domain; the ACL converts between them."
+      },
+      {
+        "front": "Why keep `packages/core` platform-agnostic?",
+        "back": "So all business logic can run in a plain Node test without starting a server or database. Adapters are injected; the core is never polluted by infrastructure concerns."
+      },
+      {
+        "front": "Difference between layered architecture and Clean/Hexagonal Architecture",
+        "back": "In classic layers, each layer depends on the layer below (controller → service → DB). In Clean Architecture, the dependency rule flips infra to depend on domain, not the other way round."
+      },
+      {
+        "front": "What is a port (in Hexagonal Architecture)?",
+        "back": "An interface defined by the application that expresses what it needs from the outside world (e.g. `UserRepository`, `EmailSender`). Adapters implement ports."
+      }
+    ],
+    "exercises": []
+  },
+
+  "arch-monorepo": {
+    "quiz": [
+      {
+        "q": "Turborepo's task graph caches outputs. What is the cache key based on?",
+        "options": [
+          "The current git branch name",
+          "A hash of all inputs — source files, environment variables, and task configuration",
+          "The timestamp of the last successful run",
+          "The number of packages in the workspace"
+        ],
+        "answer": 1,
+        "explain": "Turborepo hashes inputs (source files declared in `inputs`, env vars, pipeline config). If the hash matches a prior run, the cached output is restored and the task is skipped — enabling remote caching across CI machines."
+      },
+      {
+        "q": "In a pnpm workspace, `workspace:*` in a dependency field means…",
+        "options": [
+          "The package is fetched from the npm registry at any version",
+          "The local workspace package is symlinked, and any version satisfies",
+          "The package is excluded from the build graph",
+          "pnpm will pin the exact registry version in the lockfile"
+        ],
+        "answer": 1,
+        "explain": "`workspace:*` resolves to the local package at its current version via a symlink. Changes to that package are immediately visible to consumers without publishing — the key monorepo developer experience win."
+      },
+      {
+        "q": "What is the primary risk of a 'distributed monolith' disguised as a monorepo?",
+        "options": [
+          "Packages are too independent, causing code duplication",
+          "Deep transitive dependencies between packages mean a change anywhere triggers full rebuilds, and the repo provides no real isolation",
+          "pnpm workspaces cannot handle more than 20 packages",
+          "Turborepo cannot cache test tasks"
+        ],
+        "answer": 1,
+        "explain": "When every package imports from every other, you lose the boundary benefits of a monorepo. The task graph degenerates to a single chain with no parallelism, and Turborepo's cache hit rate collapses."
+      },
+      {
+        "q": "You want `packages/core` to be built before `apps/web` in Turborepo. How do you express this?",
+        "options": [
+          "By naming the packages alphabetically so 'core' sorts before 'web'",
+          "By adding `dependsOn: ['^build']` in the `build` task config so upstream packages build first",
+          "By setting `cache: false` on the web app",
+          "By placing core in a separate git repository"
+        ],
+        "answer": 1,
+        "explain": "`^build` means: run `build` in all dependency packages before running `build` in the current package. Turborepo walks the dependency graph and schedules tasks respecting this ordering constraint."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "Why use a monorepo over many separate repos?",
+        "back": "Atomic cross-package commits, shared tooling, easy code reuse via workspace packages, and a unified CI pipeline. The cost is coordination overhead and slower clones as the repo grows."
+      },
+      {
+        "front": "pnpm workspace protocol — `workspace:^`",
+        "back": "Resolves to the local workspace package while accepting semver `^` range compatibility. On publish, pnpm replaces it with the real version. Keeps dev fast (local link) and publish correct."
+      },
+      {
+        "front": "Turborepo pipeline `dependsOn: ['^build']`",
+        "back": "The caret `^` means 'in all dependency packages first'. Without it, tasks run in parallel regardless of dependency order. This is how you enforce that `core` builds before `app`."
+      },
+      {
+        "front": "Remote caching in Turborepo",
+        "back": "Task outputs are stored (Vercel or self-hosted) keyed by input hash. A second CI machine with the same inputs downloads the cache instead of re-running the task. Eliminates duplicate work across PRs."
+      },
+      {
+        "front": "What belongs in `packages/core` vs `apps/*`?",
+        "back": "`packages/core` holds domain logic, shared types, and utilities that are framework-agnostic. `apps/*` holds framework-specific entry points (Next.js, Express) that depend on core but not on each other."
+      },
+      {
+        "front": "Turborepo `outputs` field",
+        "back": "Tells Turborepo which files to cache after a task runs (e.g. `['dist/**', '.next/**']`). If inputs haven't changed, these files are restored from cache instead of rebuilding."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `topoOrder(graph)` where `graph` maps a package name to an array of its dependency names. Return an array where every dependency appears before the packages that need it — a valid build order. Throw if there is a cycle.",
+        "starter": "function topoOrder(graph) {\n  // your code\n}",
+        "tests": "check('builds deps before dependents', () => {\n  const order = topoOrder({ app: ['core'], core: [], utils: [] });\n  expect(order.indexOf('core') < order.indexOf('app')).toBe(true);\n});\ncheck('handles diamond dep', () => {\n  const order = topoOrder({ app: ['ui', 'core'], ui: ['core'], core: [] });\n  expect(order.indexOf('core') < order.indexOf('ui')).toBe(true);\n  expect(order.indexOf('core') < order.indexOf('app')).toBe(true);\n});\ncheck('throws on cycle', () => {\n  expect(() => topoOrder({ a: ['b'], b: ['a'] })).toThrow();\n});",
+        "solution": "function topoOrder(graph) {\n  const state = {}; // 0=unvisited, 1=in-progress, 2=done\n  const out = [];\n  function visit(n) {\n    if (state[n] === 1) throw new Error('Cycle detected at ' + n);\n    if (state[n] === 2) return;\n    state[n] = 1;\n    (graph[n] || []).forEach(visit);\n    state[n] = 2;\n    out.push(n);\n  }\n  Object.keys(graph).forEach(visit);\n  return out;\n}"
+      }
+    ]
+  },
+
+  "arch-testing": {
+    "quiz": [
+      {
+        "q": "The testing pyramid recommends having the most tests at which level?",
+        "options": [
+          "End-to-end tests — they test the whole system",
+          "Integration tests — they test realistic service interactions",
+          "Unit tests — they are fast, isolated, and cheap to run",
+          "Manual tests — they catch what automation misses"
+        ],
+        "answer": 2,
+        "explain": "Unit tests are cheapest to write, fastest to run, and easiest to debug. They form the broad base. A few integration tests and even fewer E2E tests sit on top — each level more expensive than the last."
+      },
+      {
+        "q": "Why does testing implementation details make suites brittle?",
+        "options": [
+          "It makes tests run slower due to additional function calls",
+          "Tests break whenever the internal structure changes even if observable behaviour is identical, producing false failures",
+          "Private methods cannot be accessed from test files",
+          "It prevents parallel test execution"
+        ],
+        "answer": 1,
+        "explain": "If a test checks that a specific private method was called, any refactor — even one that keeps behaviour identical — breaks the test. Tests should express what the unit does for callers, not how it does it internally."
+      },
+      {
+        "q": "When is mocking appropriate vs harmful?",
+        "options": [
+          "Always mock everything — determinism is paramount",
+          "Mock at true boundaries (network, file system, clock) but not between internal collaborators in the same bounded context",
+          "Never mock — use real dependencies for all tests",
+          "Mock only when the test file is longer than 100 lines"
+        ],
+        "answer": 1,
+        "explain": "Mocks at system boundaries (HTTP, DB, time) prevent flakiness and speed. Mocking internal collaborators couples tests to implementation, making refactoring expensive. The heuristic: mock what you don't own."
+      },
+      {
+        "q": "In Order Processing, an integration test starts a real database. What is the main benefit vs. the main cost?",
+        "options": [
+          "Benefit: faster execution; Cost: more complex test logic",
+          "Benefit: tests real query semantics, indexes, and constraints; Cost: slower, harder to run in CI without infrastructure",
+          "Benefit: no test doubles needed; Cost: tests become non-deterministic",
+          "Benefit: catches type errors; Cost: requires TypeScript"
+        ],
+        "answer": 1,
+        "explain": "Real DB integration tests catch bugs that mocks hide (wrong query shape, missing index, constraint violation). The cost is setup time, slower CI, and the need for a test database — worth it for critical data paths."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "Testing pyramid — three layers",
+        "back": "Many unit tests (fast, isolated, cheap) → fewer integration tests (realistic, slower) → very few E2E tests (full stack, slowest). Invert the pyramid and your suite is slow and flaky."
+      },
+      {
+        "front": "Test behaviour, not implementation",
+        "back": "A test should express observable outcomes (return value, state change, event emitted) rather than which internal methods were called. This lets you refactor freely without rewriting tests."
+      },
+      {
+        "front": "What is a test double?",
+        "back": "Any replacement for a real dependency in a test: stub (returns canned values), mock (also asserts calls), spy (observes calls on the real object), fake (working simplified implementation)."
+      },
+      {
+        "front": "The 'mock what you don't own' rule",
+        "back": "Mock external systems (HTTP APIs, queues, file system, clock). Use real implementations for internal collaborators. Mocking internals makes tests mirror the code structure, not the behaviour."
+      },
+      {
+        "front": "Arrange-Act-Assert (AAA)",
+        "back": "Arrange: set up state and inputs. Act: call the unit under test. Assert: verify the outcome. One test should have one logical assertion — a failing test should point to one cause."
+      },
+      {
+        "front": "Why keep unit tests fast (sub-100ms)?",
+        "back": "Developers run them on every save in watch mode. If the suite takes minutes, the feedback loop breaks and developers stop running tests locally, defeating their purpose."
+      },
+      {
+        "front": "Contract testing vs E2E testing",
+        "back": "E2E runs both sides of an integration together. Contract testing (e.g. Pact) verifies that producer and consumer agree on the API shape independently — faster and more targeted for microservices."
+      }
+    ],
+    "exercises": []
+  },
+
+  "arch-types": {
+    "quiz": [
+      {
+        "q": "TypeScript uses structural typing. What does this mean?",
+        "options": [
+          "Types are identified by their declared class name",
+          "Two types are compatible if their shapes (property names and types) match, regardless of explicit declaration",
+          "All types must extend a common base class",
+          "Types are checked at runtime, not compile time"
+        ],
+        "answer": 1,
+        "explain": "Structural (duck) typing: if an object has the required properties with the right types, it satisfies the type — no explicit `implements` needed. This is the opposite of nominal typing (Java/C#)."
+      },
+      {
+        "q": "Which TypeScript feature lets you write a `identity<T>(x: T): T` function that works for any type while preserving it?",
+        "options": [
+          "Union types",
+          "Type assertions with `as`",
+          "Generics",
+          "The `any` keyword"
+        ],
+        "answer": 2,
+        "explain": "Generics parameterise a type or function over a type variable `T`. The compiler tracks `T` through the call, so the return type is exactly the input type — not erased to `any` or widened to `unknown`."
+      },
+      {
+        "q": "You write `if (typeof x === 'string')` inside a function. What happens to the type of `x` inside that block?",
+        "options": [
+          "It remains the original union type",
+          "TypeScript narrows the type to `string` within the block",
+          "TypeScript widens the type to `any`",
+          "A type error is raised because `typeof` is not a TypeScript construct"
+        ],
+        "answer": 1,
+        "explain": "TypeScript's control-flow analysis (narrowing) refines the type in each branch. After `typeof x === 'string'`, TypeScript knows `x` is a `string` in the true branch — no assertion needed."
+      },
+      {
+        "q": "What is the practical difference between `unknown` and `any`?",
+        "options": [
+          "`unknown` allows all operations; `any` requires a type check first",
+          "`any` disables type checking for that value; `unknown` forces you to narrow the type before using it",
+          "They are aliases — TypeScript treats them identically",
+          "`unknown` only works with primitive types"
+        ],
+        "answer": 1,
+        "explain": "`any` is an escape hatch that disables the type system. `unknown` is safe: you must perform a runtime check (typeof, instanceof, a type guard) before TypeScript permits any operations on it."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "Structural typing vs nominal typing",
+        "back": "Structural: compatible if shapes match (TypeScript). Nominal: compatible only if explicitly declared as the same type (Java/C#). Structural is more flexible; nominal is more explicit about intent."
+      },
+      {
+        "front": "Type narrowing",
+        "back": "TypeScript uses control-flow analysis to refine a wide type to a narrower one after a type guard (`typeof`, `instanceof`, `in`, discriminant check). The compiler tracks which branch you're in."
+      },
+      {
+        "front": "Discriminated union",
+        "back": "A union of types each with a shared literal field (`kind: 'circle' | 'rect'`). TypeScript narrows to the specific member when you check the discriminant, enabling exhaustive `switch` statements."
+      },
+      {
+        "front": "Generic constraint (`T extends U`)",
+        "back": "Restricts the type parameter to only types assignable to `U`. Lets you call methods on `T` that exist on `U`, while still preserving the specific type the caller passes in."
+      },
+      {
+        "front": "`as const` assertion",
+        "back": "Freezes object/array literals to their narrowest literal types (no widening). `['GET', 'POST'] as const` becomes type `readonly ['GET', 'POST']` rather than `string[]`."
+      },
+      {
+        "front": "`satisfies` keyword (TS 4.9+)",
+        "back": "Validates an expression against a type without widening it. You get type-checking while preserving the literal type for downstream use — a middle ground between explicit annotation and inference."
+      },
+      {
+        "front": "Mapped types",
+        "back": "Create a new type by iterating over the keys of an existing type: `{ [K in keyof T]: ... }`. The basis for built-ins like `Partial<T>`, `Readonly<T>`, and `Record<K, V>`."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `semverCompare(a, b)` that compares two semver strings (e.g. `'1.2.3'`). Return `-1` if `a < b`, `0` if equal, `1` if `a > b`. Compare major, then minor, then patch numerically.",
+        "starter": "function semverCompare(a, b) {\n  // your code\n}",
+        "tests": "check('equal versions', () => {\n  expect(semverCompare('1.2.3', '1.2.3')).toBe(0);\n});\ncheck('major wins', () => {\n  expect(semverCompare('2.0.0', '1.9.9')).toBe(1);\n});\ncheck('minor comparison', () => {\n  expect(semverCompare('1.2.0', '1.10.0')).toBe(-1);\n});\ncheck('patch comparison', () => {\n  expect(semverCompare('1.0.1', '1.0.0')).toBe(1);\n});",
+        "solution": "function semverCompare(a, b) {\n  const pa = a.split('.').map(Number);\n  const pb = b.split('.').map(Number);\n  for (let i = 0; i < 3; i++) {\n    if (pa[i] > pb[i]) return 1;\n    if (pa[i] < pb[i]) return -1;\n  }\n  return 0;\n}"
+      }
+    ]
+  },
+
+  "arch-profiling": {
+    "quiz": [
+      {
+        "q": "A flamegraph's x-axis represents time. What does the y-axis represent?",
+        "options": [
+          "CPU utilisation percentage",
+          "The call stack depth — parent frames at the bottom, callees stacked above",
+          "Memory allocation in bytes",
+          "Wall-clock time since process start"
+        ],
+        "answer": 1,
+        "explain": "In a flamegraph, x-axis width is time (or sample count). The y-axis is call stack depth. A tall spike means deep recursion; a wide bar at the bottom means a function consumed a large share of total time."
+      },
+      {
+        "q": "What is a performance budget, and why set one before optimising?",
+        "options": [
+          "A limit on how many engineers can work on performance tasks",
+          "A defined threshold (e.g. LCP < 2.5s, bundle < 200kB) that triggers action when crossed — preventing premature optimisation",
+          "The maximum cost of cloud infrastructure per month",
+          "The number of test cases allowed in the performance test suite"
+        ],
+        "answer": 1,
+        "explain": "A budget sets measurable targets before any optimisation work begins. Without one, teams optimise the wrong thing. With one, you profile only when a budget is breached and know when you're done."
+      },
+      {
+        "q": "CUBE's tree filter was O(n²). After profiling, the fix was O(n). What was most likely the problem?",
+        "options": [
+          "Too many re-renders caused by React reconciliation",
+          "A nested loop that re-scanned the full node list for every node checked",
+          "A missing database index on the filter field",
+          "A service worker caching stale filter results"
+        ],
+        "answer": 1,
+        "explain": "Classic O(n²): for each of n nodes, search n nodes again. The O(n) fix pre-builds a hash map of node→ancestors in one pass, then each lookup is O(1). Profile identifies the hot loop; the fix changes the data structure."
+      },
+      {
+        "q": "What is the key difference between wall-clock time and CPU time when profiling?",
+        "options": [
+          "CPU time includes I/O waits; wall-clock time does not",
+          "Wall-clock time is the real elapsed time; CPU time counts only the cycles your process actually spent on the CPU, excluding blocked waits",
+          "They are identical for single-threaded Node processes",
+          "Wall-clock time is only measurable in the browser; CPU time only in Node"
+        ],
+        "answer": 1,
+        "explain": "A slow wall-clock time with low CPU time means the process is waiting (I/O, network, lock). High CPU time means actual compute. Profiling the wrong metric leads you to optimise waits when the bottleneck is compute, or vice versa."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "Flamegraph — how to read it",
+        "back": "Bottom = entry point (main/root). Top = deepest callee. Width = proportion of time. Wide frames are hot. Look for wide frames near the top that should be narrow — those are your optimisation targets."
+      },
+      {
+        "front": "Measure first principle",
+        "back": "Profile before optimising. Without measurement, you guess the bottleneck. Profiling data reveals the actual hot path, which is rarely the one developers assume it is."
+      },
+      {
+        "front": "Performance budget",
+        "back": "A quantitative threshold for a metric (LCP, bundle size, memory, p99 latency) below which the product is acceptable. A budget tells you when to act and when to stop — preventing endless micro-optimisation."
+      },
+      {
+        "front": "Micro-benchmark vs realistic benchmark",
+        "back": "Micro-benchmarks isolate one operation for tight measurement but can be misleading (JIT warmup, cache effects). Realistic benchmarks measure the full production path — use both, trust neither in isolation."
+      },
+      {
+        "front": "Big-O vs profiling — when each applies",
+        "back": "Big-O tells you how code scales as n grows — use it at design time to avoid algorithmic disasters. Profiling tells you where real time is spent at a given n — use it after shipping to find actual bottlenecks."
+      },
+      {
+        "front": "p50, p95, p99 latency",
+        "back": "Percentile latencies. p50 is the median; p99 is the worst 1% of requests. Optimising only the mean can hide tail latency that real users experience. SLOs usually target p99."
+      }
+    ],
+    "exercises": []
+  },
+
+  "arch-docker": {
+    "quiz": [
+      {
+        "q": "What is a Docker image layer, and why does layer ordering in a Dockerfile matter for build speed?",
+        "options": [
+          "Layers are git commits — their order is only for auditing",
+          "Each instruction creates a cached layer; putting rarely-changing instructions first means cache hits on most rebuilds",
+          "Layers are merged at push time so ordering has no effect",
+          "Layers only matter for multi-stage builds"
+        ],
+        "answer": 1,
+        "explain": "Docker caches each layer based on the instruction and its inputs. Copy `package.json` and run `npm install` before copying source code — the `install` layer is reused on every source-only change, dramatically speeding up rebuilds."
+      },
+      {
+        "q": "What is the primary security benefit of running your Node app as a non-root user in a container?",
+        "options": [
+          "It prevents other containers from sharing the same network namespace",
+          "If the process is compromised, the attacker has limited privileges inside and cannot write to most of the filesystem",
+          "It reduces the container's memory footprint",
+          "It enables automatic secret rotation via Docker secrets"
+        ],
+        "answer": 1,
+        "explain": "Root in a container can still do significant damage — writing files, modifying the runtime. A non-root user limits the blast radius of a compromise. The principle of least privilege applied to containers."
+      },
+      {
+        "q": "In a multi-stage Dockerfile, what is the key benefit of the builder stage?",
+        "options": [
+          "It speeds up layer caching by parallelising RUN instructions",
+          "Build tools, dev dependencies, and intermediate artefacts are left behind — only the final compiled output is copied into the slim production image",
+          "It allows two different base images to share a network",
+          "It automatically generates a docker-compose.yml"
+        ],
+        "answer": 1,
+        "explain": "Multi-stage builds separate compile-time tooling (TypeScript compiler, bundler) from runtime. The final image only contains the compiled output and production dependencies, making it smaller and less vulnerable."
+      },
+      {
+        "q": "JARVIS and Order use Docker Compose. What problem does Compose solve that running containers individually does not?",
+        "options": [
+          "It compiles TypeScript before running the app container",
+          "It declaratively defines multiple services, their networks, volumes, and startup order in one file — a reproducible local environment",
+          "It provides production-grade load balancing",
+          "It automatically provisions cloud infrastructure"
+        ],
+        "answer": 1,
+        "explain": "Compose replaces a sequence of `docker run` commands with a single `docker compose up`. It handles inter-service DNS, shared volumes, environment variables, and dependency ordering — turning a multi-service app into one command."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "Container vs VM",
+        "back": "A VM virtualises hardware with a full guest OS. A container shares the host kernel and isolates a process with namespaces (PID, network, mount) and cgroups (CPU, memory). Containers start in milliseconds; VMs take seconds to minutes."
+      },
+      {
+        "front": "Docker layer cache invalidation",
+        "back": "Any change to an instruction (or its inputs) invalidates that layer and all layers after it. Order Dockerfile instructions from least to most frequently changing to maximise cache hit rate."
+      },
+      {
+        "front": "Multi-stage build pattern",
+        "back": "Stage 1 (builder): full SDK, compiles code. Stage 2 (runtime): slim base (node:alpine), copies only compiled output from stage 1. Result: small, secure production image with no build tools."
+      },
+      {
+        "front": "`.dockerignore`",
+        "back": "Lists files excluded from the build context sent to the Docker daemon (e.g. `node_modules`, `.git`, `dist`). Smaller build context = faster builds and no risk of accidentally copying secrets into the image."
+      },
+      {
+        "front": "EXPOSE instruction",
+        "back": "Documents which port the container listens on. It does NOT publish the port to the host — that requires `-p 3000:3000` in `docker run` or `ports:` in Compose. It is metadata, not a firewall rule."
+      },
+      {
+        "front": "Health checks in Docker Compose",
+        "back": "`healthcheck:` runs a command periodically. A service is only considered ready when healthy. `depends_on: condition: service_healthy` lets you sequence startup (DB ready before app starts)."
+      }
+    ],
+    "exercises": []
+  },
+
+  "arch-cicd": {
+    "quiz": [
+      {
+        "q": "What distinguishes Continuous Delivery from Continuous Deployment?",
+        "options": [
+          "Continuous Delivery uses GitHub Actions; Continuous Deployment uses Jenkins",
+          "Continuous Delivery ensures every green build is deployable but a human approves production; Continuous Deployment pushes automatically to production",
+          "Continuous Delivery skips tests for speed; Continuous Deployment runs all tests",
+          "They are synonyms — the terms are used interchangeably"
+        ],
+        "answer": 1,
+        "explain": "Continuous Delivery = always releasable, release gated by human. Continuous Deployment = every green merge automatically ships. Most teams start with Delivery and add Deployment as confidence grows."
+      },
+      {
+        "q": "In a GitHub Actions workflow, what is the purpose of a matrix strategy?",
+        "options": [
+          "To run one job on the largest available runner for maximum speed",
+          "To execute the same job across multiple combinations of inputs (OS, Node version) in parallel",
+          "To store secrets securely across repositories",
+          "To schedule jobs on a cron interval"
+        ],
+        "answer": 1,
+        "explain": "A matrix multiplies a job across permutations: `{os: [ubuntu, windows], node: [18, 20]}` spawns four parallel jobs. This catches compatibility issues before they reach production."
+      },
+      {
+        "q": "Your CI pipeline pushes to GitHub Pages on every merge to main. A bad commit ships broken CSS. What pipeline change would catch this before deploy?",
+        "options": [
+          "Add a lint step after the deploy step",
+          "Add a build and visual regression test step before the deploy step, failing the pipeline on any diff",
+          "Increase the runner's memory to prevent OOM errors",
+          "Pin the Node version to 16 for stability"
+        ],
+        "answer": 1,
+        "explain": "Gates before the deploy step prevent bad code from shipping. A visual regression tool (Chromatic, Percy) diffs screenshots and fails the pipeline on unexpected changes — catching CSS bugs that linting misses."
+      },
+      {
+        "q": "What is an environment secret in GitHub Actions, and why is it preferable to a repository secret for production credentials?",
+        "options": [
+          "Environment secrets are faster to access at runtime",
+          "Environment secrets can be scoped to specific environments (production, staging) with required reviewers, preventing any branch from accessing them without approval",
+          "Repository secrets are deprecated in GitHub Actions",
+          "Environment secrets are automatically rotated every 30 days"
+        ],
+        "answer": 1,
+        "explain": "Environment secrets add a protection layer: only workflows targeting the named environment (and approved by designated reviewers) can access them. Repository secrets are accessible from any branch, raising the risk of accidental exposure."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "CI vs CD pipeline stages",
+        "back": "CI: push → lint → test → build → artifact. CD: artifact → deploy to staging → smoke test → (approval) → deploy to production. CI validates; CD ships."
+      },
+      {
+        "front": "GitHub Actions: `on: push` vs `on: pull_request`",
+        "back": "`push` triggers on direct pushes to the matched branch. `pull_request` triggers when a PR is opened, synchronised, or reopened. CI typically uses both so PRs are checked before merge and main is validated after."
+      },
+      {
+        "front": "Artifact in CI/CD",
+        "back": "A build output (compiled binary, Docker image, static files) stored by the CI system and promoted through environments. The same artifact tested in staging is what ships to production — not a rebuild."
+      },
+      {
+        "front": "Why cache `node_modules` in CI?",
+        "back": "npm/pnpm install can take 30–120s. Caching the store keyed on the lockfile hash restores it in seconds on unchanged dependencies, often cutting total pipeline time by half."
+      },
+      {
+        "front": "Branch protection rules + required status checks",
+        "back": "Prevent merging PRs until named CI jobs pass. Enforces that tests, lint, and build succeed before code reaches main. Combined with signed commits, it makes the main branch a trusted source of truth."
+      },
+      {
+        "front": "Deployment environment promotion",
+        "back": "dev → staging → production. Each stage validates the same artifact. Staging mirrors production data/config. Promotion is gated on previous stage health — never skip staging for a 'small' change."
+      }
+    ],
+    "exercises": []
+  },
+
+  "arch-git": {
+    "quiz": [
+      {
+        "q": "Git commits form a DAG (Directed Acyclic Graph). What does each commit node store?",
+        "options": [
+          "A diff (patch) against the previous commit",
+          "A snapshot of the full tree at that point, a pointer to parent commit(s), and metadata",
+          "Only the changed files, stored as delta-compressed blobs",
+          "A reference to the branch it was created on"
+        ],
+        "answer": 1,
+        "explain": "Each Git commit object contains: a pointer to a tree object (full snapshot), one or more parent commit hashes, author/committer metadata, and a commit message. Branches are simply named pointers to a commit hash."
+      },
+      {
+        "q": "What is the key difference between `git rebase` and `git merge` in terms of history?",
+        "options": [
+          "Rebase creates a merge commit; merge does not",
+          "Rebase rewrites commits onto a new base, producing a linear history; merge preserves branch topology with a merge commit",
+          "They produce identical histories for single-commit branches",
+          "Merge is only used for pull requests; rebase is for local work"
+        ],
+        "answer": 1,
+        "explain": "Rebase replays your commits on top of the target, rewriting their hashes — linear history, cleaner log, but dangerous if the original branch is already public. Merge preserves the full branch graph with a merge commit."
+      },
+      {
+        "q": "The reflog lets you recover a commit after `git reset --hard`. Why does it work?",
+        "options": [
+          "The reflog is a remote backup in the GitHub repository",
+          "Git does not immediately delete unreachable objects; the reflog records every HEAD position, so you can reset back to the commit hash",
+          "The reflog stores a copy of all blobs before any destructive command",
+          "It only works if you ran `git stash` before the reset"
+        ],
+        "answer": 1,
+        "explain": "Git's object store is append-only. `reset --hard` moves the branch pointer but does not delete objects. The reflog records every previous HEAD, giving you the hash to `git checkout` or `git reset --hard <hash>` to recover."
+      },
+      {
+        "q": "An ancestor check in a Git DAG asks: is commit A reachable from commit B by following parent pointers? What algorithm solves this?",
+        "options": [
+          "Binary search on the commit timestamp",
+          "BFS or DFS from B following parent pointers; A is an ancestor if it is visited",
+          "Comparing the SHA prefixes of both commits",
+          "The algorithm is proprietary to the libgit2 library"
+        ],
+        "answer": 1,
+        "explain": "A commit is an ancestor if you can reach it from the descendant by traversing parent edges. BFS gives the shortest path; DFS is simpler to implement. This is exactly how `git merge-base` and `git log --ancestry-path` work."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "Git object model — four object types",
+        "back": "blob (file contents), tree (directory listing mapping names to blob/tree hashes), commit (tree pointer + parent(s) + metadata), tag (annotated tag object). Everything is content-addressed by SHA-1/SHA-256."
+      },
+      {
+        "front": "Branch in Git",
+        "back": "A branch is just a file in `.git/refs/heads/` containing a 40-character commit hash. HEAD points to the current branch. Creating a branch is O(1) — write one file. This is why Git branching is cheap."
+      },
+      {
+        "front": "Fast-forward merge",
+        "back": "If the target branch has no commits since the feature branch diverged, Git simply advances the pointer forward. No merge commit is created. Not possible when both branches have diverged."
+      },
+      {
+        "front": "Interactive rebase use cases",
+        "back": "Squash multiple commits into one, reword commit messages, reorder commits, split a commit, drop a commit. Rewrites history — only safe before the branch is shared (pushed to a public remote)."
+      },
+      {
+        "front": "Cherry-pick",
+        "back": "`git cherry-pick <hash>` applies a single commit's diff onto the current branch as a new commit. Used to port a specific fix from main to a release branch without merging all of main."
+      },
+      {
+        "front": "Reflog",
+        "back": "A local log of every position HEAD and branch refs have pointed to, including after resets and rebases. Retained for 90 days by default. The recovery mechanism for 'I accidentally reset --hard'."
+      },
+      {
+        "front": "Merge-base (common ancestor)",
+        "back": "The best common ancestor of two branches — the point where their histories diverged. Used by `git merge` to produce a three-way diff. `git merge-base A B` prints the hash."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `isAncestor(parentMap, ancestor, descendant)` over a commit DAG. `parentMap` maps each commit id to an array of its parent ids. Return `true` if `ancestor` is reachable from `descendant` by following parent links (i.e. `ancestor` is in the history of `descendant`).",
+        "starter": "function isAncestor(parentMap, ancestor, descendant) {\n  // your code\n}",
+        "tests": "const dag = {\n  d: ['c'],\n  c: ['b'],\n  b: ['a'],\n  a: []\n};\ncheck('direct parent is ancestor', () => {\n  expect(isAncestor(dag, 'c', 'd')).toBe(true);\n});\ncheck('grandparent is ancestor', () => {\n  expect(isAncestor(dag, 'a', 'd')).toBe(true);\n});\ncheck('descendant is not ancestor of ancestor', () => {\n  expect(isAncestor(dag, 'd', 'a')).toBe(false);\n});\ncheck('same commit is its own ancestor', () => {\n  expect(isAncestor(dag, 'b', 'b')).toBe(true);\n});",
+        "solution": "function isAncestor(parentMap, ancestor, descendant) {\n  const visited = new Set();\n  const queue = [descendant];\n  while (queue.length) {\n    const curr = queue.shift();\n    if (curr === ancestor) return true;\n    if (visited.has(curr)) continue;\n    visited.add(curr);\n    (parentMap[curr] || []).forEach(p => queue.push(p));\n  }\n  return false;\n}"
+      }
+    ]
+  }
+}

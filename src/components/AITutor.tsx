@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useStore } from '../store'
-import { buildTutorSystem, QUICK_ACTIONS, tutorChat, type ChatMsg, type LessonCtx } from '../ai/tutor'
+import { buildTutorSystem, QUICK_ACTIONS, streamChat, type ChatMsg, type LessonCtx } from '../ai/tutor'
 import { Markdown } from './Markdown'
 
 export function AITutor({ ctx }: { ctx: LessonCtx }) {
@@ -37,15 +37,27 @@ export function AITutor({ ctx }: { ctx: LessonCtx }) {
       return
     }
     const next: ChatMsg[] = [...msgs, { role: 'user', content: text }]
-    setMsgs(next)
+    setMsgs([...next, { role: 'assistant', content: '' }])
     setInput('')
     setLoading(true)
     setError('')
     try {
-      const reply = await tutorChat({ provider, apiKey, model, baseUrl }, system, next)
-      setMsgs([...next, { role: 'assistant', content: reply }])
+      await streamChat({ provider, apiKey, model, baseUrl }, system, next, (delta) => {
+        setMsgs((cur) => {
+          const copy = cur.slice()
+          const last = copy[copy.length - 1]
+          if (last && last.role === 'assistant') copy[copy.length - 1] = { role: 'assistant', content: last.content + delta }
+          return copy
+        })
+      })
     } catch (e) {
       setError((e as Error).message)
+      setMsgs((cur) => {
+        const c = cur.slice()
+        const last = c[c.length - 1]
+        if (last && last.role === 'assistant' && !last.content) c.pop()
+        return c
+      })
     } finally {
       setLoading(false)
     }
@@ -137,7 +149,7 @@ export function AITutor({ ctx }: { ctx: LessonCtx }) {
                     </div>
                   ),
                 )}
-                {loading && (
+                {loading && !(msgs[msgs.length - 1]?.role === 'assistant' && msgs[msgs.length - 1]?.content) && (
                   <div className="flex items-center gap-1.5 text-ink-muted">
                     <span className="h-2 w-2 animate-pulse-glow rounded-full bg-aurora-cyan" />
                     <span className="font-mono text-[0.72rem]">thinking…</span>

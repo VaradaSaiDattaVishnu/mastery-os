@@ -4,8 +4,13 @@ import { motion } from 'framer-motion'
 import { useStore } from '../store'
 import { allLessons, locate } from '../curriculum/map'
 import { getLessonBody } from '../content'
+import { getPractice } from '../practice'
 import { Markdown } from '../components/Markdown'
 import { AITutor } from '../components/AITutor'
+import { Quiz } from '../components/Quiz'
+import { CodeDojo } from '../components/CodeDojo'
+import { FlashcardDeck, type DeckItem } from '../components/FlashcardDeck'
+import { masteryOf, useMasterySlices } from '../lib/mastery'
 
 function hexA(hex: string, a: number) {
   const h = hex.replace('#', '')
@@ -17,6 +22,7 @@ export function LessonPage() {
   const completed = useStore((s) => s.completed)
   const toggleComplete = useStore((s) => s.toggleComplete)
   const visit = useStore((s) => s.visit)
+  const slices = useMasterySlices()
 
   const loc = id ? locate(id) : undefined
 
@@ -31,6 +37,10 @@ export function LessonPage() {
   const accent = track.color
   const body = getLessonBody(id)
   const isDone = !!completed[id]
+  const practice = getPractice(id)
+  const mastery = Math.round(masteryOf(id, slices) * 100)
+  const deckItems: DeckItem[] = (practice?.flashcards ?? []).map((c, idx) => ({ id: `${id}#${idx}`, front: c.front, back: c.back }))
+  const hasPractice = !!(practice?.quiz?.length || practice?.exercises?.length || practice?.flashcards?.length)
 
   const i = allLessons.findIndex((l) => l.id === id)
   const prev = i > 0 ? allLessons[i - 1] : undefined
@@ -56,6 +66,9 @@ export function LessonPage() {
           {lesson.coreIdea}
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="rounded-full px-3 py-1 font-mono text-[0.66rem]" style={{ background: hexA(accent, 0.16), color: hexA(accent, 0.95) }}>
+            mastery {mastery}%
+          </span>
           {lesson.project && (
             <span className="rounded-full px-3 py-1 font-mono text-[0.66rem]" style={{ background: hexA(accent, 0.12), color: hexA(accent, 0.95) }}>
               in your project · {lesson.project}
@@ -80,6 +93,36 @@ export function LessonPage() {
           <p className="mt-2 text-sm">
             Meanwhile, open the <span className="text-aurora-cyan">✦ AI Tutor</span> (bottom-right) and hit <em>Teach to the core</em> — it’s grounded in this exact topic and your project.
           </p>
+        </div>
+      )}
+
+      {/* practice */}
+      {hasPractice && (
+        <div className="mt-16 space-y-14">
+          <h2 className="font-display text-ink" style={{ fontSize: '1.7rem', fontWeight: 600, letterSpacing: '-0.02em' }}>
+            Practice — where mastery actually happens
+          </h2>
+
+          {practice?.exercises?.length ? (
+            <section>
+              <p className="mb-4 font-mono text-[0.7rem] uppercase tracking-[0.2em]" style={{ color: accent }}>// code dojo</p>
+              <CodeDojo lessonId={id} exercises={practice.exercises} accent={accent} />
+            </section>
+          ) : null}
+
+          {practice?.quiz?.length ? (
+            <section>
+              <p className="mb-4 font-mono text-[0.7rem] uppercase tracking-[0.2em]" style={{ color: accent }}>// quiz</p>
+              <Quiz lessonId={id} quiz={practice.quiz} accent={accent} />
+            </section>
+          ) : null}
+
+          {deckItems.length ? (
+            <section>
+              <p className="mb-4 font-mono text-[0.7rem] uppercase tracking-[0.2em]" style={{ color: accent }}>// recall</p>
+              <FlashcardDeck items={deckItems} />
+            </section>
+          ) : null}
         </div>
       )}
 
