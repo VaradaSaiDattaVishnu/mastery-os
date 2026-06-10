@@ -7,6 +7,39 @@ import type { Lesson, Module, Track } from './types'
 
 export const tracks: Track[] = [
   {
+    id: 'defend',
+    title: 'Defend Your Projects',
+    tagline: 'Interview-grade ownership — explain the architecture, justify the decisions, name the hardest bug, say what you’d change. For everything you built.',
+    color: '#FB7185',
+    modules: [
+      {
+        id: 'defend-mindset',
+        title: 'The ownership test',
+        summary: 'Why “can you defend it?” is the only question that decides a product-company interview.',
+        lessons: [
+          { id: 'defend-intro', title: 'The value test: can you defend it?', coreIdea: 'It doesn’t matter who typed the keystrokes — you’re the engineer only if you can defend the architecture, justify the decisions, describe the hardest bug, and say what you’d change.', concepts: ['ownership', 'architecture recall', 'design justification', 'interview defense'] },
+        ],
+      },
+      {
+        id: 'defend-projects',
+        title: 'Defend every project',
+        summary: 'A code-grounded defense kit + the probing Q&A for each thing you’ve shipped.',
+        lessons: [
+          { id: 'defend-jarvis', title: 'Defending JARVIS', coreIdea: 'Justify the agentic loop, the RAG stack, and the provider abstraction under interview fire.', project: 'JARVIS', concepts: ['agent loop', 'RAG / chunking', 'tool schema', 'provider fallback'] },
+          { id: 'defend-ops', title: 'Defending the Order Processing System', coreIdea: 'Why topic exchanges over direct, Isolation Forest over supervised, saga over 2PC — and how retries stay safe.', project: 'Order Processing System', concepts: ['topic vs direct exchange', 'Isolation Forest vs supervised', 'saga vs 2PC', 'idempotency'] },
+          { id: 'defend-unity', title: 'Defending Unity', coreIdea: 'Defend 38 models + RBAC across 15 modules, the shared core, and the MFCC/attention audio ML.', project: 'Unity', concepts: ['RBAC model', 'monorepo core', 'schema design', 'audio ML'] },
+          { id: 'defend-gharka', title: 'Defending gharKa', coreIdea: 'Justify phone-OTP, 5km geo queries, real-time chat, and the offline-payment-only design.', project: 'gharKa', concepts: ['geo queries', 'phone OTP', 'real-time chat', 'Prisma'] },
+          { id: 'defend-scalequest', title: 'Defending Scale Quest', coreIdea: 'Defend the level engine, client-side persistence, and why it’s a game, not a slideshow.', project: 'scale-quest', concepts: ['state machine', 'persistence', 'content model', 'Framer Motion'] },
+          { id: 'defend-mongo', title: 'Defending Mongo Mastery', coreIdea: 'Defend the in-browser query engine, the aggregation/B-tree visualizers, and the Monaco integration.', project: 'mongo-mastery', concepts: ['in-browser engine', 'aggregation', 'B-tree viz', 'Monaco'] },
+          { id: 'defend-tapasya', title: 'Defending Tapasya', coreIdea: 'Defend the deliberate absence of gamification as a real product decision, not a missing feature.', project: 'tapasya', concepts: ['ethical UX', 'state design', 'anti-gamification'] },
+          { id: 'defend-todo', title: 'Defending ToDoApp', coreIdea: 'Justify local-first, the NLP smart-add parser, Redux Toolkit, and optional bring-your-own AI.', project: 'ToDoApp', concepts: ['local-first', 'NLP parsing', 'Redux Toolkit', 'Web Notifications'] },
+          { id: 'defend-cube', title: 'Defending your CUBE / Finspectors work', coreIdea: 'Defend the caching wins, the virtualized grid, JWT auth, and Zoho + Razorpay — at production scale.', project: 'CUBE · Finspectors.ai', concepts: ['client caching', 'virtualization', 'JWT auth', 'Zoho / Razorpay'] },
+        ],
+      },
+    ],
+  },
+
+  {
     id: 'frontend',
     title: 'Frontend, to the metal',
     tagline: 'React internals, state architecture, and the performance work that shows up in real metrics.',

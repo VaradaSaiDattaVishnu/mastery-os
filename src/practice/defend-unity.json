@@ -1,0 +1,129 @@
+{
+  "defend-unity": {
+    "quiz": [
+      {
+        "id": "du-q1",
+        "question": "In Unity's RBAC middleware, which statement correctly describes how `requirePermission()` resolves access for a Bhakta user?",
+        "options": [
+          "It loads permissions from a Redis cache keyed by sessionId",
+          "It combines role permissions + additionalPermissions, then subtracts deniedPermissions (deny wins)",
+          "It checks only the role's permissions; additionalPermissions are ignored at runtime",
+          "It calls requireRole('bhakta') first, then checks the module slug"
+        ],
+        "answer": 1,
+        "explanation": "In `rbac.js`, `allPermissions` = role permissions + additionalPermissions. The middleware then checks each candidate against `deniedIds` — if the permission ID appears in `deniedPermissions`, the check returns false. Deny always overrides allow."
+      },
+      {
+        "id": "du-q2",
+        "question": "Unity's attention model processes a feature window of shape [40, 39]. What do the 39 features per frame represent?",
+        "options": [
+          "26 Mel filterbank energies + 13 spectral centroids",
+          "13 raw FFT magnitudes + 13 Mel-warped features + 13 pitch values",
+          "13 MFCCs + 13 delta-MFCCs + 13 delta-delta-MFCCs",
+          "39 Mel filterbank energies before DCT compression"
+        ],
+        "answer": 2,
+        "explanation": "Each frame produces 13 base MFCCs (spectral envelope), 13 delta-MFCCs (first-order temporal derivative — rhythm transitions), and 13 delta-delta-MFCCs (second-order — attention shifts). This is documented in `attentionModel.js` header comments."
+      },
+      {
+        "id": "du-q3",
+        "question": "Why does Unity's mobile Capacitor app use bearer tokens instead of the same httpOnly session cookie as the web app?",
+        "options": [
+          "Bearer tokens have stronger cryptographic guarantees than cookies",
+          "The Capacitor WebView runs on `capacitor://localhost`, a different origin, so `sameSite: strict` prevents the cookie from being sent",
+          "The mobile Redux store uses a different authSlice that only supports bearer",
+          "Render.com's deployment does not support cookie-based auth from mobile"
+        ],
+        "answer": 1,
+        "explanation": "Documented in ADR-004: the WebView origin (`capacitor://localhost` on iOS, `https://localhost` on Android) differs from the server origin, so `sameSite: strict` blocks the cookie. The bearer JWT carries the same `sessionId` and resolves to the same `app_sessions` record, preserving revocation coverage."
+      },
+      {
+        "id": "du-q4",
+        "question": "When Unity's on-device personalization fine-tunes the attention model, which layers are frozen and which are trained?",
+        "options": [
+          "All layers are retrained from scratch on each session's data",
+          "The Dense layers are frozen; the Conv1D layers are fine-tuned",
+          "The three Conv1D layers are frozen; only the final two Dense layers (dense_1, dense_2, output) are fine-tuned",
+          "BatchNorm layers are frozen; all other layers are fine-tuned"
+        ],
+        "answer": 2,
+        "explanation": "From `personalization.js`: convolutional layers learn general audio patterns shared across voices and are frozen. Only `dense_1`, `dense_2`, and `output` are trained — these learn the mapping from this specific user's audio features to attention scores."
+      },
+      {
+        "id": "du-q5",
+        "question": "Unity deploys as a single Fly.io service with `min_machines_running = 1`. What architectural constraint drove this decision over a serverless deployment?",
+        "options": [
+          "TensorFlow.js requires a persistent GPU process on the server",
+          "`node-cron` jobs (reminders, cleanup, festival calendar) require an always-on process; serverless functions cannot host a long-running scheduler",
+          "MongoDB Atlas does not support serverless connection pooling",
+          "The React SPA must be served from the same origin as the API for cookie auth to work"
+        ],
+        "answer": 1,
+        "explanation": "ADR-006 explicitly disqualifies Vercel and Netlify: `node-cron` needs an always-on process. Serverless functions spin down between invocations, silently pausing the scheduler — which is exactly the problem that drove the migration away from Render's free tier in the first place."
+      },
+      {
+        "id": "du-q6",
+        "question": "Unity's `@unity/core` API client uses `resolveUploadUrl()` to handle asset URLs. What problem does this solve?",
+        "options": [
+          "It base64-encodes image URLs for safe transmission in JSON",
+          "On mobile, the API base URL is an absolute HTTPS address, so relative server paths like `/uploads/photo.jpg` must be prefixed with the API origin; on web the URL stays relative since the SPA is same-origin",
+          "It transforms Cloudinary CDN URLs to use the correct regional endpoint",
+          "It validates that upload URLs point to allowlisted S3 buckets before the request is made"
+        ],
+        "answer": 1,
+        "explanation": "From `client.js`: `getApiOrigin()` returns empty string when `baseURL` starts with `/` (web, same-origin). For mobile, `baseURL` is an absolute HTTPS URL, so `resolveUploadUrl()` prepends the origin to relative paths. Absolute URLs (http:, https:, blob:, data:) are returned unchanged."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What are the three platform-agnostic adapter interfaces in `@unity/core` and what does each abstract?",
+        "back": "StorageAdapter (get/set/remove — localStorage on web, AsyncStorage on mobile), AuthAdapter (attachCredentials/handle401/strategy — cookies on web, bearer on mobile), NavigationAdapter (navigate/getCurrentPath — React Router on web, React Navigation on mobile). All are registered before the app renders in `apps/web/src/bootstrap.js`."
+      },
+      {
+        "front": "Describe the three modes of Unity's attention model and their priority order.",
+        "back": "1. Personalized — loads user-specific fine-tuned weights from IndexedDB (`unity-attention-personal-{userId}`), tries first if userId provided. 2. Pre-trained — loads model JSON from `/api/models/attention-v1/model.json`, tried if no personalized model. 3. Heuristic fallback — pure JavaScript, no TensorFlow dependency, runs when model fetch fails; weighted combination of chanting quality (30%), MFCC stability (20%), rhythm regularity (20%), syllable pattern (10%), energy consistency (10%), delta smoothness (10%)."
+      },
+      {
+        "front": "How does Unity's RBAC handle per-user permission overrides beyond what a role grants?",
+        "back": "Each entry in `User.moduleAccess[]` carries `additionalPermissions[]` (additive grants) and `deniedPermissions[]` (explicit denials). `requirePermission()` in `rbac.js` merges role permissions + additionalPermissions into `allPermissions`, builds `deniedIds` from `deniedPermissions`, then checks each candidate — if the permission ID is in `deniedIds` the check fails. Deny always overrides allow."
+      },
+      {
+        "front": "Why does `authenticate` middleware in Unity populate a three-level chain (moduleAccess.module → moduleAccess.role → role.permissions) on every request? What is the known tradeoff?",
+        "back": "The full permission graph must be on `req.user` for `requirePermission()` to evaluate without additional DB calls. The tradeoff is a costly populate query on every authenticated request. The documented fix is a Redis cache keyed by sessionId with session-TTL expiry, invalidated on role change — not yet implemented."
+      },
+      {
+        "front": "What is the MFCC pipeline order in Unity's chanting attention system?",
+        "back": "Audio samples → pre-emphasis (α=0.97) → Hamming window → Cooley-Tukey radix-2 FFT (O(N log N), pre-computed twiddle factors) → power spectrum → 26-band Mel filterbank → log compression → DCT → 13 MFCCs. Extractor then computes delta and delta-delta coefficients, yielding 39 features per frame. A window of 40 frames (≈1.3s at 30fps) forms the [40×39] input tensor."
+      },
+      {
+        "front": "Why does Unity use a modular monolith instead of microservices?",
+        "back": "Single developer, modules are genuinely coupled (RBAC, User, Module documents are cross-referenced everywhere), and distributed tracing + service mesh overhead exceeds the engineering budget. All ML runs client-side (TensorFlow.js), eliminating the most obvious independent scaling concern. The tradeoff: one process crash affects all modules, and horizontal scaling replicates the full server rather than individual modules."
+      },
+      {
+        "front": "What was the root cause of Jarvis hallucinating tool calls, and how was it fixed?",
+        "back": "Root cause: the system prompt listed all available tools and integrations without a behavioral constraint on when the model could invoke them. LLaMA 3.3 70B inferred intent from passing conversational mentions and fabricated integration status. Fix: a 'CRITICAL BEHAVIORAL RULES' section added at the top of the system prompt (before tool definitions), plus an `[INTEGRATION STATUS]` block injected at prompt construction time from actual runtime service state — grounding the model's claims in real connectivity."
+      },
+      {
+        "front": "How does Unity's personalization system prevent model drift after on-device fine-tuning?",
+        "back": "After fine-tuning, personalization.js evaluates the updated model on a 20% validation holdout from the session. If validation loss is worse than the base model by more than 15%, the update is rolled back and the pre-trained weights are restored from the server. Additional guards: minimum 30 labeled windows before training, max 5 epochs per session, learning rate decay on successive personalization rounds."
+      },
+      {
+        "front": "What does Unity's Redux store `createStore()` function export, and why is it a factory function rather than a module-level singleton?",
+        "back": "It exports both a factory (`createStore()`) and a default singleton (`export const store = createStore()`). The factory function exists so tests can create isolated store instances without sharing state between test cases. The 17 slices range from auth and modules to per-domain state (sankirtan, sravanam, svaadhyay, bhawan, donations, reviews, etc.) plus a `reminderListenerMiddleware` prepended to the default middleware chain."
+      },
+      {
+        "front": "What was the Render-to-Fly.io migration (ADR-006) actually fixing, and what is the always-on tradeoff?",
+        "back": "Render's free tier spins down after ~15 minutes of inactivity, silently pausing `node-cron` jobs (reminders, session cleanup, festival calendar). Fly.io with `min_machines_running = 1` and `auto_stop_machines = false` keeps the process alive. Tradeoff: always-on continuously consumes Fly usage allowance; the free tier must be monitored. Also forced making `CLOUDINARY_URL` mandatory since Fly's ephemeral disk makes local `/uploads` storage lossy."
+      },
+      {
+        "front": "How does Unity's module enable/disable take effect for logged-in users, and what is the performance cost?",
+        "back": "Both `requireModuleAccess()` and `requirePermission()` call `Module.findOne({ slug })` and check `mod.isActive` on every request. There is no cached active flag on the user session. This means disabling a module takes effect on the very next API call with no cache flush — but costs a MongoDB read per module-guarded route. At scale, the Module collection is a candidate for a short TTL Redis cache."
+      },
+      {
+        "front": "What is the `MeditationSession` model's `attentionTimeline[]` field, and what data does NOT leave the device?",
+        "back": "`attentionTimeline[]` stores attention score samples over the session (the output of `predictAttention()` at each window). The raw audio signal and the MFCC feature tensors never leave the device — processing is entirely client-side via TensorFlow.js in the browser. Only the scalar scores, aggregate metrics (clarity/rhythm/presence/completeness/overall), and insights[] are sent to the server as part of the `MeditationSession` document."
+      }
+    ],
+    "exercises": []
+  }
+}

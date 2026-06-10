@@ -1,0 +1,129 @@
+{
+  "defend-gharka": {
+    "quiz": [
+      {
+        "id": "dg-q1",
+        "question": "In `geo-query.ts`, the Haversine expression wraps the dot-product in `LEAST(1.0, GREATEST(-1.0, ...))`. What is the primary reason for this clamp?",
+        "options": [
+          "To limit the returned distance to a maximum of 1 km",
+          "To prevent a floating-point domain error in `acos` when coordinates are nearly identical",
+          "To cast the decimal latitude column to a float before arithmetic",
+          "To satisfy the PostGIS GEOGRAPHY type constraint"
+        ],
+        "answer": 1,
+        "explanation": "PostgreSQL's `acos` is undefined for values outside [-1, 1]. Floating-point arithmetic on nearly-equal coordinates can produce values like 1.0000000001, making `acos` return NaN. The LEAST/GREATEST clamp prevents this, ensuring every row returns a real distance value."
+      },
+      {
+        "id": "dg-q2",
+        "question": "In `auth.service.ts`, the `verifyFirebaseAndLogin` function calls `auth.verifyIdToken(firebaseToken)` and then immediately issues a custom JWT pair. What is the architectural benefit of this two-token design?",
+        "options": [
+          "It allows the access token to carry a Firebase-signed payload",
+          "It decouples subsequent API calls from Firebase — the backend can swap OTP providers without touching non-auth code",
+          "It eliminates the need to store refresh tokens in the database",
+          "It enables the mobile app to skip the OTP step on subsequent logins"
+        ],
+        "answer": 1,
+        "explanation": "After the single Firebase verification, every API call uses gharKa's own JWT (verified against JWT_SECRET). Firebase is only in the critical path once per login. Swapping to Twilio or a custom OTP provider only requires changing the code in `auth.service.ts` — no other module knows about Firebase."
+      },
+      {
+        "id": "dg-q3",
+        "question": "The `sendMessage` function in `messages.service.ts` derives `receiverId` from the order row rather than accepting it as a request parameter. Why?",
+        "options": [
+          "To avoid an extra HTTP round trip for the client",
+          "To prevent a buyer from spoofing the receiverId and messaging arbitrary users",
+          "Because Socket.io rooms are keyed by orderId, not userId",
+          "To ensure the message is stored in the correct chat thread"
+        ],
+        "answer": 1,
+        "explanation": "If the client supplied the receiverId, a malicious actor could send messages to any user ID. By deriving it server-side from `order.buyerId` / `order.sellerId`, the server guarantees that only the two parties to an order can message each other — and only within that order's thread."
+      },
+      {
+        "id": "dg-q4",
+        "question": "The `updateStatus` function in `orders.service.ts` restores `availableQuantity` on the listing inside a database transaction when an order is cancelled. What consistency problem does this transaction solve?",
+        "options": [
+          "It prevents the status from being updated twice by concurrent requests",
+          "It ensures that if the quantity restore fails, the status update also rolls back — preventing a cancelled order with no inventory restored",
+          "It locks the listing row so no new orders can be placed during cancellation",
+          "It fires a Socket.io event atomically with the database write"
+        ],
+        "answer": 1,
+        "explanation": "Without a transaction, the status could be set to CANCELLED while the quantity restore fails (e.g., due to a network error mid-operation). The buyer's item count would be permanently lost. Wrapping both writes in `db.transaction` ensures they are atomic — either both commit or neither does."
+      },
+      {
+        "id": "dg-q5",
+        "question": "gharKa uses a pnpm + Turborepo monorepo. Which concrete benefit does this provide for the `canTransition` function in `packages/shared/src/constants/order-status.ts`?",
+        "options": [
+          "It compiles the function to WebAssembly for both mobile and web",
+          "It ensures the same order-state machine logic runs in the API, web, and mobile apps — a single change fails all three TypeScript builds simultaneously if any consumer is out of sync",
+          "It publishes the shared package to npm automatically on each commit",
+          "It tree-shakes the function out of the mobile bundle since mobile does not handle status transitions"
+        ],
+        "answer": 1,
+        "explanation": "`packages/shared` is a local workspace package imported by all three apps. If you change `canTransition`'s signature or the allowed transitions, Turborepo's build pipeline runs `tsc` across all dependents. Any app that calls the old API gets a compile error before the change reaches production."
+      },
+      {
+        "id": "dg-q6",
+        "question": "The Socket.io middleware in `socket.plugin.ts` calls `verifyAccessToken(token)` in the `io.use` handler. What happens to a client that connects with an expired access token?",
+        "options": [
+          "The connection is accepted but the socket is placed in a restricted room",
+          "The connection is rejected with `new Error('Invalid token')` before the socket is assigned a userId",
+          "The server emits an `auth:expired` event to the client prompting a refresh",
+          "The connection succeeds but all subsequent emits are silently dropped"
+        ],
+        "answer": 1,
+        "explanation": "`verifyAccessToken` throws if the token is expired. The catch block calls `next(new Error('Invalid token'))`, which Socket.io uses to reject the handshake entirely. The client never receives a `connect` event. The client must refresh its access token and reconnect — `useSocket` in the mobile app handles this by reading from SecureStore on each mount."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What SQL function does `buildDistanceFilter` in `geo-query.ts` use to compute distance, and why is a LEAST/GREATEST clamp necessary?",
+        "back": "It uses the spherical law of cosines formula: `6371000 * acos(...)`. The clamp `LEAST(1.0, GREATEST(-1.0, dot_product))` is necessary because floating-point arithmetic on nearly-identical coordinates can produce values like 1.0000000001, which is outside `acos`'s domain [-1, 1] and would return NaN, silently dropping rows from results."
+      },
+      {
+        "front": "What is the full phone-OTP authentication sequence in gharKa, from user input to API access token?",
+        "back": "1) User enters phone → Firebase Client SDK sends OTP via SMS. 2) User submits 6-digit code → Firebase Client SDK verifies and returns a `firebaseIdToken`. 3) Client POSTs `firebaseIdToken` to `POST /api/auth/verify-firebase`. 4) `auth.service.ts` calls `auth.verifyIdToken(firebaseToken)` via Firebase Admin SDK to extract the phone number. 5) Server upserts user in DB (checking `ADMIN_PHONE_NUMBERS` for role). 6) Server signs a 15-min access JWT and a 7-day refresh token, stores SHA-256 hash of refresh token in `refresh_tokens` table. 7) Returns `{ user, accessToken, refreshToken }` to client."
+      },
+      {
+        "front": "Why does gharKa store only the SHA-256 hash of the refresh token in the database, and how does rotation prevent replay attacks?",
+        "back": "Storing the raw token would mean a database breach exposes all active sessions. The hash is a one-way transform — an attacker with DB read access cannot reconstruct the token. Rotation: each use of a refresh token immediately deletes that row and issues a new token. If an attacker uses a stolen token before the legitimate client does, the legitimate client's next refresh attempt fails (row is gone), signalling token theft."
+      },
+      {
+        "front": "How does gharKa's chat system prevent users from messaging strangers?",
+        "back": "Chat is scoped to orders. `messages.orderId` is a non-nullable FK to `orders`. `sendMessage` in `messages.service.ts` fetches the order, then checks `order.buyerId !== senderId && order.sellerId !== senderId` — throwing 403 if neither matches. `receiverId` is derived server-side from the order row, not supplied by the client. Users can only message the counterparty of an existing order."
+      },
+      {
+        "front": "What is the order status state machine and which file enforces valid transitions at runtime?",
+        "back": "States: PLACED → CONFIRMED → READY → PICKED_UP → COMPLETED (terminal). PLACED or CONFIRMED → CANCELLED (terminal). Enforced by `canTransition(from, to)` in `packages/shared/src/constants/order-status.ts`, which looks up `ORDER_STATUS_TRANSITIONS[from].includes(to)`. `orders.service.ts:updateStatus` calls this and throws `AppError(400, 'INVALID_TRANSITION')` if the transition is not permitted."
+      },
+      {
+        "front": "How does the Socket.io server deliver a new message to the recipient in real time?",
+        "back": "After `messages.service.ts:sendMessage` inserts the row and returns it (including `receiverId`), `messages.controller.ts` line 25 calls `request.server.io.to('user:<receiverId>').emit('message:new', message)`. The Socket.io middleware at connection time joins each authenticated socket to a personal room `user:<userId>` (set in `socket.plugin.ts`). So the `to(...)` call routes the event to exactly the recipient's socket regardless of which room they are currently viewing."
+      },
+      {
+        "front": "Why does gharKa have no payment gateway in v1, and what coordination does the system provide instead?",
+        "back": "A gateway adds PCI-DSS compliance, KYC for sellers, escrow logic, refunds, and dispute resolution — weeks of work and ongoing regulatory overhead. In a gated community, neighbors pay cash or UPI at pickup; the trust layer already exists socially. The order state machine (PLACED → CONFIRMED → READY → PICKED_UP → COMPLETED) provides coordination: both parties can see the current status and advance it, with chat for negotiation, without the system ever touching money."
+      },
+      {
+        "front": "What is the known performance limitation of the current geo query, and what is the documented upgrade?",
+        "back": "Latitude and longitude are stored as `DECIMAL(10,7)` columns. There is no spatial index, so the Haversine `acos` expression must be evaluated on every candidate row — a full-table trig scan. The upgrade (documented in MASTER_ARCHITECTURE section 8) is to: (1) enable PostGIS, (2) add a `GEOGRAPHY(POINT, 4326)` column to `food_listings`, (3) create a GIST index on it, (4) replace `buildDistanceFilter` with `ST_DWithin(..., radius_meters)` which uses the GIST index for a bounding-box pre-filter before the precise geodesic check."
+      },
+      {
+        "front": "How is the ADMIN role assigned and why is it not a permanent flag in the database?",
+        "back": "On first login, `auth.service.ts` checks `env.ADMIN_PHONE_NUMBERS.split(',').includes(phone)`. If true, the new user row is inserted with `role: 'ADMIN'`. This is set once at account creation. Revoking admin is done by removing the phone from the env var — the user's `role` column retains 'ADMIN' but the onboarding step for new logins from that phone would now create a BUYER. At scale, a proper admin-management table would replace this, but the env-var approach eliminates a UI for the bootstrap admin."
+      },
+      {
+        "front": "Why was Drizzle ORM chosen over Prisma for the gharKa API?",
+        "back": "Drizzle is a thin type-safe SQL builder with no runtime binary — it adds ~30 kB vs Prisma's ~40 MB query engine. Migrations are plain SQL files. When raw SQL is needed (e.g., the Haversine expression in `geo-query.ts` or the DISTINCT ON conversation query in `messages.service.ts`), Drizzle's `sql` template literal integrates into typed queries. Prisma's PostGIS support requires dropping into raw queries that lose type safety, negating its main advantage."
+      },
+      {
+        "front": "What is the monorepo's build dependency chain and how does Turborepo enforce it?",
+        "back": "`turbo.json` defines `'build': { 'dependsOn': ['^build'] }`. The `^` prefix means 'build all workspace dependencies first'. Since `apps/api`, `apps/web`, and `apps/mobile` all list `@gharka/shared` as a dependency, Turborepo always builds `packages/shared` before any app. This guarantees that the compiled types and validators from `shared/dist` are available when TypeScript checks the apps. Running `turbo run build` in the root orchestrates the entire sequence."
+      },
+      {
+        "front": "What race condition exists in the current `orders.service.ts:create` function, and how would you fix it at scale?",
+        "back": "The function reads `listing.availableQuantity`, checks it is sufficient, then decrements it inside a transaction — but the read and the transaction open are two separate database round trips. Two concurrent buyers can both pass the availability check before either commits, overselling the listing. Fix: use a single atomic UPDATE: `UPDATE food_listings SET available_quantity = available_quantity - $qty WHERE id = $id AND available_quantity >= $qty RETURNING id`. If it returns 0 rows, the quantity was exhausted — throw INSUFFICIENT_QUANTITY without ever inserting the order."
+      }
+    ],
+    "exercises": []
+  }
+}

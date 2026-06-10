@@ -1,0 +1,129 @@
+{
+  "defend-scalequest": {
+    "quiz": [
+      {
+        "id": "sq-q1",
+        "question": "In gameStore.js, what does `completeLevel(levelId)` actually write to localStorage?",
+        "options": [
+          "The entire level JSX component serialized as a string",
+          "The full Zustand store state including completedLevels, xp, currentLevel, and all other fields",
+          "Only the completedLevels array",
+          "A hash of the quiz answers to verify future attempts"
+        ],
+        "answer": 1,
+        "explanation": "Zustand's `persist` middleware serializes the entire store object to localStorage['scale-quest-storage'] on every `set()` call. `completeLevel` calls `set()` once with the updated completedLevels, incremented xp, and advanced currentLevel — the whole store snapshot is written."
+      },
+      {
+        "id": "sq-q2",
+        "question": "Can a player complete a level in Scale Quest with all wrong quiz answers?",
+        "options": [
+          "No — `handleQuizSubmit` checks all answers are correct before calling `onComplete`",
+          "Yes — `handleQuizSubmit` always calls `onComplete?.()` regardless of correctness; only `unlockAchievement('perfectionist')` requires all correct",
+          "No — the Submit button stays disabled until all answers are correct",
+          "Yes — but the level is marked 'partial' rather than 'complete' in the store"
+        ],
+        "answer": 1,
+        "explanation": "In Level1.jsx and Level2.jsx (and all other levels), `handleQuizSubmit` sets `quizSubmitted = true`, checks correctness only to conditionally fire `unlockAchievement('perfectionist')`, then unconditionally calls `onComplete?.()`. Wrong answers still complete the level."
+      },
+      {
+        "id": "sq-q3",
+        "question": "What is the current behavior of `isLevelUnlocked` in gameStore.js, and why?",
+        "options": [
+          "It checks if `completedLevels.includes(levelId - 1)` to enforce sequential progression",
+          "It checks the `unlocked` field on the LEVELS array object for that level",
+          "It always returns `true` so all 60 levels are open for free study",
+          "It checks if `currentLevel >= levelId` to allow forward access only"
+        ],
+        "answer": 2,
+        "explanation": "The store comment reads 'All levels unlocked for free study' and the function body is `return true`. The LEVELS data still has `unlocked: false` on most entries, and a separate `unlockLevel` function exists that checks sequential completion, but `isLevelUnlocked` overrides both."
+      },
+      {
+        "id": "sq-q4",
+        "question": "How does Scale Quest handle direct navigation to `/scale-quest/level/5` on GitHub Pages, which has no server-side routing?",
+        "options": [
+          "It relies on React Router's HashRouter so the path never reaches the server",
+          "The Vite config redirects all 404s to index.html via a custom plugin",
+          "A `public/404.html` file redirects unknown paths back to the app's index, and React Router handles the rest",
+          "Direct URL navigation is blocked; users must always start from the map"
+        ],
+        "answer": 2,
+        "explanation": "The repo contains `public/404.html` which is served by GitHub Pages for any unknown path. It redirects the browser back to the app root, where BrowserRouter with the correct `basename` takes over and renders the right route."
+      },
+      {
+        "id": "sq-q5",
+        "question": "What is the XP awarded for completing Level 40 (Command & Conquer), and what is the formula?",
+        "options": [
+          "400 XP — the formula is `levelId * 10`",
+          "4000 XP — the formula is `levelId * 100`",
+          "1600 XP — the formula is `levelId^2 * 1`",
+          "40 XP — the formula is flat 40 per level"
+        ],
+        "answer": 1,
+        "explanation": "From gameStore.js: `xp: xp + (levelId * 100)`. Level 40 awards 40 * 100 = 4000 XP. Later levels award more XP to reflect greater difficulty and depth."
+      },
+      {
+        "id": "sq-q6",
+        "question": "If you add a new top-level field `streakDays: 0` to the Zustand store's initial state and deploy, what happens to returning users whose localStorage already has a stored state without `streakDays`?",
+        "options": [
+          "The stored state is rejected entirely and the store resets to initial state",
+          "Zustand's default shallow merge adds `streakDays: 0` to the hydrated state, so existing progress is preserved",
+          "The app throws a runtime error because the stored schema doesn't match",
+          "The field is silently dropped from the store on every page load"
+        ],
+        "answer": 1,
+        "explanation": "Zustand persist's default merge strategy is a shallow merge of the persisted object over the initial state. New top-level keys present in initial state but absent in the stored snapshot are filled in from initial state. So `streakDays: 0` appears correctly. The danger arises with renamed keys or nested restructuring, which the shallow merge cannot handle without a `migrate` function."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "Where does Scale Quest store all 60 level metadata objects, and what fields does each object contain?",
+        "back": "The `LEVELS` array in `src/context/gameStore.js`. Each object contains: id, title, subtitle, description, concepts[] (array of topic strings), unlocked (boolean — all false except level 1, though `isLevelUnlocked` overrides this), icon (emoji), color (Tailwind gradient string), story (one-line narrative hook), part (curriculum section name), and difficulty."
+      },
+      {
+        "front": "What is the exact localStorage key used by Zustand persist in Scale Quest?",
+        "back": "`scale-quest-storage` — defined as the `name` option passed to the `persist` middleware in gameStore.js: `persist((set, get) => ({ ... }), { name: 'scale-quest-storage' })`."
+      },
+      {
+        "front": "What is the complete level completion flow from quiz submit to localStorage write?",
+        "back": "1. User clicks Submit in LevelN.jsx → `handleQuizSubmit()` fires. 2. Local state `quizSubmitted` set to true. 3. If all answers correct, `unlockAchievement('perfectionist')` called. 4. `onComplete?.()` called unconditionally. 5. `onComplete` is `() => completeLevel(id)` provided by Level.jsx. 6. `completeLevel(id)` in gameStore.js calls Zustand `set()` with updated `completedLevels`, `xp`, and `currentLevel`. 7. Zustand `persist` middleware serializes the full store to `localStorage['scale-quest-storage']`."
+      },
+      {
+        "front": "How does the `Level.jsx` shell component map a URL like `/level/9` to the correct component?",
+        "back": "Level.jsx imports all 60 level components at the top of the file and puts them in a static `levelComponents` object keyed by integer ID (e.g., `{ 9: Level9 }`). It reads `levelId` from `useParams()`, parses it to an integer, looks up `levelComponents[id]`, and renders it as `<LevelContent {...levelContext} />`. If no component exists for that id, it renders a 'Coming Soon' fallback."
+      },
+      {
+        "front": "What is the player level formula and the XP-to-next-level formula? Why a square root?",
+        "back": "Player level = `Math.floor(Math.sqrt(xp / 100)) + 1`. XP needed for next player level = `playerLevel^2 * 100`. The square root means early player levels are cheap (rewarding beginners quickly) while later levels require exponentially more XP, naturally reflecting depth of mastery without requiring manual curve tuning."
+      },
+      {
+        "front": "Why is `isLevelUnlocked` hardcoded to `return true` rather than checking sequential completion?",
+        "back": "Deliberate product decision: 'All levels unlocked for free study' (comment in gameStore.js). This lets learners jump to any topic of interest rather than grinding through prerequisites. The sequential gating mechanism still exists (`unlockLevel` checks `completedLevels.includes(levelId - 1)`) and could be re-enabled by changing one line. The 'Next Level' button on the footer still requires `isCompleted` to encourage sequential flow without enforcing it."
+      },
+      {
+        "front": "What is the missing schema migration safeguard in the current persist config, and what would fix it?",
+        "back": "There is no `version` or `migrate` option in the `persist` config. If the store schema changes in a breaking way (renamed key, restructured nested object), returning users get stale or corrupted state with no recovery path. Fix: add `version: 1` and a `migrate: (persistedState, version) => { ... }` function to the persist options, incrementing the version number on each breaking change so Zustand can transform old stored state into the new shape."
+      },
+      {
+        "front": "Why does each level's interactive content live in its own JSX file rather than a JSON data model?",
+        "back": "Each level has a unique interactive simulation — Level 1 has a live server load simulator with animated request particles; Level 9 has a consistent hashing ring visualization; Level 14 has WebSocket connection modeling. These require custom React state machines, `useEffect` timers, `useRef` animations, and conditional rendering logic that cannot be expressed as static JSON data. The JSX files also co-locate the simulation, narrative copy, deep dive expandable sections, and quiz questions for that level, making each level independently maintainable."
+      },
+      {
+        "front": "How does the Vite production build ensure routes resolve correctly on GitHub Pages?",
+        "back": "Vite config sets `base: '/scale-quest/'` when `mode === 'production'`. `main.jsx` reads `import.meta.env.BASE_URL`, strips trailing slashes, and passes it as `basename` to BrowserRouter. GitHub Pages serves `public/404.html` for unknown paths, which redirects to the app root. Together these ensure asset paths are prefixed correctly and deep-linked URLs load the app before React Router takes over."
+      },
+      {
+        "front": "What XP does a learner earn from a single deep dive read, and how is idempotency enforced?",
+        "back": "+25 XP per deep dive. `markDeepDiveRead(deepDiveId)` in the store checks `if (!deepDivesRead.includes(deepDiveId))` before pushing the ID and adding XP — making it idempotent. The same guard pattern is used for `learnTerm` (+10 XP, idempotent) and `completeLevel` (+levelId*100 XP, idempotent)."
+      },
+      {
+        "front": "What would you need to change to add cross-device sync without rewriting any level or UI component?",
+        "back": "Swap the `storage` option in the `persist` middleware from the default `localStorage` to a custom async storage adapter that reads/writes to a remote KV store (e.g., Cloudflare Workers KV, Supabase). Add a lightweight auth layer (JWT) to namespace the storage key per user. Every component that calls Zustand selectors or actions stays unchanged — the persistence layer is the only thing that changes. You would also need a conflict resolution policy for `completedLevels` (union of arrays is safe since completion is idempotent)."
+      },
+      {
+        "front": "What three achievements can be unlocked during a quiz, and what triggers each?",
+        "back": "`perfectionist` — triggered by `unlockAchievement('perfectionist')` inside `handleQuizSubmit` when `allCorrect` is true (every quiz question answered correctly). The other quiz-adjacent achievements (`first_request`, `server_crash`, etc.) are triggered by interactive simulations within levels, not by quiz submission. The `completionist` achievement requires completing all 60 levels."
+      }
+    ],
+    "exercises": []
+  }
+}

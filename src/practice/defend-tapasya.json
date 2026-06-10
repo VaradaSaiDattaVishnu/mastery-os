@@ -1,0 +1,129 @@
+{
+  "defend-tapasya": {
+    "quiz": [
+      {
+        "id": "q1",
+        "question": "In tapasyaStore.js, what are the three simultaneous requirements to unlock a trauma pillar module (other than the first)?",
+        "options": [
+          "A) 7 days elapsed, 50% of lessons complete, 3 check-ins",
+          "B) 14 days since previous module was opened, all lessons in previous module complete, 7 check-ins in last 14 days",
+          "C) 14 days elapsed, at least one lesson complete, 5 check-ins",
+          "D) 30 days elapsed, all lessons complete, no stop-button uses"
+        ],
+        "answer": "B",
+        "explanation": "isTraumaModuleUnlocked enforces all three: 14-day calendar wait on moduleOpenDates, full completion of every lesson in the prior module, and at least 7 nervous-system check-ins in the preceding 14 days."
+      },
+      {
+        "id": "q2",
+        "question": "computePace() returns 'overrun' when which condition is met in the last 7 days?",
+        "options": [
+          "A) More than 35 total minutes of study",
+          "B) More than 4 trauma sessions",
+          "C) 2 or more stop-button uses, OR 3 or more check-ins showing sympathetic/dorsal state at intensity >= 4",
+          "D) Any lesson completed in the trauma pillar"
+        ],
+        "answer": "C",
+        "explanation": "The function checks stopButtonUses >= 2 || distressMarkers >= 3, where distressMarkers are check-ins with state 'sympathetic' or 'dorsal' and intensity >= 4."
+      },
+      {
+        "id": "q3",
+        "question": "Where does Tapasya persist all user data, and what is the localStorage key?",
+        "options": [
+          "A) IndexedDB, key 'tapasya-db'",
+          "B) localStorage via Zustand persist middleware, key 'tapasya-storage'",
+          "C) sessionStorage, key 'tapasya-session'",
+          "D) A REST API with JWT auth"
+        ],
+        "answer": "B",
+        "explanation": "The Zustand store uses persist() with { name: 'tapasya-storage' }. There is no backend; all data is device-local."
+      },
+      {
+        "id": "q4",
+        "question": "The StopButton widget: which of the following is true?",
+        "options": [
+          "A) It deletes progress to encourage the user to restart fresh",
+          "B) It is only shown in the trauma pillar",
+          "C) It sets stopButtonUsed: true on the session record and is always reachable via the Escape key",
+          "D) It triggers an AI check-in prompt before allowing the user to leave"
+        ],
+        "answer": "C",
+        "explanation": "StopButton is fixed top-right (z-50), listens for the Escape key globally via useEffect, and calls useStopButton() which sets stopButtonUsed: true and endedAt on the session. It is always mounted regardless of pillar."
+      },
+      {
+        "id": "q5",
+        "question": "How does the content registry (src/content/registry.js) map content to lesson IDs?",
+        "options": [
+          "A) It fetches markdown from a CDN at runtime keyed by lesson ID",
+          "B) It is a flat JS object mapping dotted lesson ID strings (e.g. 'memory.foundations.forgetting-curve') to React component references",
+          "C) It uses React.lazy() to dynamically import components by pillar",
+          "D) Lesson IDs are resolved from a Supabase table at build time"
+        ],
+        "answer": "B",
+        "explanation": "registry.js imports all lesson components statically, iterates over module arrays, and builds a plain object { [lesson.id]: lesson.component }. LessonView does contentRegistry[lesson.id] to retrieve the component."
+      },
+      {
+        "id": "q6",
+        "question": "Which Tailwind design token annotation in tailwind.config.js explicitly documents a constraint against punitive use?",
+        "options": [
+          "A) accent-grounded: 'sage -- yes, that is right'",
+          "B) accent-warm: 'terracotta -- sparingly, NEVER for wrong'",
+          "C) accent-stilled: 'slate-blue -- neutral'",
+          "D) accent-noticed: 'amber -- pause, notice'"
+        ],
+        "answer": "B",
+        "explanation": "The comment in tailwind.config.js reads: 'terracotta -- sparingly, NEVER for wrong'. This is the only token with an explicit prohibition, documenting the design principle that no colour is used to signal failure or error in a punitive way."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What does computePace() return and what are its four labels?",
+        "back": "'overrun', 'pushing', 'rested', or 'engaged'. It reads the last 7 days of sessions and check-ins. 'overrun' = 2+ stop-button uses or 3+ high-distress check-ins. 'pushing' = >245 total minutes or >4 trauma sessions. 'rested' = <35 total minutes. 'engaged' = everything else."
+      },
+      {
+        "front": "What are the three gating requirements for each trauma module past the first, as implemented in isTraumaModuleUnlocked?",
+        "back": "1) 14 calendar days since the previous module was first opened (tracked in moduleOpenDates). 2) Every lesson in the previous module is in completedLessons. 3) At least 7 nervous-system check-ins in the last 14 days."
+      },
+      {
+        "front": "What persistence mechanism does Tapasya use and why is there no backend?",
+        "back": "Zustand's persist() middleware writes to localStorage under 'tapasya-storage'. No backend exists because trauma journals, polyvagal state records, and glimmer notes are highly sensitive; centralised storage creates breach risk that is asymmetrically harmful compared to the inconvenience of device-bound data."
+      },
+      {
+        "front": "What does the StopButton do when pressed, and what data does it record?",
+        "back": "It opens a calm dialog (also triggered by Escape) offering 'Come back later' or 'I'm okay, just needed a beat'. Pressing either option calls useStopButton(sessionId), which sets stopButtonUsed: true and endedAt on the session object. This feeds computePace's overrun detection."
+      },
+      {
+        "front": "How does the content routing work in LessonView?",
+        "back": "URL params (pillarId, moduleSlug, lessonSlug) are resolved against the PILLARS array. The full lesson ID (e.g. 'memory.foundations.forgetting-curve') is constructed and looked up in contentRegistry. The resulting React component receives onComplete, addJournalEntry, and savePromptAnswer callbacks."
+      },
+      {
+        "front": "What are the four NervousSystemCheckin states and what framework do they come from?",
+        "back": "'ventral' (calm, curious, connected), 'sympathetic' (activated), 'dorsal' (withdrawn, numb), 'mixed'. These map to Deb Dana's polyvagal ladder derived from Porges' Polyvagal Theory — three states of the autonomic nervous system."
+      },
+      {
+        "front": "Why is the completion button labeled 'I'm done with this for now' rather than 'Mark complete'?",
+        "back": "The phrasing lowers the performance bar: 'for now' signals that returning is normal, and the phrase avoids implying mastery or correct completion. This is trauma-informed copy because requiring 'completion' can feel pressuring to someone who processes material at variable depth."
+      },
+      {
+        "front": "What does ethicsGated: true do on the Reading People pillar definition?",
+        "back": "It surfaces a UI warning that 'every module is ethics-gated: this knowledge carries responsibility.' The first module (Ethics Filter Deep) covers manipulation vs. understanding, power and consent, and the learner's ethical stance before any technical reading-people skills are accessible."
+      },
+      {
+        "front": "What is the MOCs module unlock requirement in the Second Brain pillar, and where is it checked?",
+        "back": "The MOCs module requires 30 evergreen notes (notes where type === 'evergreen'). This is checked in isModuleUnlocked via mod.requiresEvergreenCount, which compares against state.notes.filter(n => n.type === 'evergreen').length."
+      },
+      {
+        "front": "What is the FeynmanCheck widget and why does it use self-rating rather than AI grading?",
+        "back": "FeynmanCheck asks the user to write an explanation, then self-rates each rubric item as 'got-it' or 'needs-work'. It uses no AI grading because the README principle states 'self-rating is honored; there is no AI grading' — external assessment of understanding creates performance anxiety inconsistent with the trauma-informed model."
+      },
+      {
+        "front": "How does BreathingDot respect accessibility and resource constraints?",
+        "back": "It uses Framer Motion's useReducedMotion() hook — if the OS reports prefers-reduced-motion, the animation is disabled entirely (scale stays 1, transition duration 0). It also listens to the Page Visibility API (visibilitychange) and pauses when the tab is hidden to avoid unnecessary CPU use."
+      },
+      {
+        "front": "What is the minimum calendar time to complete the entire trauma track at maximum compliance, and why?",
+        "back": "112 days (8 intervals × 14 days each for 9 modules). The first module has no wait. Each subsequent module requires 14 calendar days. Realistic pacing is described in the codebase comments as 'closer to 12+ months' because the 7-check-in requirement is a separate constraint that may not align with lesson completion timing."
+      }
+    ],
+    "exercises": []
+  }
+}

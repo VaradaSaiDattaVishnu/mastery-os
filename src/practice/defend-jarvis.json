@@ -1,0 +1,123 @@
+{
+  "defend-jarvis": {
+    "quiz": [
+      {
+        "q": "In llm.js, what is MAX_ITERS and what happens when it is exhausted?",
+        "options": [
+          "MAX_ITERS = 10; the loop silently stops and returns an empty string",
+          "MAX_ITERS = 6; the loop falls through to a final no-tools request that forces a closing prose answer",
+          "MAX_ITERS = 6; the loop throws an error that the WebSocket handler catches and sends to the client",
+          "MAX_ITERS = 3; the loop restarts from the beginning with a fresh conversation"
+        ],
+        "answer": 1,
+        "explain": "Both _claudeAgent and _groqAgent run for at most MAX_ITERS = 6 iterations. If all iterations are consumed without the model producing a zero-tool-call turn, a final non-streaming request is issued with no tools in the schema, forcing the model to write a closing prose answer. This ensures the user always gets a response."
+      },
+      {
+        "q": "Why does _groqAgent use non-streaming requests while _claudeAgent uses streaming?",
+        "options": [
+          "Groq's API does not support streaming at all",
+          "Streaming is slower on Groq because of higher network latency",
+          "Groq/Llama frequently emits tool calls as raw text in functionary format, causing tool_use_failed errors on streaming; non-streaming avoids this instability",
+          "Claude requires streaming for its tool_use content blocks, but Groq does not support tool_use blocks"
+        ],
+        "answer": 2,
+        "explain": "Llama 3.3 70B on Groq often emits tool calls as <function=name>{json}</function> text rather than through the tool_calls channel, causing the server to return a tool_use_failed error with the raw text in failed_generation. The codebase has parseLlamaToolCalls, extractBalancedJson, and coerceToJsonString helpers to recover these. Non-streaming avoids the streaming instability entirely since Groq is fast enough that the difference is imperceptible."
+      },
+      {
+        "q": "What is the RAG chunk target size in rag.js, and how does the chunker decide where to break?",
+        "options": [
+          "512 chars; always breaks on whitespace",
+          "900 chars; prefers paragraph boundary, then sentence boundary, then hard break; with 150-char overlap between consecutive chunks",
+          "1024 chars; breaks only on sentence boundaries; no overlap",
+          "900 chars; breaks only on paragraph boundaries; no overlap"
+        ],
+        "answer": 1,
+        "explain": "CHUNK_TARGET = 900 characters, CHUNK_OVERLAP = 150. The chunker looks for a \\n\\n (paragraph) break within the last 50% of the window, then a sentence-end character, then falls back to a hard break. The 150-char overlap keeps context across chunk boundaries and ensures retrieval hits near a boundary still contain the bridging sentence."
+      },
+      {
+        "q": "How does the interrupt (barge-in) race condition get prevented in index.js?",
+        "options": [
+          "The interrupt handler sets isProcessing = false immediately, which the new turn checks before starting",
+          "Each turn captures its AbortController as myController; the finally block only clears shared state if abortController === myController",
+          "The WebSocket handler queues all messages and processes them sequentially with a mutex",
+          "The interrupt handler kills the WebSocket connection and the client reconnects for the next turn"
+        ],
+        "answer": 1,
+        "explain": "The fix is an identity guard: finally only runs isProcessing = false; abortController = null when abortController === myController — meaning only the turn that still owns the controller can clear shared state. This prevents the aborted turn's finally from stomping a freshly-started next turn, which would permanently deadlock the session."
+      },
+      {
+        "q": "Why are integration API keys persisted to the app_config SQLite table in addition to the .env file?",
+        "options": [
+          "SQLite is faster to read than .env on every request",
+          "Railway and container platforms have ephemeral filesystems — .env writes are wiped on redeploy; app_config in a mounted volume SQLite DB survives restarts",
+          "The .env file is only written for local development and is excluded from Docker images",
+          "Keys must be encrypted at rest in SQLite using the EncryptionService"
+        ],
+        "answer": 1,
+        "explain": "On Railway, container redeploys reset the image and wipe any runtime writes to .env. index.js hydrates process.env from app_config at startup so credentials set through the setup wizard survive redeploys. The .env write is still attempted as a best-effort for local dev but the code handles the case where the filesystem is read-only."
+      },
+      {
+        "q": "In the memory decay scoring formula, which factor penalizes memories over time?",
+        "options": [
+          "importanceBoost = (importance - 1) * 0.03",
+          "accessBoost = log2(1 + access_count) * 0.05",
+          "recencyDecay = daysSinceAccess * 0.005 subtracted from the score",
+          "A hard expiration via the expires_at column that deletes the row"
+        ],
+        "answer": 2,
+        "explain": "The score formula is: cosineSimilarity + accessBoost + importanceBoost - recencyDecay. recencyDecay = daysSinceAccess * 0.005, so a memory not accessed in 6 days loses 0.03 — roughly one full importance level worth of score. This is intentionally mild so semantically strong but old memories can still surface."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What are the two termination conditions for the agentStream loop in llm.js?",
+        "back": "1) The model produces a turn with zero tool calls — the generator returns immediately after streaming that prose. 2) MAX_ITERS (6) iterations are exhausted — the loop falls through to a final non-streaming request with no tools, forcing a closing prose answer. The user always gets a response."
+      },
+      {
+        "front": "Why are MiniLM embeddings local instead of an API, and what is the tradeoff?",
+        "back": "User documents are private; sending every chunk to an external API would expose personal data on every upload and search. The Xenova/all-MiniLM-L6-v2 model (384 dims, ~50 MB) runs fully in-process via @xenova/transformers. Tradeoff: lower retrieval quality than text-embedding-3-large, a cold-start delay on first load, and a keyword fallback if the model fails to initialize."
+      },
+      {
+        "front": "What is the CHUNK_TARGET and CHUNK_OVERLAP in rag.js, and why does overlap matter?",
+        "back": "CHUNK_TARGET = 900 chars, CHUNK_OVERLAP = 150 chars. Overlap ensures a retrieval hit near a chunk boundary still includes the bridging sentence from the adjacent chunk. Without overlap, a fact split across the boundary would be present in neither chunk's cosine similarity score."
+      },
+      {
+        "front": "How does clause-level TTS splitting reduce latency, and what triggers a clause split?",
+        "back": "tts.js fires shouldSplitForTTS on clause boundaries (comma, dash, colon, em-dash) once the buffer exceeds 30 characters, not just sentence ends. splitAtBreak finds the last such boundary past index 15 and flushes everything before it to edge-tts immediately. This cuts time-to-first-audio by ~40-60% on long sentences because synthesis starts on the first clause while the server is still streaming the rest."
+      },
+      {
+        "front": "What is the interrupt identity guard in index.js and what bug does it fix?",
+        "back": "Each turn stores its AbortController as `myController`. The finally block only clears `isProcessing = false; abortController = null` when `abortController === myController`. Without this guard, an aborted turn's finally could run after a new turn had started and stored a new controller, clearing `isProcessing` prematurely and causing the new turn to be dropped or state to be corrupted."
+      },
+      {
+        "front": "How does tool availability stay honest — why can't the model offer to control smart home devices when Home Assistant is not configured?",
+        "back": "buildTools() only calls add() for conditional tools (smarthome, calendar, email, music, web search, weather) when the service's .ready flag is true. The tool list passed to the LLM schema therefore never includes a tool the system cannot execute. The always-available get_integration_status tool lets the model report what is and is not connected without hallucinating capability."
+      },
+      {
+        "front": "What is the Groq tool_use_failed recovery path in llm.js?",
+        "back": "When Groq returns an error with code tool_use_failed, extractFailedGeneration() pulls the raw Llama generation text from error.error.failed_generation. parseLlamaToolCalls() uses a regex and extractBalancedJson() to find <function=name>{json}</function> blocks. coerceToJsonString() coerces Python-ish syntax (True/False/None, single quotes). If calls are recovered, a synthetic response object is returned and the loop continues. If not, a clean prose fallback is used."
+      },
+      {
+        "front": "How is the system prompt size bounded, and what gets dropped first?",
+        "back": "MAX_PROMPT_CHARS = 12000 in index.js. Sections are appended in priority order: base prompt + TOOLS_GUIDE first, then memoryContext, moodContext, remindersContext, phase4Context (relationships, tasks, preferences, routines, summaries, follow-ups). Each section checks if it fits; if not, it is sliced to the remaining budget and suffixed with [\\u2026truncated]. The latest contextual signals survive; older relationship and routine context is what gets dropped."
+      },
+      {
+        "front": "Why does the memory decay scoring use log2(1 + access_count) rather than access_count directly?",
+        "back": "Raw access_count would give runaway boosts to memories accessed hundreds of times, drowning out semantic similarity. Log2 compresses the scale so access frequency provides a meaningful signal without dominating: the first access doubles to +0.05, doubling again to 4 accesses adds only another +0.05. This keeps cosine similarity as the primary ranking signal while letting frequently-accessed memories break ties."
+      },
+      {
+        "front": "What are the two ways the system prevents a misconfigured API key from appearing as connected?",
+        "back": "1) isRealKey() in llm.js rejects keys shorter than 10 chars or matching PLACEHOLDER patterns (your-, xxx, changeme). 2) validateServiceKey() in index.js actually calls each provider's API before saving — Groq: GET /openai/v1/models; Anthropic: POST /v1/messages with max_tokens:1; Brave, OpenWeather, Twilio, Home Assistant: lightweight authenticated requests. Invalid keys are rejected with a user-facing error before they touch process.env or app_config."
+      },
+      {
+        "front": "What happens to off-the-record sessions when the WebSocket disconnects?",
+        "back": "The ws.on('close') handler in index.js calls privacy.goOnTheRecord(sessionId), which removes the session from the offTheRecord Set. This prevents stale off-the-record state from leaking into a future reconnection under a different session ID but the same Set instance — noted explicitly in the code comment as bug #27."
+      },
+      {
+        "front": "Why is the voice change command validated against ALLOWED_VOICES before calling tts.setVoice()?",
+        "back": "edge-tts is invoked via spawn('python3', ['-m', 'edge_tts', '--voice', voice, ...]). An unvalidated voice string is an argument injection vector — an attacker could pass a crafted string with shell metacharacters or an arbitrary voice name to alter the spawn command. ALLOWED_VOICES is a hardcoded Set of ~19 known neural voice identifiers; any other value returns an error without reaching spawn. Noted as bug #21 in the inline comments."
+      }
+    ],
+    "exercises": []
+  }
+}

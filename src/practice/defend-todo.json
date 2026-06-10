@@ -1,0 +1,129 @@
+{
+  "defend-todo": {
+    "quiz": [
+      {
+        "id": "q1",
+        "question": "In `smartParse.js`, what does the parser do when a user types a bare clock time like '5pm' and it is already 6pm?",
+        "options": [
+          "A) Rejects the input and returns deadline: null",
+          "B) Sets the deadline to today at 5pm (in the past)",
+          "C) Rolls the deadline forward to tomorrow at 5pm",
+          "D) Defaults to midnight tonight"
+        ],
+        "answer": "C",
+        "explanation": "The combine step checks `if (!date && (time || partOfDay) && d.isBefore(base)) d = d.add(1, 'day')`. Because no explicit date was provided, a past time is automatically moved to tomorrow."
+      },
+      {
+        "id": "q2",
+        "question": "Where exactly is localStorage persistence triggered in the ToDoApp architecture?",
+        "options": [
+          "A) Inside each RTK reducer via a side effect",
+          "B) In a `useEffect` inside the `Main` component that watches the task list",
+          "C) In a `store.subscribe` callback in `Store.jsx` that calls `saveTasks` when `items` reference changes",
+          "D) In the `addTask` action creator using `createAsyncThunk`"
+        ],
+        "answer": "C",
+        "explanation": "`Store.jsx` caches `lastItems` and runs `saveTasks(items)` inside `store.subscribe` whenever `store.getState().task.items !== lastItems`. No component owns the persistence logic."
+      },
+      {
+        "id": "q3",
+        "question": "The `dndTasks` reducer renumbers `pindex` on every drag. Why?",
+        "options": [
+          "A) To satisfy a foreign-key constraint in the backend database",
+          "B) Because the array order is the source of truth and pindex must stay consistent with it",
+          "C) To trigger a React key reconciliation that re-renders the list in the new order",
+          "D) Because `react-beautiful-dnd` reads pindex to determine drop position"
+        ],
+        "answer": "B",
+        "explanation": "The comment in `TaskSlice.jsx` says 'Array order is the source of truth.' `pindex` is renumbered to stay consistent with the array after any reorder, preventing stale index values from causing future sort bugs."
+      },
+      {
+        "id": "q4",
+        "question": "Desktop reminders in ToDoApp require the browser tab to remain open because:",
+        "options": [
+          "A) The app uses WebSockets that disconnect when the tab closes",
+          "B) Notifications are fired from a `setInterval` in `Main.jsx`, which stops when the tab is closed",
+          "C) The Web Notifications API itself only works while the tab is focused",
+          "D) localStorage becomes read-only when the tab is backgrounded"
+        ],
+        "answer": "B",
+        "explanation": "`Main.jsx` sets up `setInterval(tick, 10000)` once on mount. The interval is cleared on unmount (tab/component teardown). A Service Worker with Periodic Background Sync would be needed to fire reminders when the tab is closed."
+      },
+      {
+        "id": "q5",
+        "question": "What score does `heuristicPlan` assign to a High-priority task that is overdue?",
+        "options": [
+          "A) 7",
+          "B) 12",
+          "C) 18",
+          "D) 10"
+        ],
+        "answer": "C",
+        "explanation": "`score = urgency * 3 + priority_rank * 2`. Overdue → urgency 4; High → priority_rank 3. `4*3 + 3*2 = 12 + 6 = 18`."
+      },
+      {
+        "id": "q6",
+        "question": "The priority regex `HIGH` deliberately avoids matching the word 'high' in isolation. What pattern does it use to detect high priority?",
+        "options": [
+          "A) `\\bhigh\\b` anywhere in the text",
+          "B) `!!` prefix, explicit markers like `urgent`/`asap`/`critical`, `p1`, `high priority`, or `, high` at the end of the string",
+          "C) Any uppercase word in the input",
+          "D) The color red being selected in the priority picker"
+        ],
+        "answer": "B",
+        "explanation": "The `HIGH` constant in `smartParse.js` matches `!!` (with optional keyword), `\\bp1\\b`, `\\b(urgent|asap|critical)\\b`, `\\bhigh\\s*priority\\b`, `\\bpriority\\s*[:=]?\\s*high\\b`, and `,\\s*high\\s*$`. Bare `high` is excluded to prevent consuming phrases like 'high-level meeting'."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What localStorage key stores tasks, and what key guards the first-run seed?",
+        "back": "`todo_tasks_v1` stores the serialized task array. `todo_seeded_v1` is set to `'1'` after the three sample tasks are written, preventing the seed from running again on subsequent loads."
+      },
+      {
+        "front": "How does the reminder tick avoid firing repeated OS notifications for the same already-due task?",
+        "back": "`notifiedRef` is a `Set` of task IDs that have already triggered `notifyDue`. Each tick, IDs no longer in `dueIds` are pruned from the set (allowing re-notification after a snooze), and `notifyDue` is only called for IDs not yet in the set."
+      },
+      {
+        "front": "What is the `tag` property in the `new Notification(...)` call in `notify.js` used for?",
+        "back": "`tag: 'task-${task.id}'` deduplicates OS notifications — if the same task fires on multiple ticks before the user dismisses the notification, the OS replaces the previous one rather than stacking duplicates."
+      },
+      {
+        "front": "How does the snooze button compute the new deadline to avoid immediate re-trigger?",
+        "back": "`fromMs = Math.max(dueMs, Date.now())` — if the task's deadline is already in the past, snooze is computed from *now* (not the past deadline). It then adds 10 minutes and clears `overdue: false`, so the tick filter excludes the task until the new time arrives."
+      },
+      {
+        "front": "What guard in `smartParse.js` prevents '16:9' (an aspect ratio) from being parsed as a time?",
+        "back": "The 24-hour time regex `([01]?\\d|2[0-3]):([0-5]\\d)` requires a valid hour (0-23) and a two-digit minute (00-59). `16:9` fails because `9` is a single digit and does not match `[0-5]\\d`."
+      },
+      {
+        "front": "How does `parseSmartTask` handle 'next friday' on a day that is already Friday?",
+        "back": "For the `'next'` qualifier, `diff = (diff === 0) ? 7 : diff + 7`. This always pushes to the following week regardless of whether the target weekday is today or still ahead this week."
+      },
+      {
+        "front": "What fallback does `breakdownTask` use if the Gemini API returns malformed JSON?",
+        "back": "It tries `JSON.parse` on the first `[...]` block found with a regex. If that throws, it splits the raw text on newlines and strips leading list markers (`-`, `*`, digits, `.`) to produce a plain string array."
+      },
+      {
+        "front": "Why does `Main.jsx` read tasks through `tasksRef` inside the `setInterval` callback instead of directly from the closure?",
+        "back": "The effect that sets up the interval has an empty dependency array `[]`, so it runs once on mount. If it captured `tasks` from the closure, it would stale-close over the initial empty array. The ref is updated in a separate `useEffect` on every render, giving the interval access to the latest task list without re-registering the timer."
+      },
+      {
+        "front": "What is the `reqRef` counter pattern in `PlanMyDay.jsx` used for?",
+        "back": "`reqRef.current` is incremented before each Gemini call. The async callback checks `if (reqRef.current === token)` before updating state. If the user closes and reopens the modal quickly, the stale in-flight request's response is discarded because its token no longer matches the current value."
+      },
+      {
+        "front": "How does the parser title-clean step avoid leaving a dangling preposition after stripping a date token?",
+        "back": "After all tokens are stripped and whitespace is collapsed, a loop runs up to three times applying `title.replace(/\\s+(by|due|on|at|before|for|the|to|next|this)\\s*$/, '').trim()`. Multiple passes handle cases where two prepositions appear back-to-back (e.g. 'task due on next' → 'task due on' → 'task due' → 'task')."
+      },
+      {
+        "front": "What stops the Gemini API key from leaking to the app's server or repository?",
+        "back": "There is no server. The key is stored only in the browser under `todo_ai_gemini_key` in `localStorage` and is sent exclusively to `https://generativelanguage.googleapis.com` in the client-side `fetch` call. The field uses `type='password'` in the Settings UI. `setApiKey` calls `localStorage.removeItem` when passed an empty string."
+      },
+      {
+        "front": "What does `sortPendingTasks` do that `dndTasks` also does, and when should each be called?",
+        "back": "Both renumber `pindex` to match the current array order and place completed tasks at the end. `sortPendingTasks` is called on first mount and after marking a task complete (to normalize any gaps). `dndTasks` is called specifically after a drag-and-drop reorder with explicit `startIndex`/`endIndex` — it splices the pending array, then renumbers."
+      }
+    ],
+    "exercises": []
+  }
+}

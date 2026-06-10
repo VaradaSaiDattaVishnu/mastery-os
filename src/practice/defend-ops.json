@@ -1,0 +1,123 @@
+{
+  "defend-ops": {
+    "quiz": [
+      {
+        "q": "In the Order Processing System, what exchange type is used for all four RabbitMQ exchanges, and what routing key does order-service's event consumer use to catch both inventory.reserved and inventory.failed with a single binding?",
+        "options": [
+          "direct exchange; two separate exact-match bindings",
+          "topic exchange; the wildcard pattern inventory.*",
+          "fanout exchange; no routing key needed",
+          "headers exchange; x-event-type header matching"
+        ],
+        "answer": 1,
+        "explain": "packages/shared/src/events/rabbitmq.ts declares all exchanges as type 'topic'. orderEventConsumer.ts binds QUEUES.INVENTORY_RESULT to EXCHANGES.INVENTORY with routing key 'inventory.*', matching both inventory.reserved and inventory.failed in one binding."
+      },
+      {
+        "q": "How does the payment-service track how many times a message has been retried without modifying the original message payload?",
+        "options": [
+          "It increments a retryCount field inside the JSON body before re-publishing",
+          "It reads the x-death header array that RabbitMQ appends on each dead-letter transit and sums the count fields",
+          "It stores a counter in Redis keyed by orderId",
+          "It uses a MongoDB document with a retryCount field updated before each attempt"
+        ],
+        "answer": 1,
+        "explain": "getRetryCount() in paymentConsumer.ts reads msg.properties.headers['x-death'] and sums entry.count across all entries. RabbitMQ manages this header automatically on each dead-letter event — no payload modification needed, and the original bytes are preserved for re-delivery."
+      },
+      {
+        "q": "The ml-service uses contamination='auto' for its Isolation Forest. What does this mean, and where is this value set?",
+        "options": [
+          "It sets the anomaly threshold to 0.5 automatically; configured in anomalyConsumer.ts",
+          "sklearn estimates the contamination rate from the training data rather than requiring a fixed float; configured via IFOREST_CONTAMINATION env var in config.py with default 'auto'",
+          "It means the model will flag 10% of orders as anomalous by design; hardcoded in model.py",
+          "It enables automatic retraining when drift is detected; set in training.py"
+        ],
+        "answer": 1,
+        "explain": "config.py defines contamination = os.environ.get('IFOREST_CONTAMINATION', 'auto'). contamination_value() passes it to IsolationForest. When 'auto', sklearn infers the anomaly proportion from the data rather than assuming a fixed fraction."
+      },
+      {
+        "q": "What is the correct sequence of events in the choreography saga after a user submits a new order?",
+        "options": [
+          "order.created → payment.completed → inventory.reserved → anomaly.detected",
+          "order.created → inventory.reserved → payment.completed (with anomaly scoring running in parallel from order.created)",
+          "order.created → anomaly.detected → inventory.reserved → payment.completed",
+          "inventory.reserved → order.created → payment.completed → anomaly.detected"
+        ],
+        "answer": 1,
+        "explain": "order-service publishes order.created. inventory-service and anomaly-service each consume order.created in parallel from their own queues on orders.exchange. If inventory succeeds it publishes inventory.reserved. payment-service consumes inventory.reserved and publishes payment.completed. Anomaly scoring runs independently and may publish anomaly.detected at any point after order.created."
+      },
+      {
+        "q": "Which feature in the ml-service's 12-dim vector represents how unusual an order's amount is relative to the specific user's own historical spend, and how is it computed when a user has fewer than 2 prior orders?",
+        "options": [
+          "amount_vs_global_z; set to 0.0 for new users",
+          "log_amount; log1p is applied so new users get 0.0 automatically",
+          "amount_vs_user_z; set to 0.0 when prior_orders has fewer than 2 entries",
+          "user_spend_1h_log; set to 0.0 if no orders in the past hour"
+        ],
+        "answer": 2,
+        "explain": "In features.py, amount_vs_user_z = (amount - user_mean) / user_std, but only when len(prior_amounts) >= 2. Otherwise it is explicitly set to 0.0. This prevents division by zero and avoids noisy z-scores from a single prior order."
+      },
+      {
+        "q": "After payment-service exhausts MAX_RETRIES (3) for an order, what happens to the message and what status is published for the order?",
+        "options": [
+          "The message is dropped silently and no event is published",
+          "The message is sent to payment.parking.queue for manual review, and payment.failed is published to payments.exchange",
+          "The message is re-queued indefinitely until payment succeeds",
+          "The message is sent back to order-service which cancels the order directly"
+        ],
+        "answer": 1,
+        "explain": "paymentConsumer.ts: when getRetryCount(msg) >= MAX_RETRIES, ch.sendToQueue(QUEUES.PAYMENT_PARKING, ...) parks the raw event, Payment is updated to FAILED, and publishEvent(EXCHANGES.PAYMENTS, ROUTING_KEYS.PAYMENT_FAILED, ...) is called. Order-service then sets status to PAYMENT_FAILED."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What exchange name and routing key does order-service use when an order is created?",
+        "back": "Exchange: EXCHANGES.ORDERS ('orders.exchange'), routing key: ROUTING_KEYS.ORDER_CREATED ('order.created'). Defined in packages/shared/src/types/index.ts and called from orderRoutes.ts via publishEvent()."
+      },
+      {
+        "front": "How does inventory-service prevent two concurrent orders from over-selling the last unit of stock?",
+        "back": "Product.findOneAndUpdate({ _id: item.productId, stock: { $gte: item.quantity } }, { $inc: { stock: -item.quantity } }, { new: true }). MongoDB evaluates the $gte check and the $inc in a single atomic document-level write, so only one of two racing requests will find the document and decrement it."
+      },
+      {
+        "front": "What is the DLQ TTL in payment-service and what happens when it expires?",
+        "back": "messageTtl: 30000 (30 seconds) on QUEUES.PAYMENT_DLQ. When the TTL expires, RabbitMQ dead-letters the message back to EXCHANGES.INVENTORY with routing key ROUTING_KEYS.INVENTORY_RESERVED, re-entering the main payment processing queue."
+      },
+      {
+        "front": "What does a calibrated anomaly score of 0.5 mean in the ml-service?",
+        "back": "0.5 is exactly the model's own decision boundary. The raw decision_function output is squashed via logistic(-df / df_scale), where df_scale is the standard deviation of the training set's decision_function values. df = 0 maps to score 0.5. Scores above anomaly_threshold (0.6 by default) trigger a flag."
+      },
+      {
+        "front": "How does the ml-service guarantee no train/serve skew?",
+        "back": "Both paths call the identical extract_features() function from features.py. Global statistics (global_mean, global_std) are stored on the AnomalyModel at training time and serialised with joblib. Per-user prior orders are fetched from MongoDB with the same query shape at serve time as at training time. FEATURE_NAMES is a fixed-order list used in both paths."
+      },
+      {
+        "front": "What is the purpose of prefetch(1) in connectRabbitMQ and what would happen without it?",
+        "back": "prefetch(1) tells RabbitMQ to deliver at most one unacknowledged message to each consumer at a time. Without it, RabbitMQ would push all queued messages to the first available consumer, starving others and allowing one slow or crashed consumer to hoard a large batch that would be re-delivered only on timeout."
+      },
+      {
+        "front": "Why does the anomaly-service 'fail open' when ml-service is unavailable?",
+        "back": "In anomalyConsumer.ts, if scoreOrder() returns null (HTTP error or timeout), the handler logs a warning and returns without publishing anomaly.detected. This ensures an ML outage never blocks the order saga — inventory reservation and payment processing continue. Orders may go unscored but they will not be held up."
+      },
+      {
+        "front": "What is the cold_start flag on the ml-service model and when is it true?",
+        "back": "cold_start is true when the number of real orders in MongoDB is below MIN_TRAINING_SAMPLES (default 50). In this case, training.py calls generate_synthetic_orders() to bootstrap the model. The flag surfaces in every /score response and in the order's anomalyModelVersion field so consumers can discount scores from an under-trained model."
+      },
+      {
+        "front": "How does order-service use correlationId for distributed tracing?",
+        "back": "correlationId = uuidv4() is generated in orderRoutes.ts at order creation time. It is embedded in the EventEnvelope for every downstream event (order.created, inventory.reserved, payment.completed, anomaly.detected). Every service logs it with each event. It is also stored on the Order document, enabling a full saga trace by grepping logs for a single UUID."
+      },
+      {
+        "front": "Why is the rate limiter backed by Redis instead of in-process memory?",
+        "back": "createRateLimiter() in rateLimiter.ts uses rate-limit-redis with the ioredis client. In production, multiple api-gateway instances run behind a load balancer. An in-memory counter is per-instance: 100 req/min * 3 instances = 300 effective requests. Redis provides a single shared atomic counter so the 100 req/min limit is global across all gateway replicas."
+      },
+      {
+        "front": "What is the ablation method used for ml-service explainability and why is it preferred over SHAP?",
+        "back": "Leave-one-feature-out ablation: each feature is replaced with its training median, the order is re-scored, and delta = (ablated_df - base_df) measures the feature's contribution. A large positive delta means removing the feature made the order look more normal, so it drove the flag. No extra library is needed (unlike SHAP or LIME), and the explanation is faithful to the actual IsolationForest predictions, not an approximation."
+      },
+      {
+        "front": "What shared TypeScript constants ensure producers and consumers always reference the same queue and exchange names?",
+        "back": "EXCHANGES, QUEUES, and ROUTING_KEYS const objects in packages/shared/src/types/index.ts. Examples: EXCHANGES.ORDERS = 'orders.exchange', QUEUES.PAYMENT_DLQ = 'payment.dlq', ROUTING_KEYS.ORDER_CREATED = 'order.created'. All services import from @shared/common, so a typo in a queue name is a compile-time error, not a silent routing failure."
+      }
+    ],
+    "exercises": []
+  }
+}

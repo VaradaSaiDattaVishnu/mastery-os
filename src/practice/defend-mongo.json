@@ -1,0 +1,129 @@
+{
+  "defend-mongo": {
+    "quiz": [
+      {
+        "id": "dm-q1",
+        "question": "In `MongoShell.jsx`, when the user submits `db.users.find({ name: /alice/i })`, what happens to the argument string `{ name: /alice/i }` during parsing?",
+        "options": [
+          "It is passed directly to `JSON.parse` which handles regex literals natively",
+          "`JSON.parse` fails on the regex literal, then `new Function('return ' + argsStr)()` evaluates it as JavaScript producing a real RegExp object",
+          "The regex is stripped and converted to a `$regex` operator automatically",
+          "The shell throws a syntax error and shows the user an error message"
+        ],
+        "answer": 1,
+        "explanation": "The key-unquoting substitution produces `{ \"name\": /alice/i }` which is invalid JSON, so `JSON.parse` throws. The catch block runs `new Function('return ' + argsStr)()`, which evaluates the original args string as a JavaScript expression, yielding a real RegExp. In `matchesQuery`, `condition instanceof RegExp` is true, so `condition.test(value)` is called directly."
+      },
+      {
+        "id": "dm-q2",
+        "question": "What does the `PipelineVisualizer` component actually do when you click 'Visualize'?",
+        "options": [
+          "It executes each stage sequentially against the in-memory sample collections and shows intermediate document counts",
+          "It sends the pipeline to a serverless function that runs it against a hosted MongoDB instance",
+          "It runs a `setInterval` at 800 ms steps advancing an `activeStage` index, applying a glow border to each stage block in sequence — no documents are processed",
+          "It uses the `evaluateQuery` engine to apply `$match` stages and shows filtered counts"
+        ],
+        "answer": 2,
+        "explanation": "`runAnimation` sets `setInterval` at 800 ms, incrementing `activeStage` from 0 to `stages.length - 1`. The active stage receives `border-mongo-bright shadow-glow` styling. No filtering, grouping, or transformation occurs. The output section statically shows 'transformed documents', not an actual count."
+      },
+      {
+        "id": "dm-q3",
+        "question": "How does `evaluateQuery` handle a query like `{ 'address.city': 'San Francisco' }` against the `users` collection?",
+        "options": [
+          "It creates a MongoDB query plan and executes it against a local WiredTiger instance",
+          "`matchesQuery` passes 'address.city' to `getNestedValue` which does `path.split('.').reduce((curr, k) => curr?.[k], doc)` to resolve the nested value before comparing",
+          "The dot-notation key is not supported; the engine only matches top-level fields",
+          "It splits the key on '.' and performs a recursive `$exists` check at each level"
+        ],
+        "answer": 1,
+        "explanation": "`getNestedValue(doc, 'address.city')` splits on '.' and reduces: starting from `doc`, it accesses `.address` then `.city`. If any intermediate key is `undefined`, the reduce returns `undefined` safely. The resolved value is then compared with `looseEq` against the scalar condition."
+      },
+      {
+        "id": "dm-q4",
+        "question": "The B-tree in `IndexVisualizer.jsx` is described as a 3-level tree. Which of the following accurately describes it?",
+        "options": [
+          "It is dynamically generated from the `users` collection's `age` field values at mount time",
+          "It is a static hard-coded structure: root `[30]`, two internal nodes `[10,20]` and `[40,50]`, six leaf nodes — always the same regardless of sample data",
+          "It queries a real B-tree index file bundled with the app via WebAssembly",
+          "It is generated from a random seed each time the component mounts to ensure fresh data"
+        ],
+        "answer": 1,
+        "explanation": "The tree object is a literal in the component: `{ keys: [30], children: [{ keys: [10, 20], children: [...] }, { keys: [40, 50], children: [...] }] }`. It has 23 total values across all nodes and never changes. The pedagogical tradeoff is clarity over authenticity — the traversal logic is correct but the data is fixed."
+      },
+      {
+        "id": "dm-q5",
+        "question": "In `sampleData.js`, how does the engine distinguish between querying an array field with a scalar (element-inclusion) vs. an exact array match?",
+        "options": [
+          "It always uses `JSON.stringify` comparison for both cases",
+          "If the document field value is an array and the query condition is a scalar, it checks `value.some(v => looseEq(v, condition))`; if both are arrays, it uses `JSON.stringify(value) === JSON.stringify(condition)` for exact match",
+          "Array fields always use `$elemMatch` semantics regardless of the query structure",
+          "Scalar queries against array fields are not supported and throw an error"
+        ],
+        "answer": 1,
+        "explanation": "In `matchesQuery`, after the operator-object and regex checks, the code branches: `Array.isArray(value) && !Array.isArray(condition)` triggers element-inclusion (`value.some(v => looseEq(v, condition))`), matching real MongoDB's behavior where `{ tags: 'developer' }` matches a document with `tags: ['developer', 'lead']`. `Array.isArray(value) && Array.isArray(condition)` triggers exact array comparison via `JSON.stringify`."
+      },
+      {
+        "id": "dm-q6",
+        "question": "How does the `ScaleSimulator` compute query time for an indexed lookup vs. a collection scan?",
+        "options": [
+          "It benchmarks actual JavaScript array iteration at each scale point",
+          "IXSCAN: `Math.log2(docCount) * 0.5` ms (O(log n)); COLLSCAN: `docCount * 0.001` ms (O(n)) — both are formula-based approximations with a 1 ms floor",
+          "It uses a lookup table of pre-measured MongoDB Atlas query times at different scale points",
+          "It runs the `evaluateQuery` function against a generated array and measures wall-clock time"
+        ],
+        "answer": 1,
+        "explanation": "From `ScaleSimulator.jsx`: `queryTimeMs = hasIndex ? Math.log2(docCount) * 0.5 : docCount * 0.001`, then `Math.max(1, queryTimeMs)`. These are teaching approximations — not real benchmarks — chosen to make the O(log n) vs O(n) difference visible on the animated bar as you drag the slider from 1K to 1B documents."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What regex does `MongoShell` use to parse `db.users.find({...})` and what three capture groups does it extract?",
+        "back": "`/^db\\.(\\w+)\\.(\\w+)\\(([\\s\\S]*)\\)$/` — group 1: collection name (`users`), group 2: method name (`find`), group 3: raw args string (`{...}`). A simpler no-args fallback regex `/^db\\.(\\w+)\\.(\\w+)\\(\\s*\\)$/` handles empty-parens calls."
+      },
+      {
+        "front": "What four methods does `executeMethod` support in the in-browser shell, and what does each return?",
+        "back": "`find` → array of matching documents; `findOne` → first matching document or `null`; `countDocuments` → integer count from `result.count`; `distinct` → array of unique field values using `Set` over the collection with `.filter(v => v !== undefined)`."
+      },
+      {
+        "front": "How does `matchesOperators` handle `$elemMatch` and what is the dual-dispatch logic?",
+        "back": "If the value is not an array, return false. Otherwise, determine if the operand is 'operator-only' by checking `Object.keys(operand).every(k => k.startsWith('$'))`. If yes, call `matchesOperators(el, operand)` per element (plain operator matching). If no (object with field conditions), call `matchesQuery(el, operand)` per element (sub-document matching). Return true if any element passes."
+      },
+      {
+        "front": "What is the `looseEq` function and why does it special-case `Date`?",
+        "back": "`looseEq(a, b)` returns `a === b` for primitives but `a.getTime() === b.getTime()` when both are `Date` objects. JavaScript's `===` compares Date object references, not values, so two `new Date('2023-01-15')` instances would be unequal without this special case. This mirrors MongoDB's BSON date equality semantics."
+      },
+      {
+        "front": "How is the B-tree IXSCAN traversal path determined in `IndexVisualizer`?",
+        "back": "Level 0: always examines the root. Level 1: `num <= 30` selects left child (`[10,20]`), else right (`[40,50]`); `childIdx` is found by scanning the child's keys for the first key `>= num`. Level 2: the leaf at `child.children[childIdx]`. The path array is built upfront and revealed by `setInterval` at 500 ms steps. 'Found' is true if `target` appears in any highlighted path node's `keys` array."
+      },
+      {
+        "front": "How does Zustand persist progress and what is stored under `mongo-mastery-storage`?",
+        "back": "The `persist` middleware wraps the store and serializes to `localStorage` on every state mutation. The stored object has shape `{ state: { progress, bookmarks, preferences, shellHistory }, version: 0 }`. Progress keys are `'courseId.moduleId.lessonId'` mapping to `{ status, practiceScore, updatedAt }`. Shell history is capped at 100 entries via `.slice(-99)` before each append."
+      },
+      {
+        "front": "Why does the custom tokenizer in `syntaxHighlight.js` walk character-by-character instead of using a regex split?",
+        "back": "Regex-based splitting (e.g., `/\\W+/`) would not correctly handle operator tokens like `$elemMatch` (which start with `$`), string literals containing `$` or `:`, or comment detection requiring a two-character lookahead (`//`). The hand-written loop handles overlapping context: it detects `//` comments first, then string delimiters with escape handling, then `$`-prefix operators, then alphanumeric words, then punctuation as `plain` tokens — in strict priority order."
+      },
+      {
+        "front": "Which lesson keys in `LESSON_VISUALIZERS` map to `IndexVisualizer` and how is the component chosen at render time?",
+        "back": "`LESSON_VISUALIZERS` is a static object literal in `LessonView.jsx`. Four keys map to `IndexVisualizer`: `'query-language.indexes.btree-internals'`, `'query-language.indexes.single-field'`, `'query-language.indexes.explain-mastery'`, `'query-language.indexes.index-intersection'`. In the Learn tab, `LESSON_VISUALIZERS[key] && LESSON_VISUALIZERS[key]()` calls the factory function if it exists, rendering the visualizer inline below the lesson explanation card."
+      },
+      {
+        "front": "What is the key architectural gap between the `PipelineVisualizer` and the `MongoShell`, and what would it take to close it?",
+        "back": "The pipeline visualizer shows stage topology but executes nothing. The shell executes `find`-style queries but not `aggregate`. Closing the gap requires adding an `aggregate` case to `executeMethod` that runs a sequential `reduce` over the stage array, with per-stage handlers: `$match` reuses `matchesQuery`, `$project` maps fields, `$group` accumulates into a `Map`, `$sort` uses `Array.sort`, `$limit`/`$skip` use `slice`, `$unwind` uses `flatMap`. The hard remaining work is expression evaluation for computed fields in `$project`, `$addFields`, and accumulator expressions in `$group`."
+      },
+      {
+        "front": "How does `comparable` gate the `$gt/$gte/$lt/$lte` operators and why?",
+        "back": "`comparable(a, b)` returns false if either value is `null`/`undefined`, and otherwise requires both values to be `Date` instances OR both to be the same JavaScript `typeof` that is either `'number'` or `'string'`. This prevents cross-type comparisons (e.g., `{ age: { $gt: '25' } }` against numeric `age: 28`), matching MongoDB's BSON comparison rules where different BSON types have a defined sort order but `$gt` against a mismatched type returns no results."
+      },
+      {
+        "front": "What does `bsonType(value)` return for each of these: `null`, `[]`, `new Date()`, `28`, `28.5`, `'hello'`, `{}`?",
+        "back": "`null` → `'null'`; `[]` → `'array'`; `new Date()` → `'date'`; `28` (integer) → `'int'` (via `Number.isInteger`); `28.5` → `'double'`; `'hello'` → `'string'`; `{}` → `'object'`. The function checks in order: null, undefined, Array.isArray, instanceof Date, typeof boolean, typeof string, Number.isInteger, non-integer number, plain object."
+      },
+      {
+        "front": "What is the practical consequence of the PipelineVisualizer's default `$group` spec being `{ _id: '$category', total: { $sum: 1 } }` if the user clicks 'Visualize'?",
+        "back": "Nothing executes. The spec is shown in the expandable code block of the stage card as a JSON preview. When 'Visualize' runs the animation, the stage just gets a highlighted border for 800 ms before the next stage activates. The spec has no effect on any computation — it is purely illustrative of what a `$group` stage looks like, not a computed result."
+      }
+    ],
+    "exercises": []
+  }
+}
