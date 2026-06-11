@@ -8,7 +8,7 @@ An interactive **AI course** that turns Varada Sai Datta Vishnu's own projects i
 
 A self‑paced learning console mapped directly from real projects (JARVIS, Unity, gharKa, the Order‑Processing System, scale‑quest, mongo‑mastery, tapasya, ToDoApp, and CUBE work).
 
-- **10 tracks · 135 lessons** — Frontend, Backend & APIs, Databases, a full **Order‑Processing‑System deep‑dive**, System Design & Distributed Systems, AI/ML Engineering, CS Foundations, Architecture & Craft, Product/UX.
+- **11 tracks · 135 lessons** — Frontend, Backend & APIs, Databases, a full **Order‑Processing‑System deep‑dive**, System Design & Distributed Systems, AI/ML Engineering, CS Foundations, Architecture & Craft, Product/UX.
 - **Deep, to‑the‑core lessons** — each authored by a domain specialist: the concept, the internals, the tradeoffs, real code, common pitfalls, a *Top‑1% insight*, and *how it shows up in your project*.
 - **Code Dojo** — 121 runnable JavaScript exercises — including the 50-problem FAANG Gauntlet pattern ladder with a live, sandboxed test runner. Do it, don't just read it.
 - **Auto‑graded quizzes** (378 questions) and **spaced‑repetition flashcards** (610+ cards, SM‑2) with a daily Review queue — all offline, no key needed.
