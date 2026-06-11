@@ -7,6 +7,65 @@ import type { Lesson, Module, Track } from './types'
 
 export const tracks: Track[] = [
   {
+    id: 'gauntlet',
+    title: 'FAANG Gauntlet',
+    tagline: 'Problem-first interview prep — 50 runnable problems across the 14 patterns behind most coding rounds. Solve, don\u2019t read. 15-minute bare-handed rule.',
+    color: '#EF4444',
+    modules: [
+      {
+        id: 'g-phase0',
+        title: 'How to train (read once)',
+        summary: 'The nightly protocol: fight bare-handed, reconstruct from blank, narrate aloud, re-solve later.',
+        lessons: [
+          { id: 'g-protocol', title: 'The protocol: solve, don\u2019t read', coreIdea: 'A problem is owned when you\u2019ve solved it cold, from blank, twice, days apart.', concepts: ['retrieval practice', 'spaced re-solving', 'interview narration'] },
+        ],
+      },
+      {
+        id: 'g-phase1',
+        title: 'Phase 1 — Arrays & the hash trick',
+        summary: 'The three patterns behind half of all easy/medium screens.',
+        lessons: [
+          { id: 'g-hash', title: 'Hashmap & frequency', coreIdea: 'Trade O(n) space for O(1) \u201chave I seen this?\u201d — the most-used trick in interviews.', concepts: ['hashmap', 'complement lookup', 'prefix sums', 'frequency counting'] },
+          { id: 'g-twoptr', title: 'Two pointers', coreIdea: 'Sorted data or both-ends scans: each comparison safely discards one element.', concepts: ['two pointers', 'elimination argument', '3Sum dedup'] },
+          { id: 'g-window', title: 'Sliding window', coreIdea: 'Best contiguous run under a condition: grow right, shrink left, both only move forward.', concepts: ['fixed window', 'variable window', 'window invariant'] },
+        ],
+      },
+      {
+        id: 'g-phase2',
+        title: 'Phase 2 — Linear structures',
+        summary: 'Stacks, binary search (incl. search-the-answer), and pointer surgery on linked lists.',
+        lessons: [
+          { id: 'g-stack', title: 'Stack & monotonic stack', coreIdea: 'Last unmatched thing resolves first \u2192 LIFO; monotonic stacks answer next-greater in O(n).', concepts: ['stack', 'monotonic stack', 'MinStack design'] },
+          { id: 'g-binsearch', title: 'Binary search & search-the-answer', coreIdea: 'Any monotonic predicate is searchable — arrays, boundaries, and answer spaces.', concepts: ['binary search', 'lower bound', 'rotated array', 'search the answer'] },
+          { id: 'g-list', title: 'Linked lists: pointer surgery', coreIdea: 'Two patterns cover it: prev/curr rewiring and fast & slow runners.', concepts: ['in-place reversal', 'fast & slow', 'cycle detection', 'dummy head'] },
+        ],
+      },
+      {
+        id: 'g-phase3',
+        title: 'Phase 3 — Trees, graphs & heaps',
+        summary: 'Recursion\u2019s home turf, BFS waves, flood fill, topo sort, and the top-k weapon.',
+        lessons: [
+          { id: 'g-tree-dfs', title: 'Tree DFS & BST logic', coreIdea: 'Solve left, solve right, combine at the root — and pass constraints DOWN for BSTs.', concepts: ['tree recursion', 'BST range trick', 'LCA'] },
+          { id: 'g-tree-bfs', title: 'Tree BFS: level by level', coreIdea: 'Freeze the queue size per level — nearest-first answers belong to BFS.', concepts: ['level order', 'right side view', 'min depth'] },
+          { id: 'g-graph', title: 'Graphs: flood fill, BFS waves, topo sort', coreIdea: 'Grids and prerequisite lists are graphs in disguise — O(V+E) everything.', concepts: ['flood fill', 'multi-source BFS', "Kahn's algorithm", 'cycle detection'] },
+          { id: 'g-heap', title: 'Heaps & top-k', coreIdea: 'Kth largest \u2192 size-k MIN-heap: the small ones fall out. Build the heap yourself.', concepts: ['binary heap', 'sift up/down', 'top-k inversion', 'O(n log k)'] },
+        ],
+      },
+      {
+        id: 'g-phase4',
+        title: 'Phase 4 — The hard gate',
+        summary: 'Backtracking, 1-D and 2-D dynamic programming, intervals & greedy proofs.',
+        lessons: [
+          { id: 'g-backtrack', title: 'Backtracking: choose, explore, un-choose', coreIdea: 'DFS over decisions; the pop() after the recursion is the entire pattern.', concepts: ['subsets', 'permutations', 'pruning', 'dedup guards'] },
+          { id: 'g-dp1', title: 'DP in one dimension', coreIdea: 'State meaning \u2192 transition \u2192 base: recursion that stopped repeating itself.', concepts: ['state design', 'rolling variables', 'coin change', 'LIS'] },
+          { id: 'g-dp2', title: 'DP on two sequences & grids', coreIdea: 'dp[i][j] over prefixes: match extends the diagonal, else best one-step reduction.', concepts: ['LCS', 'edit distance', 'grid paths', 'base rows'] },
+          { id: 'g-intervals', title: 'Intervals & greedy', coreIdea: 'Sort by start to merge, by end to select — and own the exchange argument.', concepts: ['merge intervals', 'end-sort greedy', 'exchange proof', 'frontier reachability'] },
+        ],
+      },
+    ],
+  },
+
+  {
     id: 'defend',
     title: 'Defend Your Projects',
     tagline: 'Interview-grade ownership — explain the architecture, justify the decisions, name the hardest bug, say what you’d change. For everything you built.',

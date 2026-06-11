@@ -1,0 +1,358 @@
+{
+  "g-hash": {
+    "exercises": [
+      {
+        "prompt": "TWO SUM — the most-asked interview question on earth. Given an array and a target, return the INDICES [i, j] (i < j) of the two numbers that add to target. Exactly one solution exists. O(n) with a Map — no nested loops.",
+        "starter": "function twoSum(nums, target) {\n  // seen: value -> index\n}",
+        "tests": "check('finds the pair', () => {\n  expect(twoSum([2,7,11,15], 9)).toEqual([0,1]);\n});\ncheck('pair not at the start', () => {\n  expect(twoSum([3,2,4], 6)).toEqual([1,2]);\n});\ncheck('duplicates are fine', () => {\n  expect(twoSum([3,3], 6)).toEqual([0,1]);\n});",
+        "solution": "function twoSum(nums, target) {\n  const seen = new Map();\n  for (let i = 0; i < nums.length; i++) {\n    const need = target - nums[i];\n    if (seen.has(need)) return [seen.get(need), i];\n    seen.set(nums[i], i);\n  }\n}"
+      },
+      {
+        "prompt": "GROUP ANAGRAMS. Given an array of strings, group the anagrams together and return the groups (any order). Key insight: anagrams share a canonical form — the sorted word. Map<sortedWord, group>.",
+        "starter": "function groupAnagrams(strs) {\n  // canonical key -> bucket\n}",
+        "tests": "const norm = (groups) => groups.map(g => g.slice().sort()).sort((a, b) => (a[0] || '').localeCompare(b[0] || ''));\ncheck('groups anagrams', () => {\n  expect(norm(groupAnagrams(['eat','tea','tan','ate','nat','bat'])))\n    .toEqual(norm([['bat'],['nat','tan'],['ate','eat','tea']]));\n});\ncheck('single empty string', () => {\n  expect(groupAnagrams([''])).toEqual([['']]);\n});\ncheck('one letter', () => {\n  expect(groupAnagrams(['a'])).toEqual([['a']]);\n});",
+        "solution": "function groupAnagrams(strs) {\n  const m = new Map();\n  for (const s of strs) {\n    const key = s.split('').sort().join('');\n    if (!m.has(key)) m.set(key, []);\n    m.get(key).push(s);\n  }\n  return [...m.values()];\n}"
+      },
+      {
+        "prompt": "TOP K FREQUENT ELEMENTS. Return the k most frequent values in the array (any order). Count with a Map, then pick the top k. (A full sort of the entries is acceptable here; the heap upgrade comes later in the ladder.)",
+        "starter": "function topKFrequent(nums, k) {\n  // 1) count  2) rank  3) take k\n}",
+        "tests": "check('basic', () => {\n  expect(topKFrequent([1,1,1,2,2,3], 2).slice().sort()).toEqual([1,2]);\n});\ncheck('single element', () => {\n  expect(topKFrequent([1], 1)).toEqual([1]);\n});\ncheck('ties resolved to k items', () => {\n  expect(topKFrequent([4,4,5,5,6], 2).slice().sort().length).toBe(2);\n});",
+        "solution": "function topKFrequent(nums, k) {\n  const cnt = new Map();\n  for (const x of nums) cnt.set(x, (cnt.get(x) ?? 0) + 1);\n  return [...cnt.entries()]\n    .sort((a, b) => b[1] - a[1])\n    .slice(0, k)\n    .map(e => e[0]);\n}"
+      },
+      {
+        "prompt": "SUBARRAY SUM EQUALS K (the prefix-sum + hashmap classic). Count how many CONTIGUOUS subarrays sum to exactly k. Insight: if prefix[j] - prefix[i] = k, the slice (i..j] sums to k — so at each step ask the map how many times (runningSum - k) has appeared.",
+        "starter": "function subarraySum(nums, k) {\n  // Map: prefixSum -> times seen. Seed with 0 -> 1 (why?)\n}",
+        "tests": "check('overlapping windows count', () => {\n  expect(subarraySum([1,1,1], 2)).toBe(2);\n});\ncheck('whole + suffix', () => {\n  expect(subarraySum([1,2,3], 3)).toBe(2);\n});\ncheck('negatives and zero k', () => {\n  expect(subarraySum([1,-1,0], 0)).toBe(3);\n});",
+        "solution": "function subarraySum(nums, k) {\n  const seen = new Map([[0, 1]]);\n  let sum = 0, count = 0;\n  for (const x of nums) {\n    sum += x;\n    count += seen.get(sum - k) ?? 0;\n    seen.set(sum, (seen.get(sum) ?? 0) + 1);\n  }\n  return count;\n}"
+      }
+    ]
+  },
+  "g-twoptr": {
+    "exercises": [
+      {
+        "prompt": "VALID PALINDROME. Ignoring non-alphanumeric characters and case, is the string a palindrome? Two pointers from both ends; skip junk characters inward.",
+        "starter": "function isPalindrome(s) {\n  // l from 0, r from end; skip non-alphanumerics\n}",
+        "tests": "check('classic true', () => {\n  expect(isPalindrome('A man, a plan, a canal: Panama')).toBe(true);\n});\ncheck('classic false', () => {\n  expect(isPalindrome('race a car')).toBe(false);\n});\ncheck('empty-ish is true', () => {\n  expect(isPalindrome(' ')).toBe(true);\n});",
+        "solution": "function isPalindrome(s) {\n  const ok = c => /[a-z0-9]/i.test(c);\n  let l = 0, r = s.length - 1;\n  while (l < r) {\n    while (l < r && !ok(s[l])) l++;\n    while (l < r && !ok(s[r])) r--;\n    if (s[l].toLowerCase() !== s[r].toLowerCase()) return false;\n    l++; r--;\n  }\n  return true;\n}"
+      },
+      {
+        "prompt": "TWO SUM ON A SORTED ARRAY. Same goal as Two Sum, but the array is sorted — so NO hashmap: two pointers, O(1) space. Return the 0-based indices [l, r]. Narrate (to yourself) why moving the pointer is safe.",
+        "starter": "function twoSumSorted(numbers, target) {\n  // l=0, r=end; move based on sum vs target\n}",
+        "tests": "check('front pair', () => {\n  expect(twoSumSorted([2,7,11,15], 9)).toEqual([0,1]);\n});\ncheck('middle pair', () => {\n  expect(twoSumSorted([1,3,4,6,10], 10)).toEqual([2,3]);\n});\ncheck('adjacent at end', () => {\n  expect(twoSumSorted([1,2,8,9], 17)).toEqual([2,3]);\n});",
+        "solution": "function twoSumSorted(numbers, target) {\n  let l = 0, r = numbers.length - 1;\n  while (l < r) {\n    const sum = numbers[l] + numbers[r];\n    if (sum === target) return [l, r];\n    if (sum < target) l++; else r--;\n  }\n}"
+      },
+      {
+        "prompt": "CONTAINER WITH MOST WATER. heights[i] are wall heights; pick two walls holding the most water: area = min(h[l], h[r]) × (r - l). Greedy two pointers: always move the SHORTER wall inward — moving the taller one can never help (the min wouldn't grow, the width shrinks).",
+        "starter": "function maxArea(heights) {\n  // track best; advance the shorter side\n}",
+        "tests": "check('classic 49', () => {\n  expect(maxArea([1,8,6,2,5,4,8,3,7])).toBe(49);\n});\ncheck('two walls', () => {\n  expect(maxArea([1,1])).toBe(1);\n});\ncheck('descending', () => {\n  expect(maxArea([5,4,3,2,1])).toBe(6);\n});",
+        "solution": "function maxArea(heights) {\n  let l = 0, r = heights.length - 1, best = 0;\n  while (l < r) {\n    best = Math.max(best, Math.min(heights[l], heights[r]) * (r - l));\n    if (heights[l] < heights[r]) l++; else r--;\n  }\n  return best;\n}"
+      },
+      {
+        "prompt": "3SUM — the pattern's boss fight. Return all UNIQUE triplets summing to 0 (each triplet sorted ascending). Sort the array, fix one number, then run two pointers on the rest. Two dedup guards: skip repeated anchors, and skip repeated left values after a hit.",
+        "starter": "function threeSum(nums) {\n  // sort; for each anchor i: two-pointer the remainder; dedup both layers\n}",
+        "tests": "const norm = r => r.map(t => t.slice().sort((a,b)=>a-b)).sort((a,b)=> a[0]-b[0] || a[1]-b[1] || a[2]-b[2]);\ncheck('classic', () => {\n  expect(norm(threeSum([-1,0,1,2,-1,-4]))).toEqual([[-1,-1,2],[-1,0,1]]);\n});\ncheck('no solution', () => {\n  expect(threeSum([0,1,1])).toEqual([]);\n});\ncheck('all zeros once', () => {\n  expect(norm(threeSum([0,0,0,0]))).toEqual([[0,0,0]]);\n});",
+        "solution": "function threeSum(nums) {\n  nums = nums.slice().sort((a, b) => a - b);\n  const res = [];\n  for (let i = 0; i < nums.length - 2; i++) {\n    if (i > 0 && nums[i] === nums[i - 1]) continue;\n    let l = i + 1, r = nums.length - 1;\n    while (l < r) {\n      const sum = nums[i] + nums[l] + nums[r];\n      if (sum === 0) {\n        res.push([nums[i], nums[l], nums[r]]);\n        while (l < r && nums[l] === nums[l + 1]) l++;\n        while (l < r && nums[r] === nums[r - 1]) r--;\n        l++; r--;\n      } else if (sum < 0) l++;\n      else r--;\n    }\n  }\n  return res;\n}"
+      }
+    ]
+  },
+  "g-window": {
+    "exercises": [
+      {
+        "prompt": "MAX SUM OF K CONSECUTIVE (fixed window warm-up). Return the maximum sum of any k consecutive elements. Do NOT re-sum each window — add the entering element, subtract the leaving one.",
+        "starter": "function maxSumK(nums, k) {\n  // build first window, then slide: +enter, -leave\n}",
+        "tests": "check('classic', () => {\n  expect(maxSumK([2,1,5,1,3,2], 3)).toBe(9);\n});\ncheck('window = array', () => {\n  expect(maxSumK([2,3], 2)).toBe(5);\n});\ncheck('negatives', () => {\n  expect(maxSumK([-1,-2,-3,-4], 2)).toBe(-3);\n});",
+        "solution": "function maxSumK(nums, k) {\n  let sum = 0;\n  for (let i = 0; i < k; i++) sum += nums[i];\n  let best = sum;\n  for (let r = k; r < nums.length; r++) {\n    sum += nums[r] - nums[r - k];\n    best = Math.max(best, sum);\n  }\n  return best;\n}"
+      },
+      {
+        "prompt": "LONGEST SUBSTRING WITHOUT REPEATING CHARACTERS — the most famous sliding window. Variable window: expand right; on a repeat, evict from the left until clean. Track chars with a Set (or last-index Map for the jump optimization).",
+        "starter": "function lengthOfLongestSubstring(s) {\n  // window [l..r] with a Set of chars inside\n}",
+        "tests": "check('abcabcbb → 3', () => {\n  expect(lengthOfLongestSubstring('abcabcbb')).toBe(3);\n});\ncheck('bbbbb → 1', () => {\n  expect(lengthOfLongestSubstring('bbbbb')).toBe(1);\n});\ncheck('pwwkew → 3', () => {\n  expect(lengthOfLongestSubstring('pwwkew')).toBe(3);\n});\ncheck('empty → 0', () => {\n  expect(lengthOfLongestSubstring('')).toBe(0);\n});",
+        "solution": "function lengthOfLongestSubstring(s) {\n  const inWin = new Set();\n  let l = 0, best = 0;\n  for (let r = 0; r < s.length; r++) {\n    while (inWin.has(s[r])) { inWin.delete(s[l]); l++; }\n    inWin.add(s[r]);\n    best = Math.max(best, r - l + 1);\n  }\n  return best;\n}"
+      },
+      {
+        "prompt": "MINIMUM SIZE SUBARRAY SUM. Smallest length of a contiguous subarray with sum ≥ target (0 if none). Positive numbers only — which is exactly why shrink-while-valid works: expand right, then shrink left as long as the window still satisfies.",
+        "starter": "function minSubArrayLen(target, nums) {\n  // expand r; while sum >= target: record length, shrink l\n}",
+        "tests": "check('classic → 2', () => {\n  expect(minSubArrayLen(7, [2,3,1,2,4,3])).toBe(2);\n});\ncheck('single element wins', () => {\n  expect(minSubArrayLen(4, [1,4,4])).toBe(1);\n});\ncheck('impossible → 0', () => {\n  expect(minSubArrayLen(11, [1,1,1,1])).toBe(0);\n});",
+        "solution": "function minSubArrayLen(target, nums) {\n  let l = 0, sum = 0, best = Infinity;\n  for (let r = 0; r < nums.length; r++) {\n    sum += nums[r];\n    while (sum >= target) {\n      best = Math.min(best, r - l + 1);\n      sum -= nums[l]; l++;\n    }\n  }\n  return best === Infinity ? 0 : best;\n}"
+      },
+      {
+        "prompt": "LONGEST REPEATING CHARACTER REPLACEMENT (the separator question). Longest substring that becomes all-one-letter after at most k replacements. Window is valid while (length − count of the most frequent char) ≤ k. Track letter counts; maxFreq may be kept lazily (it never needs to shrink — think about why the answer stays correct).",
+        "starter": "function characterReplacement(s, k) {\n  // counts per letter; valid while (window - maxFreq) <= k\n}",
+        "tests": "check('ABAB k=2 → 4', () => {\n  expect(characterReplacement('ABAB', 2)).toBe(4);\n});\ncheck('AABABBA k=1 → 4', () => {\n  expect(characterReplacement('AABABBA', 1)).toBe(4);\n});\ncheck('all same', () => {\n  expect(characterReplacement('AAAA', 0)).toBe(4);\n});",
+        "solution": "function characterReplacement(s, k) {\n  const cnt = new Map();\n  let l = 0, maxFreq = 0, best = 0;\n  for (let r = 0; r < s.length; r++) {\n    cnt.set(s[r], (cnt.get(s[r]) ?? 0) + 1);\n    maxFreq = Math.max(maxFreq, cnt.get(s[r]));\n    while (r - l + 1 - maxFreq > k) {\n      cnt.set(s[l], cnt.get(s[l]) - 1);\n      l++;\n    }\n    best = Math.max(best, r - l + 1);\n  }\n  return best;\n}"
+      }
+    ]
+  },
+  "g-stack": {
+    "exercises": [
+      {
+        "prompt": "VALID PARENTHESES. Given a string of ()[]{}, is every bracket opened and closed in the right order? Push opens; on a close, the top of the stack must be its partner. End: stack empty.",
+        "starter": "function isValid(s) {\n  // pairs: ) -> ( , ] -> [ , } -> {\n}",
+        "tests": "check('simple pairs', () => {\n  expect(isValid('()[]{}')).toBe(true);\n});\ncheck('wrong nesting', () => {\n  expect(isValid('(]')).toBe(false);\n});\ncheck('proper nesting', () => {\n  expect(isValid('{[()]}')).toBe(true);\n});\ncheck('unclosed open', () => {\n  expect(isValid('((')).toBe(false);\n});",
+        "solution": "function isValid(s) {\n  const pair = { ')': '(', ']': '[', '}': '{' };\n  const st = [];\n  for (const c of s) {\n    if (c === '(' || c === '[' || c === '{') st.push(c);\n    else if (st.pop() !== pair[c]) return false;\n  }\n  return st.length === 0;\n}"
+      },
+      {
+        "prompt": "EVALUATE REVERSE POLISH NOTATION. tokens like ['2','1','+','3','*'] → ((2+1)*3) = 9. Numbers push; operators pop TWO (mind the order for - and /), compute, push back. Division truncates toward zero.",
+        "starter": "function evalRPN(tokens) {\n  // pop b, pop a, push a OP b\n}",
+        "tests": "check('(2+1)*3 = 9', () => {\n  expect(evalRPN(['2','1','+','3','*'])).toBe(9);\n});\ncheck('4+(13/5) = 6', () => {\n  expect(evalRPN(['4','13','5','/','+'])).toBe(6);\n});\ncheck('negative division truncates toward zero', () => {\n  expect(evalRPN(['7','-3','/'])).toBe(-2);\n});",
+        "solution": "function evalRPN(tokens) {\n  const st = [];\n  for (const t of tokens) {\n    if (t === '+' || t === '-' || t === '*' || t === '/') {\n      const b = st.pop(), a = st.pop();\n      let v;\n      if (t === '+') v = a + b;\n      else if (t === '-') v = a - b;\n      else if (t === '*') v = a * b;\n      else v = Math.trunc(a / b);\n      st.push(v);\n    } else st.push(Number(t));\n  }\n  return st[0];\n}"
+      },
+      {
+        "prompt": "DAILY TEMPERATURES (monotonic stack). For each day, how many days until a WARMER temperature? (0 if never.) Keep a stack of indices with decreasing temps; a warm arrival resolves everything colder on top.",
+        "starter": "function dailyTemperatures(temps) {\n  // stack of INDICES, strictly decreasing temps\n}",
+        "tests": "check('classic', () => {\n  expect(dailyTemperatures([73,74,75,71,69,72,76,73]))\n    .toEqual([1,1,4,2,1,1,0,0]);\n});\ncheck('strictly rising', () => {\n  expect(dailyTemperatures([30,40,50])).toEqual([1,1,0]);\n});\ncheck('strictly falling', () => {\n  expect(dailyTemperatures([50,40,30])).toEqual([0,0,0]);\n});",
+        "solution": "function dailyTemperatures(temps) {\n  const res = Array(temps.length).fill(0);\n  const st = [];\n  for (let i = 0; i < temps.length; i++) {\n    while (st.length && temps[i] > temps[st[st.length - 1]]) {\n      const j = st.pop();\n      res[j] = i - j;\n    }\n    st.push(i);\n  }\n  return res;\n}"
+      },
+      {
+        "prompt": "BUILD A MIN-STACK (design question — real hands-on). A stack supporting push, pop, top, AND getMin, all O(1). Trick: a second stack tracking the minimum at each depth (push min(x, currentMin) alongside).",
+        "starter": "class MinStack {\n  constructor() {\n    // main stack + min-tracking stack\n  }\n  push(x) {}\n  pop() {}\n  top() {}\n  getMin() {}\n}",
+        "tests": "check('tracks min through pushes and pops', () => {\n  const s = new MinStack();\n  s.push(-2); s.push(0); s.push(-3);\n  expect(s.getMin()).toBe(-3);\n  s.pop();\n  expect(s.top()).toBe(0);\n  expect(s.getMin()).toBe(-2);\n});\ncheck('min survives duplicate mins', () => {\n  const s = new MinStack();\n  s.push(1); s.push(1); s.pop();\n  expect(s.getMin()).toBe(1);\n});",
+        "solution": "class MinStack {\n  constructor() { this.a = []; this.mins = []; }\n  push(x) {\n    this.a.push(x);\n    const m = this.mins.length ? Math.min(x, this.mins[this.mins.length - 1]) : x;\n    this.mins.push(m);\n  }\n  pop() { this.mins.pop(); return this.a.pop(); }\n  top() { return this.a[this.a.length - 1]; }\n  getMin() { return this.mins[this.mins.length - 1]; }\n}"
+      }
+    ]
+  },
+  "g-binsearch": {
+    "exercises": [
+      {
+        "prompt": "CLASSIC BINARY SEARCH. Sorted array, return the index of target or -1. Write it from muscle memory: lo <= hi, mid = (lo+hi)>>1, three branches. This must take you under 3 minutes — it's the alphabet.",
+        "starter": "function search(nums, target) {\n  // lo <= hi loop\n}",
+        "tests": "check('finds middle-ish', () => {\n  expect(search([-1,0,3,5,9,12], 9)).toBe(4);\n});\ncheck('missing → -1', () => {\n  expect(search([-1,0,3,5,9,12], 2)).toBe(-1);\n});\ncheck('single hit', () => {\n  expect(search([5], 5)).toBe(0);\n});\ncheck('first element', () => {\n  expect(search([2,4,6], 2)).toBe(0);\n});",
+        "solution": "function search(nums, target) {\n  let lo = 0, hi = nums.length - 1;\n  while (lo <= hi) {\n    const mid = (lo + hi) >> 1;\n    if (nums[mid] === target) return mid;\n    if (nums[mid] < target) lo = mid + 1;\n    else hi = mid - 1;\n  }\n  return -1;\n}"
+      },
+      {
+        "prompt": "LEFTMOST TRUE (lower bound) — the boundary skeleton. Given a sorted array, return the index of the FIRST element >= target (array length if none). This is the lo < hi converging form — the shape behind firstBadVersion, insert position, and every search-the-answer problem.",
+        "starter": "function lowerBound(nums, target) {\n  // lo < hi; hi = mid when nums[mid] >= target\n}",
+        "tests": "check('first >= 5 in [1,3,5,5,7]', () => {\n  expect(lowerBound([1,3,5,5,7], 5)).toBe(2);\n});\ncheck('between values → insertion point', () => {\n  expect(lowerBound([1,3,5,7], 4)).toBe(2);\n});\ncheck('bigger than all → length', () => {\n  expect(lowerBound([1,3], 9)).toBe(2);\n});\ncheck('smaller than all → 0', () => {\n  expect(lowerBound([4,5], 1)).toBe(0);\n});",
+        "solution": "function lowerBound(nums, target) {\n  let lo = 0, hi = nums.length;\n  while (lo < hi) {\n    const mid = (lo + hi) >> 1;\n    if (nums[mid] >= target) hi = mid;\n    else lo = mid + 1;\n  }\n  return lo;\n}"
+      },
+      {
+        "prompt": "SEARCH IN ROTATED SORTED ARRAY. [4,5,6,7,0,1,2] is sorted-then-rotated; find target in O(log n). At every mid, ONE half is guaranteed sorted — check which, then test if target lies inside that sorted half to pick a side.",
+        "starter": "function searchRotated(nums, target) {\n  // which half is sorted? is target in it?\n}",
+        "tests": "check('target after pivot', () => {\n  expect(searchRotated([4,5,6,7,0,1,2], 0)).toBe(4);\n});\ncheck('target before pivot', () => {\n  expect(searchRotated([4,5,6,7,0,1,2], 5)).toBe(1);\n});\ncheck('missing', () => {\n  expect(searchRotated([4,5,6,7,0,1,2], 3)).toBe(-1);\n});\ncheck('no rotation', () => {\n  expect(searchRotated([1,2,3], 3)).toBe(2);\n});",
+        "solution": "function searchRotated(nums, target) {\n  let lo = 0, hi = nums.length - 1;\n  while (lo <= hi) {\n    const mid = (lo + hi) >> 1;\n    if (nums[mid] === target) return mid;\n    if (nums[lo] <= nums[mid]) {\n      if (nums[lo] <= target && target < nums[mid]) hi = mid - 1;\n      else lo = mid + 1;\n    } else {\n      if (nums[mid] < target && target <= nums[hi]) lo = mid + 1;\n      else hi = mid - 1;\n    }\n  }\n  return -1;\n}"
+      },
+      {
+        "prompt": "KOKO EATING BANANAS (search the ANSWER). piles of bananas, h hours; find the minimum eating speed k (bananas/hour) to finish in time — each hour she eats from one pile, ceil(pile/k) hours per pile. The answer space 1..max(piles) is monotonic: binary search it with a works(k) predicate.",
+        "starter": "function minEatingSpeed(piles, h) {\n  // hours(k) = sum of ceil(pile / k); binary search smallest k with hours <= h\n}",
+        "tests": "check('classic → 4', () => {\n  expect(minEatingSpeed([3,6,7,11], 8)).toBe(4);\n});\ncheck('tight time → max pile', () => {\n  expect(minEatingSpeed([30,11,23,4,20], 5)).toBe(30);\n});\ncheck('loose time → slower works', () => {\n  expect(minEatingSpeed([30,11,23,4,20], 6)).toBe(23);\n});",
+        "solution": "function minEatingSpeed(piles, h) {\n  const hours = k => piles.reduce((s, p) => s + Math.ceil(p / k), 0);\n  let lo = 1, hi = Math.max(...piles);\n  while (lo < hi) {\n    const mid = (lo + hi) >> 1;\n    if (hours(mid) <= h) hi = mid;\n    else lo = mid + 1;\n  }\n  return lo;\n}"
+      }
+    ]
+  },
+  "g-list": {
+    "exercises": [
+      {
+        "prompt": "REVERSE A LINKED LIST — the rite of passage. Nodes are { val, next }. Reverse in place with prev/curr/next; return the new head. The tests build chains for you and decode your result back to an array.",
+        "starter": "function reverseList(head) {\n  // prev = null; flip one arrow per step\n}",
+        "tests": "function L(...v){ let h=null; for(let i=v.length-1;i>=0;i--) h={val:v[i],next:h}; return h; }\nfunction A(h){ const o=[]; while(h){o.push(h.val); h=h.next;} return o; }\ncheck('reverses 1..5', () => {\n  expect(A(reverseList(L(1,2,3,4,5)))).toEqual([5,4,3,2,1]);\n});\ncheck('single node', () => {\n  expect(A(reverseList(L(7)))).toEqual([7]);\n});\ncheck('empty list', () => {\n  expect(reverseList(null)).toBe(null);\n});",
+        "solution": "function reverseList(head) {\n  let prev = null, curr = head;\n  while (curr) {\n    const next = curr.next;\n    curr.next = prev;\n    prev = curr;\n    curr = next;\n  }\n  return prev;\n}"
+      },
+      {
+        "prompt": "MIDDLE OF THE LINKED LIST (fast & slow runners). Return the middle node's VALUE; for even lengths return the second middle. Fast moves 2, slow moves 1 — when fast falls off, slow stands in the middle.",
+        "starter": "function middleValue(head) {\n  // slow 1 step, fast 2 steps\n}",
+        "tests": "function L(...v){ let h=null; for(let i=v.length-1;i>=0;i--) h={val:v[i],next:h}; return h; }\ncheck('odd length → exact middle', () => {\n  expect(middleValue(L(1,2,3,4,5))).toBe(3);\n});\ncheck('even length → second middle', () => {\n  expect(middleValue(L(1,2,3,4,5,6))).toBe(4);\n});\ncheck('single', () => {\n  expect(middleValue(L(9))).toBe(9);\n});",
+        "solution": "function middleValue(head) {\n  let slow = head, fast = head;\n  while (fast && fast.next) {\n    slow = slow.next;\n    fast = fast.next.next;\n  }\n  return slow.val;\n}"
+      },
+      {
+        "prompt": "MERGE TWO SORTED LISTS (the zipper). Splice two ascending { val, next } lists into one sorted list. Use a dummy head so you never special-case the first node — say 'dummy node' out loud in interviews; it's a fluency signal.",
+        "starter": "function mergeTwoLists(a, b) {\n  // dummy head + tail pointer; attach the smaller node each step\n}",
+        "tests": "function L(...v){ let h=null; for(let i=v.length-1;i>=0;i--) h={val:v[i],next:h}; return h; }\nfunction A(h){ const o=[]; while(h){o.push(h.val); h=h.next;} return o; }\ncheck('interleaved', () => {\n  expect(A(mergeTwoLists(L(1,2,4), L(1,3,4)))).toEqual([1,1,2,3,4,4]);\n});\ncheck('one empty', () => {\n  expect(A(mergeTwoLists(null, L(0)))).toEqual([0]);\n});\ncheck('both empty', () => {\n  expect(mergeTwoLists(null, null)).toBe(null);\n});",
+        "solution": "function mergeTwoLists(a, b) {\n  const dummy = { val: 0, next: null };\n  let tail = dummy;\n  while (a && b) {\n    if (a.val <= b.val) { tail.next = a; a = a.next; }\n    else { tail.next = b; b = b.next; }\n    tail = tail.next;\n  }\n  tail.next = a || b;\n  return dummy.next;\n}"
+      },
+      {
+        "prompt": "LINKED LIST CYCLE (Floyd's runners). Return true if the list loops. Fast gains exactly one node per step on slow inside a cycle — they MUST meet. The tests hand-build a cycle; your job is just the two runners.",
+        "starter": "function hasCycle(head) {\n  // fast 2, slow 1; meeting => cycle\n}",
+        "tests": "function L(...v){ let h=null; for(let i=v.length-1;i>=0;i--) h={val:v[i],next:h}; return h; }\ncheck('straight list → false', () => {\n  expect(hasCycle(L(1,2,3,4))).toBe(false);\n});\ncheck('tail loops to middle → true', () => {\n  const a={val:3,next:null}, b={val:2,next:null}, c={val:0,next:null}, d={val:-4,next:null};\n  a.next=b; b.next=c; c.next=d; d.next=b;\n  expect(hasCycle(a)).toBe(true);\n});\ncheck('single self-loop → true', () => {\n  const n={val:1,next:null}; n.next=n;\n  expect(hasCycle(n)).toBe(true);\n});\ncheck('empty → false', () => {\n  expect(hasCycle(null)).toBe(false);\n});",
+        "solution": "function hasCycle(head) {\n  let slow = head, fast = head;\n  while (fast && fast.next) {\n    slow = slow.next;\n    fast = fast.next.next;\n    if (slow === fast) return true;\n  }\n  return false;\n}"
+      }
+    ]
+  },
+  "g-tree-dfs": {
+    "exercises": [
+      {
+        "prompt": "MAXIMUM DEPTH OF A BINARY TREE. Nodes are { val, left, right } (null = empty). The purest recursion: depth = 1 + max(depth(left), depth(right)). Three lines. Feel the shape — every tree problem is a remix of it.",
+        "starter": "function maxDepth(root) {\n  // base: null → 0\n}",
+        "tests": "const T = (val, left = null, right = null) => ({ val, left, right });\ncheck('classic depth 3', () => {\n  expect(maxDepth(T(3, T(9), T(20, T(15), T(7))))).toBe(3);\n});\ncheck('left-skewed', () => {\n  expect(maxDepth(T(1, T(2, T(3))))).toBe(3);\n});\ncheck('empty → 0', () => {\n  expect(maxDepth(null)).toBe(0);\n});",
+        "solution": "function maxDepth(root) {\n  if (!root) return 0;\n  return 1 + Math.max(maxDepth(root.left), maxDepth(root.right));\n}"
+      },
+      {
+        "prompt": "SAME TREE. Are two trees structurally identical with equal values? Recursion over PAIRS of nodes: both null → true; one null or values differ → false; else recurse on both sides.",
+        "starter": "function isSameTree(p, q) {\n  // compare the pair, then the children pairs\n}",
+        "tests": "const T = (val, left = null, right = null) => ({ val, left, right });\ncheck('identical', () => {\n  expect(isSameTree(T(1, T(2), T(3)), T(1, T(2), T(3)))).toBe(true);\n});\ncheck('different structure', () => {\n  expect(isSameTree(T(1, T(2)), T(1, null, T(2)))).toBe(false);\n});\ncheck('different values', () => {\n  expect(isSameTree(T(1, T(2), T(1)), T(1, T(1), T(2)))).toBe(false);\n});\ncheck('both empty', () => {\n  expect(isSameTree(null, null)).toBe(true);\n});",
+        "solution": "function isSameTree(p, q) {\n  if (!p && !q) return true;\n  if (!p || !q || p.val !== q.val) return false;\n  return isSameTree(p.left, q.left) && isSameTree(p.right, q.right);\n}"
+      },
+      {
+        "prompt": "VALIDATE BINARY SEARCH TREE — the famous trap question. Every node must be within an inherited (lo, hi) RANGE, not just bigger/smaller than its parent. The tree [5, 4, 6, null, null, 3, 7] defeats the naive parent-check: 3 < 6 locally, but 3 < 5 globally. Pass the range down.",
+        "starter": "function isValidBST(root, lo = -Infinity, hi = Infinity) {\n  // node.val must be strictly inside (lo, hi)\n}",
+        "tests": "const T = (val, left = null, right = null) => ({ val, left, right });\ncheck('valid small BST', () => {\n  expect(isValidBST(T(2, T(1), T(3)))).toBe(true);\n});\ncheck('the grandchild trap', () => {\n  expect(isValidBST(T(5, T(4), T(6, T(3), T(7))))).toBe(false);\n});\ncheck('equal values are invalid', () => {\n  expect(isValidBST(T(2, T(2)))).toBe(false);\n});\ncheck('single node', () => {\n  expect(isValidBST(T(1))).toBe(true);\n});",
+        "solution": "function isValidBST(root, lo = -Infinity, hi = Infinity) {\n  if (!root) return true;\n  if (root.val <= lo || root.val >= hi) return false;\n  return isValidBST(root.left, lo, root.val) &&\n         isValidBST(root.right, root.val, hi);\n}"
+      },
+      {
+        "prompt": "LOWEST COMMON ANCESTOR IN A BST. Return the VALUE of the lowest node that has both p and q in its subtree (a node counts as its own ancestor). Use the BST property to steer: both smaller → go left; both bigger → go right; otherwise you're standing on the split point — the answer.",
+        "starter": "function lcaBST(root, p, q) {\n  // walk down; the first 'split' is the LCA\n}",
+        "tests": "const T = (val, left = null, right = null) => ({ val, left, right });\nconst tree = T(6, T(2, T(0), T(4, T(3), T(5))), T(8, T(7), T(9)));\ncheck('split at root', () => {\n  expect(lcaBST(tree, 2, 8)).toBe(6);\n});\ncheck('ancestor of itself', () => {\n  expect(lcaBST(tree, 2, 4)).toBe(2);\n});\ncheck('deep split', () => {\n  expect(lcaBST(tree, 3, 5)).toBe(4);\n});",
+        "solution": "function lcaBST(root, p, q) {\n  let node = root;\n  while (node) {\n    if (p < node.val && q < node.val) node = node.left;\n    else if (p > node.val && q > node.val) node = node.right;\n    else return node.val;\n  }\n}"
+      }
+    ]
+  },
+  "g-tree-bfs": {
+    "exercises": [
+      {
+        "prompt": "BINARY TREE LEVEL ORDER TRAVERSAL — the BFS skeleton itself. Return values grouped by level: [[3],[9,20],[15,7]]. The one critical line: freeze the queue length BEFORE the inner loop, or levels bleed together.",
+        "starter": "function levelOrder(root) {\n  // queue + size snapshot per level\n}",
+        "tests": "const T = (val, left = null, right = null) => ({ val, left, right });\ncheck('classic levels', () => {\n  expect(levelOrder(T(3, T(9), T(20, T(15), T(7)))))\n    .toEqual([[3],[9,20],[15,7]]);\n});\ncheck('single node', () => {\n  expect(levelOrder(T(1))).toEqual([[1]]);\n});\ncheck('empty', () => {\n  expect(levelOrder(null)).toEqual([]);\n});",
+        "solution": "function levelOrder(root) {\n  if (!root) return [];\n  const res = [], q = [root];\n  while (q.length) {\n    const size = q.length, level = [];\n    for (let i = 0; i < size; i++) {\n      const n = q.shift();\n      level.push(n.val);\n      if (n.left) q.push(n.left);\n      if (n.right) q.push(n.right);\n    }\n    res.push(level);\n  }\n  return res;\n}"
+      },
+      {
+        "prompt": "RIGHT SIDE VIEW. Standing to the right of the tree, which values do you see top-to-bottom? It's level order keeping only each level's LAST element — a one-line twist on the skeleton you just wrote.",
+        "starter": "function rightSideView(root) {\n  // last node of each BFS level\n}",
+        "tests": "const T = (val, left = null, right = null) => ({ val, left, right });\ncheck('mixed depths', () => {\n  expect(rightSideView(T(1, T(2, null, T(5)), T(3, null, T(4))))).toEqual([1,3,4]);\n});\ncheck('left children peek out', () => {\n  expect(rightSideView(T(1, T(2, T(4)), T(3)))).toEqual([1,3,4]);\n});\ncheck('empty', () => {\n  expect(rightSideView(null)).toEqual([]);\n});",
+        "solution": "function rightSideView(root) {\n  if (!root) return [];\n  const res = [], q = [root];\n  while (q.length) {\n    const size = q.length;\n    for (let i = 0; i < size; i++) {\n      const n = q.shift();\n      if (i === size - 1) res.push(n.val);\n      if (n.left) q.push(n.left);\n      if (n.right) q.push(n.right);\n    }\n  }\n  return res;\n}"
+      },
+      {
+        "prompt": "MINIMUM DEPTH (why BFS beats DFS for 'nearest'). Shortest path from root to the FIRST leaf (a node with no children). BFS returns the moment it meets a leaf — it never explores deeper than the answer. Careful: a node with one child is NOT a leaf (the [2 → 3 → 4...] chain trap).",
+        "starter": "function minDepth(root) {\n  // BFS; return depth at the first leaf\n}",
+        "tests": "const T = (val, left = null, right = null) => ({ val, left, right });\ncheck('classic → 2', () => {\n  expect(minDepth(T(3, T(9), T(20, T(15), T(7))))).toBe(2);\n});\ncheck('one-sided chain is NOT depth 1', () => {\n  expect(minDepth(T(2, null, T(3, null, T(4))))).toBe(3);\n});\ncheck('single node', () => {\n  expect(minDepth(T(1))).toBe(1);\n});",
+        "solution": "function minDepth(root) {\n  if (!root) return 0;\n  const q = [root];\n  let depth = 1;\n  while (q.length) {\n    const size = q.length;\n    for (let i = 0; i < size; i++) {\n      const n = q.shift();\n      if (!n.left && !n.right) return depth;\n      if (n.left) q.push(n.left);\n      if (n.right) q.push(n.right);\n    }\n    depth++;\n  }\n}"
+      }
+    ]
+  },
+  "g-graph": {
+    "exercises": [
+      {
+        "prompt": "NUMBER OF ISLANDS — THE grid question. grid of '1' (land) / '0' (water); count connected islands (4-directional). Scan every cell; on unvisited land, count it and flood-fill (sink) the whole island so it's never counted again. The grid may be mutated.",
+        "starter": "function numIslands(grid) {\n  // for each '1': count++, then sink the island via DFS\n}",
+        "tests": "check('one big island', () => {\n  expect(numIslands([\n    ['1','1','1','1','0'],\n    ['1','1','0','1','0'],\n    ['1','1','0','0','0'],\n    ['0','0','0','0','0'],\n  ])).toBe(1);\n});\ncheck('three islands', () => {\n  expect(numIslands([\n    ['1','1','0','0','0'],\n    ['1','1','0','0','0'],\n    ['0','0','1','0','0'],\n    ['0','0','0','1','1'],\n  ])).toBe(3);\n});\ncheck('all water', () => {\n  expect(numIslands([['0','0'],['0','0']])).toBe(0);\n});",
+        "solution": "function numIslands(grid) {\n  const R = grid.length, C = grid[0].length;\n  function sink(r, c) {\n    if (r < 0 || c < 0 || r >= R || c >= C || grid[r][c] !== '1') return;\n    grid[r][c] = '0';\n    sink(r+1, c); sink(r-1, c); sink(r, c+1); sink(r, c-1);\n  }\n  let count = 0;\n  for (let r = 0; r < R; r++)\n    for (let c = 0; c < C; c++)\n      if (grid[r][c] === '1') { count++; sink(r, c); }\n  return count;\n}"
+      },
+      {
+        "prompt": "ROTTING ORANGES (multi-source BFS). Grid: 0 empty, 1 fresh, 2 rotten. Every minute, rot spreads to adjacent fresh oranges. Return minutes until none fresh (-1 if unreachable). Seed the queue with ALL rotten oranges at minute 0 — the wave spreads from every source at once; minutes = BFS levels.",
+        "starter": "function orangesRotting(grid) {\n  // queue all 2s; count fresh; BFS levels = minutes\n}",
+        "tests": "check('classic → 4', () => {\n  expect(orangesRotting([[2,1,1],[1,1,0],[0,1,1]])).toBe(4);\n});\ncheck('unreachable fresh → -1', () => {\n  expect(orangesRotting([[2,1,1],[0,1,1],[1,0,1]])).toBe(-1);\n});\ncheck('no fresh at all → 0', () => {\n  expect(orangesRotting([[0,2]])).toBe(0);\n});",
+        "solution": "function orangesRotting(grid) {\n  const R = grid.length, C = grid[0].length;\n  let q = [], fresh = 0;\n  for (let r = 0; r < R; r++)\n    for (let c = 0; c < C; c++) {\n      if (grid[r][c] === 2) q.push([r, c]);\n      else if (grid[r][c] === 1) fresh++;\n    }\n  let minutes = 0;\n  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];\n  while (q.length && fresh > 0) {\n    const next = [];\n    for (const [r, c] of q) {\n      for (const [dr, dc] of dirs) {\n        const nr = r + dr, nc = c + dc;\n        if (nr >= 0 && nc >= 0 && nr < R && nc < C && grid[nr][nc] === 1) {\n          grid[nr][nc] = 2; fresh--; next.push([nr, nc]);\n        }\n      }\n    }\n    q = next; minutes++;\n  }\n  return fresh === 0 ? minutes : -1;\n}"
+      },
+      {
+        "prompt": "COURSE SCHEDULE (topological sort / cycle detection). numCourses and prerequisites [[a,b]] meaning b must come before a. Can you finish them all? Kahn's algorithm: compute indegrees, repeatedly take zero-indegree courses; if you process fewer than numCourses, a cycle blocks you.",
+        "starter": "function canFinish(numCourses, prerequisites) {\n  // adjacency + indegree; queue the zero-indegree nodes\n}",
+        "tests": "check('linear chain → true', () => {\n  expect(canFinish(2, [[1,0]])).toBe(true);\n});\ncheck('mutual dependency → false', () => {\n  expect(canFinish(2, [[1,0],[0,1]])).toBe(false);\n});\ncheck('diamond → true', () => {\n  expect(canFinish(4, [[1,0],[2,0],[3,1],[3,2]])).toBe(true);\n});\ncheck('no prerequisites → true', () => {\n  expect(canFinish(3, [])).toBe(true);\n});",
+        "solution": "function canFinish(numCourses, prerequisites) {\n  const adj = Array.from({ length: numCourses }, () => []);\n  const indeg = Array(numCourses).fill(0);\n  for (const [a, b] of prerequisites) { adj[b].push(a); indeg[a]++; }\n  const q = [];\n  for (let i = 0; i < numCourses; i++) if (indeg[i] === 0) q.push(i);\n  let done = 0;\n  while (q.length) {\n    const u = q.shift(); done++;\n    for (const v of adj[u]) if (--indeg[v] === 0) q.push(v);\n  }\n  return done === numCourses;\n}"
+      }
+    ]
+  },
+  "g-heap": {
+    "exercises": [
+      {
+        "prompt": "BUILD A MIN-HEAP — from memory, no peeking at the card. Array-backed: parent (i-1)>>1, children 2i+1 / 2i+2. push = append + bubble up; pop = swap root with last + sift down. This class is your weapon for every top-k question that follows.",
+        "starter": "class MinHeap {\n  constructor() { this.a = []; }\n  size() { return this.a.length; }\n  peek() { return this.a[0]; }\n  push(x) {\n    // append, bubble up\n  }\n  pop() {\n    // save root, move last to root, sift down, return root\n  }\n}",
+        "tests": "check('pops in ascending order', () => {\n  const h = new MinHeap();\n  [5,3,8,1,9,2].forEach(x => h.push(x));\n  const out = [];\n  while (h.size()) out.push(h.pop());\n  expect(out).toEqual([1,2,3,5,8,9]);\n});\ncheck('peek does not remove', () => {\n  const h = new MinHeap();\n  h.push(4); h.push(2);\n  expect(h.peek()).toBe(2);\n  expect(h.size()).toBe(2);\n});\ncheck('handles duplicates', () => {\n  const h = new MinHeap();\n  [3,3,1].forEach(x => h.push(x));\n  expect(h.pop()).toBe(1);\n  expect(h.pop()).toBe(3);\n  expect(h.pop()).toBe(3);\n});",
+        "solution": "class MinHeap {\n  constructor() { this.a = []; }\n  size() { return this.a.length; }\n  peek() { return this.a[0]; }\n  push(x) {\n    this.a.push(x);\n    let i = this.a.length - 1;\n    while (i > 0) {\n      const p = (i - 1) >> 1;\n      if (this.a[p] <= this.a[i]) break;\n      [this.a[p], this.a[i]] = [this.a[i], this.a[p]];\n      i = p;\n    }\n  }\n  pop() {\n    const top = this.a[0], last = this.a.pop();\n    if (this.a.length) {\n      this.a[0] = last;\n      let i = 0;\n      while (true) {\n        const l = 2*i+1, r = 2*i+2;\n        let m = i;\n        if (l < this.a.length && this.a[l] < this.a[m]) m = l;\n        if (r < this.a.length && this.a[r] < this.a[m]) m = r;\n        if (m === i) break;\n        [this.a[m], this.a[i]] = [this.a[i], this.a[m]];\n        i = m;\n      }\n    }\n    return top;\n  }\n}"
+      },
+      {
+        "prompt": "KTH LARGEST ELEMENT. Find the kth largest WITHOUT fully sorting: min-heap capped at size k — push each number, pop when size exceeds k. Survivors are the k largest; the root is the kth. O(n log k). (A MinHeap is provided in the starter.)",
+        "starter": "class MinHeap {\n  constructor() { this.a = []; }\n  size() { return this.a.length; }\n  peek() { return this.a[0]; }\n  push(x) {\n    this.a.push(x);\n    let i = this.a.length - 1;\n    while (i > 0) {\n      const p = (i - 1) >> 1;\n      if (this.a[p] <= this.a[i]) break;\n      [this.a[p], this.a[i]] = [this.a[i], this.a[p]]; i = p;\n    }\n  }\n  pop() {\n    const top = this.a[0], last = this.a.pop();\n    if (this.a.length) {\n      this.a[0] = last;\n      let i = 0;\n      while (true) {\n        const l = 2*i+1, r = 2*i+2; let m = i;\n        if (l < this.a.length && this.a[l] < this.a[m]) m = l;\n        if (r < this.a.length && this.a[r] < this.a[m]) m = r;\n        if (m === i) break;\n        [this.a[m], this.a[i]] = [this.a[i], this.a[m]]; i = m;\n      }\n    }\n    return top;\n  }\n}\n\nfunction findKthLargest(nums, k) {\n  // size-k min-heap; the floor of the survivors is the answer\n}",
+        "tests": "check('classic → 5', () => {\n  expect(findKthLargest([3,2,1,5,6,4], 2)).toBe(5);\n});\ncheck('with duplicates → 4', () => {\n  expect(findKthLargest([3,2,3,1,2,4,5,5,6], 4)).toBe(4);\n});\ncheck('k = length → minimum', () => {\n  expect(findKthLargest([7,7,7], 3)).toBe(7);\n});",
+        "solution": "class MinHeap {\n  constructor() { this.a = []; }\n  size() { return this.a.length; }\n  peek() { return this.a[0]; }\n  push(x) {\n    this.a.push(x);\n    let i = this.a.length - 1;\n    while (i > 0) {\n      const p = (i - 1) >> 1;\n      if (this.a[p] <= this.a[i]) break;\n      [this.a[p], this.a[i]] = [this.a[i], this.a[p]]; i = p;\n    }\n  }\n  pop() {\n    const top = this.a[0], last = this.a.pop();\n    if (this.a.length) {\n      this.a[0] = last;\n      let i = 0;\n      while (true) {\n        const l = 2*i+1, r = 2*i+2; let m = i;\n        if (l < this.a.length && this.a[l] < this.a[m]) m = l;\n        if (r < this.a.length && this.a[r] < this.a[m]) m = r;\n        if (m === i) break;\n        [this.a[m], this.a[i]] = [this.a[i], this.a[m]]; i = m;\n      }\n    }\n    return top;\n  }\n}\n\nfunction findKthLargest(nums, k) {\n  const h = new MinHeap();\n  for (const x of nums) {\n    h.push(x);\n    if (h.size() > k) h.pop();\n  }\n  return h.peek();\n}"
+      },
+      {
+        "prompt": "K CLOSEST POINTS TO ORIGIN. points [[x,y],...] — return the k closest to (0,0) (any order; compare squared distance, no sqrt needed). Same capped-heap idea — but now you need a MAX-heap of size k (farthest falls out). Trick: reuse a min-heap by pushing NEGATED distances, or write the comparator inline.",
+        "starter": "function kClosest(points, k) {\n  // size-k 'worst out' heap over squared distances\n  // (sorting is acceptable to pass, but try the heap for the real win)\n}",
+        "tests": "const norm = pts => pts.map(p => p.join(',')).sort();\ncheck('classic', () => {\n  expect(norm(kClosest([[1,3],[-2,2]], 1))).toEqual(norm([[-2,2]]));\n});\ncheck('two of three', () => {\n  expect(norm(kClosest([[3,3],[5,-1],[-2,4]], 2))).toEqual(norm([[3,3],[-2,4]]));\n});\ncheck('k = all', () => {\n  expect(kClosest([[0,1]], 1)).toEqual([[0,1]]);\n});",
+        "solution": "function kClosest(points, k) {\n  // max-heap of size k via negated squared distance on an array-backed heap\n  const a = []; // entries: [negDist, point]\n  const push = (e) => {\n    a.push(e);\n    let i = a.length - 1;\n    while (i > 0) {\n      const p = (i - 1) >> 1;\n      if (a[p][0] <= a[i][0]) break;\n      [a[p], a[i]] = [a[i], a[p]]; i = p;\n    }\n  };\n  const pop = () => {\n    const top = a[0], last = a.pop();\n    if (a.length) {\n      a[0] = last;\n      let i = 0;\n      while (true) {\n        const l = 2*i+1, r = 2*i+2; let m = i;\n        if (l < a.length && a[l][0] < a[m][0]) m = l;\n        if (r < a.length && a[r][0] < a[m][0]) m = r;\n        if (m === i) break;\n        [a[m], a[i]] = [a[i], a[m]]; i = m;\n      }\n    }\n    return top;\n  };\n  for (const p of points) {\n    push([-(p[0]*p[0] + p[1]*p[1]), p]);\n    if (a.length > k) pop();\n  }\n  return a.map(e => e[1]);\n}"
+      }
+    ]
+  },
+  "g-backtrack": {
+    "exercises": [
+      {
+        "prompt": "SUBSETS (the backtracking skeleton). Return ALL subsets of an array of unique numbers. Every node in the decision tree IS an answer — record a COPY of the path on entry, then branch with start=i+1. Feel the push → recurse → pop rhythm; it's the whole pattern.",
+        "starter": "function subsets(nums) {\n  // res, path, dfs(start)\n}",
+        "tests": "const norm = r => r.map(s => s.slice().sort((a,b)=>a-b)).sort((a,b) => a.length - b.length || String(a).localeCompare(String(b)));\ncheck('all 8 subsets of [1,2,3]', () => {\n  expect(norm(subsets([1,2,3]))).toEqual(norm([[],[1],[2],[3],[1,2],[1,3],[2,3],[1,2,3]]));\n});\ncheck('empty input → [[]]', () => {\n  expect(subsets([])).toEqual([[]]);\n});\ncheck('count is 2^n', () => {\n  expect(subsets([1,2,3,4]).length).toBe(16);\n});",
+        "solution": "function subsets(nums) {\n  const res = [], path = [];\n  function dfs(start) {\n    res.push([...path]);\n    for (let i = start; i < nums.length; i++) {\n      path.push(nums[i]);\n      dfs(i + 1);\n      path.pop();\n    }\n  }\n  dfs(0);\n  return res;\n}"
+      },
+      {
+        "prompt": "PERMUTATIONS. All orderings of distinct numbers. The twist vs subsets: loop from 0 every time, with a used[] array so each element appears once per path. Record only FULL-LENGTH paths.",
+        "starter": "function permute(nums) {\n  // used[] + path; record when path.length === nums.length\n}",
+        "tests": "const norm = r => r.map(p => p.join(',')).sort();\ncheck('all 6 of [1,2,3]', () => {\n  expect(norm(permute([1,2,3]))).toEqual(norm([[1,2,3],[1,3,2],[2,1,3],[2,3,1],[3,1,2],[3,2,1]]));\n});\ncheck('single', () => {\n  expect(permute([1])).toEqual([[1]]);\n});\ncheck('count is n!', () => {\n  expect(permute([1,2,3,4]).length).toBe(24);\n});",
+        "solution": "function permute(nums) {\n  const res = [], path = [], used = Array(nums.length).fill(false);\n  function dfs() {\n    if (path.length === nums.length) { res.push([...path]); return; }\n    for (let i = 0; i < nums.length; i++) {\n      if (used[i]) continue;\n      used[i] = true; path.push(nums[i]);\n      dfs();\n      path.pop(); used[i] = false;\n    }\n  }\n  dfs();\n  return res;\n}"
+      },
+      {
+        "prompt": "COMBINATION SUM. Unique candidates, unlimited reuse; return all unique combinations summing to target. The reuse twist: recurse with i (NOT i+1) so a number can pick itself again. Prune: sort first, break when the candidate exceeds the remaining target.",
+        "starter": "function combinationSum(candidates, target) {\n  // dfs(start, remaining); reuse via dfs(i, ...)\n}",
+        "tests": "const norm = r => r.map(c => c.slice().sort((a,b)=>a-b)).sort((a,b)=>String(a).localeCompare(String(b)));\ncheck('classic', () => {\n  expect(norm(combinationSum([2,3,6,7], 7))).toEqual(norm([[2,2,3],[7]]));\n});\ncheck('multiple shapes', () => {\n  expect(norm(combinationSum([2,3,5], 8))).toEqual(norm([[2,2,2,2],[2,3,3],[3,5]]));\n});\ncheck('impossible → []', () => {\n  expect(combinationSum([2], 1)).toEqual([]);\n});",
+        "solution": "function combinationSum(candidates, target) {\n  const cand = candidates.slice().sort((a, b) => a - b);\n  const res = [], path = [];\n  function dfs(start, remaining) {\n    if (remaining === 0) { res.push([...path]); return; }\n    for (let i = start; i < cand.length; i++) {\n      if (cand[i] > remaining) break;\n      path.push(cand[i]);\n      dfs(i, remaining - cand[i]);\n      path.pop();\n    }\n  }\n  dfs(0, target);\n  return res;\n}"
+      }
+    ]
+  },
+  "g-dp1": {
+    "exercises": [
+      {
+        "prompt": "CLIMBING STAIRS — DP's 'hello world'. n steps, hop 1 or 2 at a time; how many distinct ways up? State: dp[i] = ways to stand on step i. Transition: dp[i] = dp[i-1] + dp[i-2] (the last hop was 1 or 2). Roll it to two variables: O(1) space.",
+        "starter": "function climbStairs(n) {\n  // two rolling variables\n}",
+        "tests": "check('n=2 → 2', () => {\n  expect(climbStairs(2)).toBe(2);\n});\ncheck('n=3 → 3', () => {\n  expect(climbStairs(3)).toBe(3);\n});\ncheck('n=5 → 8 (fibonacci in disguise)', () => {\n  expect(climbStairs(5)).toBe(8);\n});\ncheck('n=1 → 1', () => {\n  expect(climbStairs(1)).toBe(1);\n});",
+        "solution": "function climbStairs(n) {\n  let a = 1, b = 1;\n  for (let i = 2; i <= n; i++) [a, b] = [b, a + b];\n  return b;\n}"
+      },
+      {
+        "prompt": "HOUSE ROBBER. Max loot from a row of houses where adjacent houses can't both be robbed. State: best up to house i. The one-line decision at every house: skip me (dp[i-1]) or take me plus best-two-ago (dp[i-2] + nums[i]).",
+        "starter": "function rob(nums) {\n  // rolling pair: (best excluding prev, best including up to prev)\n}",
+        "tests": "check('classic → 4', () => {\n  expect(rob([1,2,3,1])).toBe(4);\n});\ncheck('skip middle → 12', () => {\n  expect(rob([2,7,9,3,1])).toBe(12);\n});\ncheck('single house', () => {\n  expect(rob([5])).toBe(5);\n});\ncheck('two houses → max', () => {\n  expect(rob([2,10])).toBe(10);\n});",
+        "solution": "function rob(nums) {\n  let prev2 = 0, prev1 = 0;\n  for (const x of nums) {\n    [prev2, prev1] = [prev1, Math.max(prev1, prev2 + x)];\n  }\n  return prev1;\n}"
+      },
+      {
+        "prompt": "COIN CHANGE — the canonical 'min cost' DP. Fewest coins to make amount (-1 if impossible). dp[a] = fewest coins for amount a; for each coin c ≤ a: dp[a] = min(dp[a], dp[a-c] + 1). Base dp[0]=0, everything else starts at Infinity.",
+        "starter": "function coinChange(coins, amount) {\n  // dp array of size amount+1\n}",
+        "tests": "check('11 = 5+5+1 → 3', () => {\n  expect(coinChange([1,2,5], 11)).toBe(3);\n});\ncheck('impossible → -1', () => {\n  expect(coinChange([2], 3)).toBe(-1);\n});\ncheck('amount 0 → 0 coins', () => {\n  expect(coinChange([1], 0)).toBe(0);\n});\ncheck('greedy would fail here', () => {\n  expect(coinChange([1,3,4], 6)).toBe(2);\n});",
+        "solution": "function coinChange(coins, amount) {\n  const dp = Array(amount + 1).fill(Infinity);\n  dp[0] = 0;\n  for (let a = 1; a <= amount; a++)\n    for (const c of coins)\n      if (c <= a && dp[a - c] + 1 < dp[a]) dp[a] = dp[a - c] + 1;\n  return dp[amount] === Infinity ? -1 : dp[amount];\n}"
+      },
+      {
+        "prompt": "LONGEST INCREASING SUBSEQUENCE (O(n²) version — own it before any binary-search upgrade). dp[i] = length of the longest increasing subsequence ENDING at i: look back at every j < i with nums[j] < nums[i]. Answer = max over all endings.",
+        "starter": "function lengthOfLIS(nums) {\n  // dp[i] = 1 + best dp[j] over smaller-and-earlier j\n}",
+        "tests": "check('classic → 4', () => {\n  expect(lengthOfLIS([10,9,2,5,3,7,101,18])).toBe(4);\n});\ncheck('with duplicates → 4', () => {\n  expect(lengthOfLIS([0,1,0,3,2,3])).toBe(4);\n});\ncheck('all equal → 1', () => {\n  expect(lengthOfLIS([7,7,7,7])).toBe(1);\n});",
+        "solution": "function lengthOfLIS(nums) {\n  if (nums.length === 0) return 0;\n  const dp = Array(nums.length).fill(1);\n  let best = 1;\n  for (let i = 1; i < nums.length; i++) {\n    for (let j = 0; j < i; j++) {\n      if (nums[j] < nums[i] && dp[j] + 1 > dp[i]) dp[i] = dp[j] + 1;\n    }\n    best = Math.max(best, dp[i]);\n  }\n  return best;\n}"
+      }
+    ]
+  },
+  "g-dp2": {
+    "exercises": [
+      {
+        "prompt": "UNIQUE PATHS (grid DP warm-up). Robot at top-left of an m×n grid, moves only right/down; how many paths to bottom-right? dp[r][c] = dp[r-1][c] + dp[r][c-1]; first row and column are all 1.",
+        "starter": "function uniquePaths(m, n) {\n  // 2-D table (or roll one row)\n}",
+        "tests": "check('3x7 → 28', () => {\n  expect(uniquePaths(3, 7)).toBe(28);\n});\ncheck('3x2 → 3', () => {\n  expect(uniquePaths(3, 2)).toBe(3);\n});\ncheck('1x1 → 1', () => {\n  expect(uniquePaths(1, 1)).toBe(1);\n});",
+        "solution": "function uniquePaths(m, n) {\n  const dp = Array.from({ length: m }, () => Array(n).fill(1));\n  for (let r = 1; r < m; r++)\n    for (let c = 1; c < n; c++)\n      dp[r][c] = dp[r-1][c] + dp[r][c-1];\n  return dp[m-1][n-1];\n}"
+      },
+      {
+        "prompt": "LONGEST COMMON SUBSEQUENCE — the canonical two-string table. dp[i][j] = LCS length of a's first i chars vs b's first j. Match → diagonal + 1; else max of dropping one char from either side. Row/col 0 = 0 (empty prefix).",
+        "starter": "function longestCommonSubsequence(a, b) {\n  // (m+1) x (n+1) table\n}",
+        "tests": "check('ace in abcde → 3', () => {\n  expect(longestCommonSubsequence('abcde', 'ace')).toBe(3);\n});\ncheck('identical → full length', () => {\n  expect(longestCommonSubsequence('abc', 'abc')).toBe(3);\n});\ncheck('disjoint → 0', () => {\n  expect(longestCommonSubsequence('abc', 'def')).toBe(0);\n});",
+        "solution": "function longestCommonSubsequence(a, b) {\n  const m = a.length, n = b.length;\n  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));\n  for (let i = 1; i <= m; i++)\n    for (let j = 1; j <= n; j++)\n      dp[i][j] = a[i-1] === b[j-1]\n        ? dp[i-1][j-1] + 1\n        : Math.max(dp[i-1][j], dp[i][j-1]);\n  return dp[m][n];\n}"
+      },
+      {
+        "prompt": "EDIT DISTANCE — FAANG's favorite hard-but-fair. Minimum operations (insert/delete/replace one char) to turn word1 into word2. Same table as LCS but the bases matter: dp[i][0] = i (delete everything), dp[0][j] = j (insert everything). Match → diagonal; else 1 + min(replace, delete, insert).",
+        "starter": "function minDistance(word1, word2) {\n  // careful with row 0 and column 0\n}",
+        "tests": "check('horse → ros = 3', () => {\n  expect(minDistance('horse', 'ros')).toBe(3);\n});\ncheck('intention → execution = 5', () => {\n  expect(minDistance('intention', 'execution')).toBe(5);\n});\ncheck('from empty = insert all', () => {\n  expect(minDistance('', 'abc')).toBe(3);\n});\ncheck('equal strings = 0', () => {\n  expect(minDistance('same', 'same')).toBe(0);\n});",
+        "solution": "function minDistance(word1, word2) {\n  const m = word1.length, n = word2.length;\n  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));\n  for (let i = 0; i <= m; i++) dp[i][0] = i;\n  for (let j = 0; j <= n; j++) dp[0][j] = j;\n  for (let i = 1; i <= m; i++)\n    for (let j = 1; j <= n; j++)\n      dp[i][j] = word1[i-1] === word2[j-1]\n        ? dp[i-1][j-1]\n        : 1 + Math.min(dp[i-1][j-1], dp[i-1][j], dp[i][j-1]);\n  return dp[m][n];\n}"
+      }
+    ]
+  },
+  "g-intervals": {
+    "exercises": [
+      {
+        "prompt": "MERGE INTERVALS. Merge all overlapping [start, end] pairs. Sort by START, then sweep once: overlap (s <= lastEnd) extends the current interval; otherwise start a new one. Don't mutate the input.",
+        "starter": "function merge(intervals) {\n  // sort by start; extend or append\n}",
+        "tests": "check('classic', () => {\n  expect(merge([[1,3],[2,6],[8,10],[15,18]])).toEqual([[1,6],[8,10],[15,18]]);\n});\ncheck('touching endpoints merge', () => {\n  expect(merge([[1,4],[4,5]])).toEqual([[1,5]]);\n});\ncheck('unsorted input', () => {\n  expect(merge([[8,10],[1,3]])).toEqual([[1,3],[8,10]]);\n});\ncheck('contained interval', () => {\n  expect(merge([[1,10],[2,3]])).toEqual([[1,10]]);\n});",
+        "solution": "function merge(intervals) {\n  const sorted = intervals.slice().sort((a, b) => a[0] - b[0]);\n  const out = [sorted[0].slice()];\n  for (let i = 1; i < sorted.length; i++) {\n    const [s, e] = sorted[i];\n    const last = out[out.length - 1];\n    if (s <= last[1]) last[1] = Math.max(last[1], e);\n    else out.push([s, e]);\n  }\n  return out;\n}"
+      },
+      {
+        "prompt": "NON-OVERLAPPING INTERVALS (the end-sort greedy). Minimum number of intervals to REMOVE so none overlap (touching endpoints don't overlap). Sort by END and greedily keep what fits — earliest-end leaves maximum room. Answer = total − kept. Be ready to defend WHY end-sort is optimal.",
+        "starter": "function eraseOverlapIntervals(intervals) {\n  // sort by END; count keepers\n}",
+        "tests": "check('remove one', () => {\n  expect(eraseOverlapIntervals([[1,2],[2,3],[3,4],[1,3]])).toBe(1);\n});\ncheck('duplicates', () => {\n  expect(eraseOverlapIntervals([[1,2],[1,2],[1,2]])).toBe(2);\n});\ncheck('already clean', () => {\n  expect(eraseOverlapIntervals([[1,2],[2,3]])).toBe(0);\n});",
+        "solution": "function eraseOverlapIntervals(intervals) {\n  const sorted = intervals.slice().sort((a, b) => a[1] - b[1]);\n  let kept = 0, lastEnd = -Infinity;\n  for (const [s, e] of sorted) {\n    if (s >= lastEnd) { kept++; lastEnd = e; }\n  }\n  return intervals.length - kept;\n}"
+      },
+      {
+        "prompt": "JUMP GAME (greedy frontier). nums[i] = max jump length from i; can you reach the last index? One pass tracking the furthest reachable index — if you ever stand past the frontier, you've found an uncrossable gap.",
+        "starter": "function canJump(nums) {\n  // far = furthest reachable so far\n}",
+        "tests": "check('reachable', () => {\n  expect(canJump([2,3,1,1,4])).toBe(true);\n});\ncheck('stuck at the zero wall', () => {\n  expect(canJump([3,2,1,0,4])).toBe(false);\n});\ncheck('single element', () => {\n  expect(canJump([0])).toBe(true);\n});\ncheck('big first jump', () => {\n  expect(canJump([5,0,0,0])).toBe(true);\n});",
+        "solution": "function canJump(nums) {\n  let far = 0;\n  for (let i = 0; i < nums.length; i++) {\n    if (i > far) return false;\n    far = Math.max(far, i + nums[i]);\n  }\n  return true;\n}"
+      }
+    ]
+  }
+}
