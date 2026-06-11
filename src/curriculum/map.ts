@@ -275,6 +275,16 @@ export const tracks: Track[] = [
     color: '#F472B6',
     modules: [
       {
+        id: 'ai-found',
+        title: 'Foundations: how the magic works',
+        summary: 'Neurons, attention, and the three training stages — the bedrock under every LLM feature you ship.',
+        lessons: [
+          { id: 'ai-found-neural', title: 'Neural networks: weighted votes that learn', coreIdea: 'A neuron is a weighted vote; learning is nudging weights backward from error.', project: 'JARVIS — MiniLM internals', concepts: ['neuron', 'weights', 'activation', 'backprop', 'gradient descent'] },
+          { id: 'ai-found-attention', title: 'Attention & transformers', coreIdea: 'Every token asks \u201cwho here matters to me?\u201d — Q/K/V is a soft database lookup.', project: 'JARVIS — context window', concepts: ['attention', 'Q/K/V', 'transformer', 'context window', 'KV cache'] },
+          { id: 'ai-found-training', title: 'Pretraining → SFT → RLHF', coreIdea: 'Pretraining learns the world; fine-tuning learns the assistant role; preferences learn taste.', project: 'JARVIS — why RAG beats fine-tuning', concepts: ['pretraining', 'SFT', 'RLHF', 'base vs instruct', 'knowledge cutoff'] },
+        ],
+      },
+      {
         id: 'ai-llm',
         title: 'LLMs & agents',
         summary: 'How models work, prompting that holds, the agentic loop, and streaming.',
@@ -283,6 +293,18 @@ export const tracks: Track[] = [
           { id: 'ai-llm-prompt', title: 'Prompt engineering that holds', coreIdea: 'System role, few-shot, and structure beat clever wording.', project: 'JARVIS', concepts: ['system prompt', 'few-shot', 'structured output', 'guardrails'] },
           { id: 'ai-llm-tools', title: 'Agentic tool-calling loops', coreIdea: 'The model proposes a tool call, you run it, feed the result back — loop until done.', project: 'JARVIS — ~20 tools', concepts: ['function calling', 'agent loop', 'tool schema', 'recovery'] },
           { id: 'ai-llm-stream', title: 'Streaming & provider abstraction', coreIdea: 'Stream tokens for latency; abstract providers so Groq↔Claude is a swap.', project: 'JARVIS — Groq→Claude', concepts: ['token streaming', 'SSE', 'provider abstraction'] },
+        ],
+      },
+      {
+        id: 'ai-agent',
+        title: 'Agent engineering: the JARVIS playbook',
+        summary: 'Memory, context budgets, failure recovery, proactive triggers — and the LangChain question.',
+        lessons: [
+          { id: 'ai-agent-memory', title: 'Agent memory: extract, recall, decay', coreIdea: 'Context is RAM, the DB is disk — extraction writes, embeddings recall, decay forgets.', project: 'JARVIS — memory.js', concepts: ['memory hierarchy', 'LLM extraction', 'semantic recall', 'decay', 'consolidation'] },
+          { id: 'ai-agent-context', title: 'Context engineering', coreIdea: 'Decide what earns prompt space, in what order, and what gets cut — every single turn.', project: 'JARVIS — 12k-char budget', concepts: ['ambient vs on-demand', 'prompt budget', 'priority truncation', 'structured sections'] },
+          { id: 'ai-agent-robust', title: 'When models misbehave: recovery engineering', coreIdea: 'Treat the model as an unreliable peer: validate → recover → degrade → fail loud.', project: 'JARVIS — tool_use_failed shim', concepts: ['malformed tool calls', 'brace balancing', 'arg validation', 'fallbacks', 'safety nets'] },
+          { id: 'ai-agent-proactive', title: 'Proactive agents', coreIdea: 'Flip the trigger: system → model → user, grounded in stored state, with permission to stay silent.', project: 'JARVIS — briefing + follow-ups', concepts: ['triggers', 'grounded suggestions', 'quiet hours', 'delivery acks'] },
+          { id: 'ai-agent-frameworks', title: 'LangChain vs raw SDKs', coreIdea: 'An \u201cagent executor\u201d is a while loop — know what frameworks buy you and what they cost.', project: 'JARVIS — ~300 lines, no framework', concepts: ['LangChain', 'abstraction cost', 'provider boundary', 'when frameworks win'] },
         ],
       },
       {
@@ -296,6 +318,15 @@ export const tracks: Track[] = [
         ],
       },
       {
+        id: 'ai-voice',
+        title: 'Voice & affective AI',
+        summary: 'The ASR→LLM→TTS relay race, perceived latency, barge-in — and machines that notice how you feel.',
+        lessons: [
+          { id: 'ai-voice-pipeline', title: 'The voice pipeline & the latency war', coreIdea: 'Stream and overlap every leg — humans judge time-to-first-syllable, not total time.', project: 'JARVIS — clause-split TTS', concepts: ['ASR', 'TTS', 'clause splitting', 'audio ordering', 'barge-in'] },
+          { id: 'ai-voice-affect', title: 'Affective computing: mood → voice', coreIdea: 'Detect mood with one cheap LLM call, log it as a time-series, counter distress in prosody.', project: 'JARVIS — mood.js + emotional TTS', concepts: ['mood detection', 'prosody mapping', 'MFCC speaker ID', 'language detection'] },
+        ],
+      },
+      {
         id: 'ai-ml',
         title: 'Classic ML & signals',
         summary: 'Features, anomaly detection, calibration/explainability, and audio ML.',
@@ -304,6 +335,16 @@ export const tracks: Track[] = [
           { id: 'ai-ml-anomaly', title: 'Anomaly detection (Isolation Forest)', coreIdea: 'Unusual points are easy to isolate with random splits — no labels needed.', project: 'Order — fraud scoring', concepts: ['Isolation Forest', 'unsupervised', 'anomaly score'] },
           { id: 'ai-ml-calib', title: 'Calibration & explainability', coreIdea: 'A score must mean something (calibration); a flag must say why (ablation).', project: 'Order — “24σ above normal”', concepts: ['calibration', 'feature ablation', 'explainability', 'SHAP'] },
           { id: 'ai-ml-audio', title: 'Audio ML: FFT, MFCC & attention', coreIdea: 'Sound → spectrum (FFT) → perceptual features (MFCC); attention weighs what matters.', project: 'Unity — chanting analysis', concepts: ['FFT', 'spectrogram', 'MFCC', 'attention'] },
+        ],
+      },
+      {
+        id: 'ai-ship',
+        title: 'Shipping AI: trust, evals, cost',
+        summary: 'Hallucination control, evals that survive model updates, and running an assistant on $0/month.',
+        lessons: [
+          { id: 'ai-ship-hallu', title: 'Hallucination & grounding', coreIdea: 'Models autocomplete; make honesty the cheapest completion — ground, cite, verify actions.', project: 'JARVIS — TOOLS_GUIDE contract', concepts: ['hallucination', 'grounding ladder', 'citations', 'capability honesty'] },
+          { id: 'ai-ship-evals', title: 'Evals & adversarial review', coreIdea: 'Probe behaviors, attack your own claims, verify every finding — 18 claims → 15 real.', project: 'JARVIS — hardening pass', concepts: ['behavioral probes', 'adversarial review', 'claim verification', 'regression re-probe'] },
+          { id: 'ai-ship-cost', title: 'Cost & latency engineering', coreIdea: 'One question everywhere: does this call need the big model — or any model at all?', project: 'JARVIS — $0/month stack', concepts: ['model tiering', '429 fallback', 'local models', 'build-time baking', 'caps'] },
         ],
       },
     ],

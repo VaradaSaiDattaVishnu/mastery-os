@@ -3,37 +3,78 @@
     "quiz": [
       {
         "q": "What does an LLM literally predict at each step during inference?",
-        "options": ["The full sentence completion", "The single next token from a probability distribution", "The embedding of the input", "The most common word in training data"],
+        "options": [
+          "The full sentence completion",
+          "The single next token from a probability distribution",
+          "The embedding of the input",
+          "The most common word in training data"
+        ],
         "answer": 1,
         "explain": "LLMs are trained as next-token predictors. At every decoding step they output a probability distribution over the vocabulary and sample (or argmax) the next token from it."
       },
       {
         "q": "A context window of 128k tokens means the model can:",
-        "options": ["Store 128k documents on disk", "Attend to at most 128k tokens of combined prompt + completion at once", "Generate up to 128k characters", "Cache 128k embeddings in VRAM"],
+        "options": [
+          "Store 128k documents on disk",
+          "Attend to at most 128k tokens of combined prompt + completion at once",
+          "Generate up to 128k characters",
+          "Cache 128k embeddings in VRAM"
+        ],
         "answer": 1,
         "explain": "The context window is the maximum span of tokens (input + output combined) the model's attention can see at one time. Tokens outside the window are invisible to the model."
       },
       {
         "q": "Setting temperature = 0 on a language model will:",
-        "options": ["Make outputs random and creative", "Always select the highest-probability next token (greedy decoding)", "Disable the model entirely", "Enable top-p nucleus sampling"],
+        "options": [
+          "Make outputs random and creative",
+          "Always select the highest-probability next token (greedy decoding)",
+          "Disable the model entirely",
+          "Enable top-p nucleus sampling"
+        ],
         "answer": 1,
         "explain": "Temperature scales the logits before softmax. At 0 it becomes effectively argmax — always choosing the single most likely token, giving deterministic output."
       },
       {
         "q": "Top-p (nucleus) sampling with p = 0.9 means:",
-        "options": ["Always pick one of the top 9 tokens", "Sample from the smallest set of tokens whose cumulative probability reaches 0.9", "Reject any token with probability below 0.9", "Set temperature to 0.9"],
+        "options": [
+          "Always pick one of the top 9 tokens",
+          "Sample from the smallest set of tokens whose cumulative probability reaches 0.9",
+          "Reject any token with probability below 0.9",
+          "Set temperature to 0.9"
+        ],
         "answer": 1,
         "explain": "Nucleus sampling ranks tokens by probability, accumulates them until the running sum reaches p, then samples only from that nucleus — keeping diversity while pruning near-zero-probability tokens."
       }
     ],
     "flashcards": [
-      { "front": "What is a token in the context of LLMs?", "back": "A token is the basic unit the model reads and predicts — roughly a word fragment (e.g., 'un', 'believ', 'able'). On average one word ≈ 1.3 tokens in English." },
-      { "front": "What is a context window?", "back": "The maximum number of tokens (prompt + completion) the model can attend to simultaneously. Tokens beyond this limit are truncated and invisible to the model." },
-      { "front": "What does temperature control in sampling?", "back": "Temperature divides logits before softmax, sharpening (low T) or flattening (high T) the distribution. Low T → deterministic; high T → more random and creative." },
-      { "front": "What is top-p (nucleus) sampling?", "back": "A decoding strategy that sorts tokens by probability, accumulates them until the total hits p, then samples from that subset. It dynamically adjusts how many candidates are considered." },
-      { "front": "Why do GPT-style models struggle with tasks requiring exact arithmetic?", "back": "They predict plausible-looking token sequences, not ground-truth computations. Arithmetic requires exact state; token prediction is a statistical pattern match over training data." },
-      { "front": "What is KV cache and why does it matter for inference?", "back": "The key-value tensors from attention for previously seen tokens are cached so they don't need to be recomputed. This makes autoregressive generation linear rather than quadratic in time." },
-      { "front": "What is the difference between a base model and an instruction-tuned model?", "back": "A base model predicts raw next tokens from pretraining. An instruction-tuned model has been fine-tuned (often via RLHF or SFT) to follow instructions and respond helpfully rather than just complete text." }
+      {
+        "front": "What is a token in the context of LLMs?",
+        "back": "A token is the basic unit the model reads and predicts — roughly a word fragment (e.g., 'un', 'believ', 'able'). On average one word ≈ 1.3 tokens in English."
+      },
+      {
+        "front": "What is a context window?",
+        "back": "The maximum number of tokens (prompt + completion) the model can attend to simultaneously. Tokens beyond this limit are truncated and invisible to the model."
+      },
+      {
+        "front": "What does temperature control in sampling?",
+        "back": "Temperature divides logits before softmax, sharpening (low T) or flattening (high T) the distribution. Low T → deterministic; high T → more random and creative."
+      },
+      {
+        "front": "What is top-p (nucleus) sampling?",
+        "back": "A decoding strategy that sorts tokens by probability, accumulates them until the total hits p, then samples from that subset. It dynamically adjusts how many candidates are considered."
+      },
+      {
+        "front": "Why do GPT-style models struggle with tasks requiring exact arithmetic?",
+        "back": "They predict plausible-looking token sequences, not ground-truth computations. Arithmetic requires exact state; token prediction is a statistical pattern match over training data."
+      },
+      {
+        "front": "What is KV cache and why does it matter for inference?",
+        "back": "The key-value tensors from attention for previously seen tokens are cached so they don't need to be recomputed. This makes autoregressive generation linear rather than quadratic in time."
+      },
+      {
+        "front": "What is the difference between a base model and an instruction-tuned model?",
+        "back": "A base model predicts raw next tokens from pretraining. An instruction-tuned model has been fine-tuned (often via RLHF or SFT) to follow instructions and respond helpfully rather than just complete text."
+      }
     ],
     "exercises": [
       {
@@ -50,81 +91,161 @@
       }
     ]
   },
-
   "ai-llm-prompt": {
     "quiz": [
       {
         "q": "What is the purpose of the system prompt in a chat-completion API call?",
-        "options": ["It is appended after the user message", "It sets persistent instructions and persona the model should follow throughout the conversation", "It sets the temperature for the request", "It is ignored by instruction-tuned models"],
+        "options": [
+          "It is appended after the user message",
+          "It sets persistent instructions and persona the model should follow throughout the conversation",
+          "It sets the temperature for the request",
+          "It is ignored by instruction-tuned models"
+        ],
         "answer": 1,
         "explain": "The system prompt establishes the model's role, constraints, and style before any user message. Instruction-tuned models are trained to prioritize these instructions over their default behavior."
       },
       {
         "q": "Few-shot prompting means:",
-        "options": ["Using a very small model", "Providing examples of input-output pairs inside the prompt to guide the model", "Reducing the number of tokens used", "Fine-tuning on a few labeled examples"],
+        "options": [
+          "Using a very small model",
+          "Providing examples of input-output pairs inside the prompt to guide the model",
+          "Reducing the number of tokens used",
+          "Fine-tuning on a few labeled examples"
+        ],
         "answer": 1,
         "explain": "Few-shot prompting gives the model 2–10 labeled examples in the prompt itself. The model uses these as an in-context pattern to format and style its response, without changing its weights."
       },
       {
         "q": "Which technique is MOST effective at preventing an LLM from hallucinating structured data fields?",
-        "options": ["Increasing temperature", "Asking it to 'try harder'", "Instructing structured output (JSON schema) and validating the response", "Adding more system prompt tokens"],
+        "options": [
+          "Increasing temperature",
+          "Asking it to 'try harder'",
+          "Instructing structured output (JSON schema) and validating the response",
+          "Adding more system prompt tokens"
+        ],
         "answer": 2,
         "explain": "Structured output (JSON mode or function calling with a schema) constrains the model's token generation to valid schema shapes, then you validate the result — the most reliable defense against missing or fabricated fields."
       },
       {
         "q": "A 'guardrail' in prompt engineering refers to:",
-        "options": ["A physical safety measure in the data center", "Instructions or post-processing that prevent the model from producing harmful or off-topic output", "A hard cap on the number of tokens generated", "A technique to increase response speed"],
+        "options": [
+          "A physical safety measure in the data center",
+          "Instructions or post-processing that prevent the model from producing harmful or off-topic output",
+          "A hard cap on the number of tokens generated",
+          "A technique to increase response speed"
+        ],
         "answer": 1,
         "explain": "Guardrails are instructions (in-prompt rules, output validators, classifiers) that detect and block policy-violating outputs. They can be in-context (rules in the system prompt) or external (output classifiers)."
       }
     ],
     "flashcards": [
-      { "front": "What is a system prompt and when does it apply?", "back": "The system turn in a chat completion that sets role, persona, and constraints before any user message. Instruction-tuned models are trained to follow it throughout the conversation." },
-      { "front": "Define few-shot prompting.", "back": "Including 2–10 worked examples of (input, output) pairs directly in the prompt. The model generalizes the demonstrated pattern in-context without any weight update." },
-      { "front": "What is structured output / JSON mode?", "back": "A model setting (or function-calling schema) that constrains generation to valid JSON matching a given schema, making downstream parsing deterministic." },
-      { "front": "What is prompt injection and why is it dangerous in agents?", "back": "A technique where adversarial content in the environment (web page, file, user message) overwrites the system instructions, redirecting the agent to perform unintended actions." },
-      { "front": "What is chain-of-thought (CoT) prompting?", "back": "Asking the model to show its reasoning step by step ('think step by step') before giving an answer. CoT improves accuracy on multi-step reasoning and arithmetic tasks." },
-      { "front": "Why do few-shot examples need to be representative of the target distribution?", "back": "The model mirrors the style and format of the examples it sees. Unrepresentative examples introduce label or format bias, degrading performance on the actual task." },
-      { "front": "What is a guardrail in production prompt engineering?", "back": "Any mechanism — in-prompt rules, output classifiers, regex validators, or secondary model calls — that detects and blocks outputs violating safety or policy requirements." }
+      {
+        "front": "What is a system prompt and when does it apply?",
+        "back": "The system turn in a chat completion that sets role, persona, and constraints before any user message. Instruction-tuned models are trained to follow it throughout the conversation."
+      },
+      {
+        "front": "Define few-shot prompting.",
+        "back": "Including 2–10 worked examples of (input, output) pairs directly in the prompt. The model generalizes the demonstrated pattern in-context without any weight update."
+      },
+      {
+        "front": "What is structured output / JSON mode?",
+        "back": "A model setting (or function-calling schema) that constrains generation to valid JSON matching a given schema, making downstream parsing deterministic."
+      },
+      {
+        "front": "What is prompt injection and why is it dangerous in agents?",
+        "back": "A technique where adversarial content in the environment (web page, file, user message) overwrites the system instructions, redirecting the agent to perform unintended actions."
+      },
+      {
+        "front": "What is chain-of-thought (CoT) prompting?",
+        "back": "Asking the model to show its reasoning step by step ('think step by step') before giving an answer. CoT improves accuracy on multi-step reasoning and arithmetic tasks."
+      },
+      {
+        "front": "Why do few-shot examples need to be representative of the target distribution?",
+        "back": "The model mirrors the style and format of the examples it sees. Unrepresentative examples introduce label or format bias, degrading performance on the actual task."
+      },
+      {
+        "front": "What is a guardrail in production prompt engineering?",
+        "back": "Any mechanism — in-prompt rules, output classifiers, regex validators, or secondary model calls — that detects and blocks outputs violating safety or policy requirements."
+      }
     ],
     "exercises": []
   },
-
   "ai-llm-tools": {
     "quiz": [
       {
         "q": "In an agentic tool-calling loop, what happens immediately after the model emits a tool_call?",
-        "options": ["The model continues generating text", "The host application executes the function and appends the result as a tool message, then calls the model again", "The conversation ends", "The model re-emits the same tool_call"],
+        "options": [
+          "The model continues generating text",
+          "The host application executes the function and appends the result as a tool message, then calls the model again",
+          "The conversation ends",
+          "The model re-emits the same tool_call"
+        ],
         "answer": 1,
         "explain": "The model outputs a structured tool_call (name + arguments). The host runs the function, appends the result into the message history as a tool-role message, and re-invokes the model so it can reason over the result."
       },
       {
         "q": "A tool schema must include which minimum fields for most LLM APIs?",
-        "options": ["name, description, parameters (JSON schema)", "url, method, auth_token", "id, priority, timeout", "module, class, method"],
+        "options": [
+          "name, description, parameters (JSON schema)",
+          "url, method, auth_token",
+          "id, priority, timeout",
+          "module, class, method"
+        ],
         "answer": 0,
         "explain": "The model uses the description to decide when to call the tool, and the JSON schema to generate valid arguments. Without name + description + parameters the model cannot reliably select or invoke the tool."
       },
       {
         "q": "What is the correct way to handle a tool call that returns an error (e.g., network failure)?",
-        "options": ["Silently drop the error and pretend success", "Return the error message as the tool result so the model can reason about recovery", "Immediately abort the agent loop", "Retry indefinitely without informing the model"],
+        "options": [
+          "Silently drop the error and pretend success",
+          "Return the error message as the tool result so the model can reason about recovery",
+          "Immediately abort the agent loop",
+          "Retry indefinitely without informing the model"
+        ],
         "answer": 1,
         "explain": "Feeding the error back as the tool result lets the model reason about the failure and decide to retry, use a fallback, or explain the limitation to the user — rather than hallucinating a result."
       },
       {
         "q": "Why is it important to set a maximum iteration limit in an agent loop?",
-        "options": ["To save on disk space", "To prevent infinite loops when the model repeatedly calls tools without converging", "To limit the number of users", "Because LLM APIs charge per loop iteration"],
+        "options": [
+          "To save on disk space",
+          "To prevent infinite loops when the model repeatedly calls tools without converging",
+          "To limit the number of users",
+          "Because LLM APIs charge per loop iteration"
+        ],
         "answer": 1,
         "explain": "Without a limit, a model stuck in a reasoning loop (e.g., a tool always returns partial results) will run indefinitely, burning tokens and potentially causing API timeouts or cost overruns."
       }
     ],
     "flashcards": [
-      { "front": "What is function/tool calling in an LLM API?", "back": "A feature where the model outputs a structured JSON object naming a function and its arguments instead of free text, allowing the host to execute real code and feed results back." },
-      { "front": "What does a tool schema describe?", "back": "The name, natural-language description, and a JSON Schema for the function's parameters. The model uses the description to choose when to call it and the schema to generate valid arguments." },
-      { "front": "What is the agent loop (ReAct-style)?", "back": "A cycle: model reasons → emits tool_call → host executes → result appended to history → model reasons again. Repeats until the model returns a final answer without a tool call." },
-      { "front": "What is parallel tool calling?", "back": "When a model emits multiple tool calls in a single response that can be executed concurrently by the host, reducing total latency compared to sequential calls." },
-      { "front": "Why should tool descriptions be precise and unambiguous?", "back": "The model selects tools purely from their descriptions. Vague or overlapping descriptions cause the model to pick the wrong tool or call it with incorrect arguments." },
-      { "front": "What is tool call recovery?", "back": "The pattern of returning error information as a tool result so the model can decide to retry with different arguments, use an alternative tool, or gracefully inform the user." },
-      { "front": "What is the difference between orchestration and choreography in multi-agent systems?", "back": "Orchestration uses a central controller agent that explicitly invokes sub-agents. Choreography has agents react to events/outputs of others without a central coordinator." }
+      {
+        "front": "What is function/tool calling in an LLM API?",
+        "back": "A feature where the model outputs a structured JSON object naming a function and its arguments instead of free text, allowing the host to execute real code and feed results back."
+      },
+      {
+        "front": "What does a tool schema describe?",
+        "back": "The name, natural-language description, and a JSON Schema for the function's parameters. The model uses the description to choose when to call it and the schema to generate valid arguments."
+      },
+      {
+        "front": "What is the agent loop (ReAct-style)?",
+        "back": "A cycle: model reasons → emits tool_call → host executes → result appended to history → model reasons again. Repeats until the model returns a final answer without a tool call."
+      },
+      {
+        "front": "What is parallel tool calling?",
+        "back": "When a model emits multiple tool calls in a single response that can be executed concurrently by the host, reducing total latency compared to sequential calls."
+      },
+      {
+        "front": "Why should tool descriptions be precise and unambiguous?",
+        "back": "The model selects tools purely from their descriptions. Vague or overlapping descriptions cause the model to pick the wrong tool or call it with incorrect arguments."
+      },
+      {
+        "front": "What is tool call recovery?",
+        "back": "The pattern of returning error information as a tool result so the model can decide to retry with different arguments, use an alternative tool, or gracefully inform the user."
+      },
+      {
+        "front": "What is the difference between orchestration and choreography in multi-agent systems?",
+        "back": "Orchestration uses a central controller agent that explicitly invokes sub-agents. Choreography has agents react to events/outputs of others without a central coordinator."
+      }
     ],
     "exercises": [
       {
@@ -135,81 +256,161 @@
       }
     ]
   },
-
   "ai-llm-stream": {
     "quiz": [
       {
         "q": "Why does streaming token-by-token improve perceived latency in a chat UI even if total time to complete is the same?",
-        "options": ["Streaming reduces total tokens generated", "The user sees the first token almost immediately (TTFT), so it feels responsive before the full response arrives", "Streaming uses a faster model", "Streaming compresses the data"],
+        "options": [
+          "Streaming reduces total tokens generated",
+          "The user sees the first token almost immediately (TTFT), so it feels responsive before the full response arrives",
+          "Streaming uses a faster model",
+          "Streaming compresses the data"
+        ],
         "answer": 1,
         "explain": "Time-to-first-token (TTFT) is what the user perceives as responsiveness. Streaming begins rendering text as soon as the first token is generated, turning a multi-second wait into an immediate visible response."
       },
       {
         "q": "Server-Sent Events (SSE) is used for LLM streaming because:",
-        "options": ["It supports bidirectional communication", "It is a simple unidirectional HTTP protocol where the server pushes chunks to the client — perfect for token streams", "It requires WebSockets", "It is faster than HTTP/2"],
+        "options": [
+          "It supports bidirectional communication",
+          "It is a simple unidirectional HTTP protocol where the server pushes chunks to the client — perfect for token streams",
+          "It requires WebSockets",
+          "It is faster than HTTP/2"
+        ],
         "answer": 1,
         "explain": "SSE is a standard HTTP mechanism for server-to-client push using text/event-stream. It requires no special protocol and works over standard HTTP, making it ideal for streaming LLM tokens."
       },
       {
         "q": "A provider abstraction layer for LLMs should primarily:",
-        "options": ["Store model weights locally", "Present a unified interface so swapping OpenAI for Groq or Claude requires only a config change, not code changes", "Reduce token count", "Cache all responses permanently"],
+        "options": [
+          "Store model weights locally",
+          "Present a unified interface so swapping OpenAI for Groq or Claude requires only a config change, not code changes",
+          "Reduce token count",
+          "Cache all responses permanently"
+        ],
         "answer": 1,
         "explain": "An abstraction (adapter pattern) normalizes different provider SDKs behind one interface. This decouples application logic from provider specifics, enabling cost/latency swaps without touching business logic."
       },
       {
         "q": "What is backpressure in the context of an LLM token stream?",
-        "options": ["The model pushing back against bad prompts", "The consumer signaling it cannot process tokens as fast as they arrive, causing the producer to pause", "A way to increase token generation speed", "An error type in the OpenAI SDK"],
+        "options": [
+          "The model pushing back against bad prompts",
+          "The consumer signaling it cannot process tokens as fast as they arrive, causing the producer to pause",
+          "A way to increase token generation speed",
+          "An error type in the OpenAI SDK"
+        ],
         "answer": 1,
         "explain": "Backpressure is a flow-control mechanism. If a UI or downstream service processes tokens slower than they arrive, the stream reader should buffer or pause the producer to avoid dropping tokens."
       }
     ],
     "flashcards": [
-      { "front": "What is Time-To-First-Token (TTFT)?", "back": "The latency from sending a request to receiving the first generated token. Streaming improves perceived responsiveness by minimizing TTFT, even if total generation time is unchanged." },
-      { "front": "What is Server-Sent Events (SSE)?", "back": "An HTTP standard (text/event-stream) where the server keeps a connection open and pushes newline-delimited event data to the client. Used by most LLM providers for streaming completions." },
-      { "front": "What is a provider abstraction in AI engineering?", "back": "An adapter layer that normalizes multiple LLM provider SDKs (OpenAI, Anthropic, Groq) behind a single interface, so the application can swap providers via config without changing business logic." },
-      { "front": "What is the [DONE] sentinel in OpenAI-compatible streaming?", "back": "A special data: [DONE] event that signals the stream is complete. Clients must check for it to stop reading and close the connection cleanly." },
-      { "front": "What is token streaming latency vs throughput?", "back": "Latency = TTFT (time to first token). Throughput = tokens per second for the full response. Streaming optimizes perceived latency; batch inference optimizes throughput." },
-      { "front": "Why might you buffer streamed tokens before displaying them?", "back": "To handle punctuation and word boundaries gracefully, implement typing animations with controlled pacing, or wait for a complete JSON chunk before parsing structured output." },
-      { "front": "What is the adapter design pattern and how does it apply to LLM providers?", "back": "Adapter wraps an incompatible interface with a compatible one. Each provider SDK becomes an adapter implementing a common LLMProvider interface, hiding SDK-specific details from the application." }
+      {
+        "front": "What is Time-To-First-Token (TTFT)?",
+        "back": "The latency from sending a request to receiving the first generated token. Streaming improves perceived responsiveness by minimizing TTFT, even if total generation time is unchanged."
+      },
+      {
+        "front": "What is Server-Sent Events (SSE)?",
+        "back": "An HTTP standard (text/event-stream) where the server keeps a connection open and pushes newline-delimited event data to the client. Used by most LLM providers for streaming completions."
+      },
+      {
+        "front": "What is a provider abstraction in AI engineering?",
+        "back": "An adapter layer that normalizes multiple LLM provider SDKs (OpenAI, Anthropic, Groq) behind a single interface, so the application can swap providers via config without changing business logic."
+      },
+      {
+        "front": "What is the [DONE] sentinel in OpenAI-compatible streaming?",
+        "back": "A special data: [DONE] event that signals the stream is complete. Clients must check for it to stop reading and close the connection cleanly."
+      },
+      {
+        "front": "What is token streaming latency vs throughput?",
+        "back": "Latency = TTFT (time to first token). Throughput = tokens per second for the full response. Streaming optimizes perceived latency; batch inference optimizes throughput."
+      },
+      {
+        "front": "Why might you buffer streamed tokens before displaying them?",
+        "back": "To handle punctuation and word boundaries gracefully, implement typing animations with controlled pacing, or wait for a complete JSON chunk before parsing structured output."
+      },
+      {
+        "front": "What is the adapter design pattern and how does it apply to LLM providers?",
+        "back": "Adapter wraps an incompatible interface with a compatible one. Each provider SDK becomes an adapter implementing a common LLMProvider interface, hiding SDK-specific details from the application."
+      }
     ],
     "exercises": []
   },
-
   "ai-rag-embed": {
     "quiz": [
       {
         "q": "Why is cosine similarity preferred over Euclidean distance for comparing sentence embeddings?",
-        "options": ["It is faster to compute", "It measures the angle between vectors, making it invariant to the magnitude of the embedding — similar meaning produces similar direction regardless of sentence length", "It always returns values between 0 and 1", "It works only for normalized vectors"],
+        "options": [
+          "It is faster to compute",
+          "It measures the angle between vectors, making it invariant to the magnitude of the embedding — similar meaning produces similar direction regardless of sentence length",
+          "It always returns values between 0 and 1",
+          "It works only for normalized vectors"
+        ],
         "answer": 1,
         "explain": "Longer sentences produce embeddings with larger magnitudes. Cosine similarity normalizes this out by measuring only directional alignment, so two sentences with the same meaning score high regardless of length."
       },
       {
         "q": "MiniLM-L6-v2 produces 384-dimensional embeddings. What does this number represent?",
-        "options": ["The number of words in the vocabulary", "The fixed-size vector space where semantic meaning is encoded; each text maps to a point in this 384-dimensional space", "The context window size in tokens", "The number of attention heads"],
+        "options": [
+          "The number of words in the vocabulary",
+          "The fixed-size vector space where semantic meaning is encoded; each text maps to a point in this 384-dimensional space",
+          "The context window size in tokens",
+          "The number of attention heads"
+        ],
         "answer": 1,
         "explain": "Embedding dimensionality defines the size of the vector space. 384 is a compact but effective dimension for semantic similarity tasks; larger models use 768 or 1536 dimensions for higher fidelity."
       },
       {
         "q": "Semantic search differs from keyword search because:",
-        "options": ["It is always slower", "It retrieves documents by meaning similarity in vector space, not by exact token match", "It requires the query to appear verbatim in the document", "It only works in English"],
+        "options": [
+          "It is always slower",
+          "It retrieves documents by meaning similarity in vector space, not by exact token match",
+          "It requires the query to appear verbatim in the document",
+          "It only works in English"
+        ],
         "answer": 1,
         "explain": "Keyword search matches exact tokens. Semantic search encodes both query and documents into a shared embedding space and retrieves by vector proximity, so synonyms and paraphrases match correctly."
       },
       {
         "q": "What happens when you embed a query and a document with the same model?",
-        "options": ["The embeddings are always identical", "They land in the same vector space, so cosine similarity between them reflects semantic relevance", "The document embedding is scaled by document length", "The query embedding is ignored"],
+        "options": [
+          "The embeddings are always identical",
+          "They land in the same vector space, so cosine similarity between them reflects semantic relevance",
+          "The document embedding is scaled by document length",
+          "The query embedding is ignored"
+        ],
         "answer": 1,
         "explain": "Using the same model for both query and document ensures they share the same latent space. Proximity in that space means semantic similarity — the foundation of dense retrieval."
       }
     ],
     "flashcards": [
-      { "front": "What is an embedding?", "back": "A fixed-size dense vector representation of text (or other data) where semantically similar inputs map to geometrically close points in the vector space." },
-      { "front": "What is cosine similarity?", "back": "The dot product of two unit vectors: cos(θ) = (A·B)/(|A||B|). Ranges from -1 to 1. Two identical vectors score 1; orthogonal vectors score 0." },
-      { "front": "What is MiniLM-L6-v2?", "back": "A compact sentence-transformers model producing 384-dimensional embeddings. Designed for semantic similarity tasks; much faster than large models with strong quality for retrieval." },
-      { "front": "What is ANN (Approximate Nearest Neighbor) search?", "back": "An algorithm (e.g., HNSW, IVF) that finds the most similar vectors to a query in large indexes without exhaustively comparing all vectors, trading tiny accuracy loss for large speed gains." },
-      { "front": "Why normalize embeddings before cosine similarity?", "back": "Normalizing to unit length makes cosine similarity equivalent to the dot product, which is faster and avoids magnitude bias from variable-length texts." },
-      { "front": "What is the difference between bi-encoder and cross-encoder models?", "back": "A bi-encoder encodes query and document independently, enabling fast ANN retrieval. A cross-encoder attends to both jointly for higher accuracy re-ranking but is too slow for first-stage retrieval." },
-      { "front": "What is embedding dimensionality and how does it affect quality vs speed?", "back": "Dimensionality is the size of the output vector. Higher dimensions can encode more nuance but increase storage, index build time, and query latency. Typical practical values are 384–1536." }
+      {
+        "front": "What is an embedding?",
+        "back": "A fixed-size dense vector representation of text (or other data) where semantically similar inputs map to geometrically close points in the vector space."
+      },
+      {
+        "front": "What is cosine similarity?",
+        "back": "The dot product of two unit vectors: cos(θ) = (A·B)/(|A||B|). Ranges from -1 to 1. Two identical vectors score 1; orthogonal vectors score 0."
+      },
+      {
+        "front": "What is MiniLM-L6-v2?",
+        "back": "A compact sentence-transformers model producing 384-dimensional embeddings. Designed for semantic similarity tasks; much faster than large models with strong quality for retrieval."
+      },
+      {
+        "front": "What is ANN (Approximate Nearest Neighbor) search?",
+        "back": "An algorithm (e.g., HNSW, IVF) that finds the most similar vectors to a query in large indexes without exhaustively comparing all vectors, trading tiny accuracy loss for large speed gains."
+      },
+      {
+        "front": "Why normalize embeddings before cosine similarity?",
+        "back": "Normalizing to unit length makes cosine similarity equivalent to the dot product, which is faster and avoids magnitude bias from variable-length texts."
+      },
+      {
+        "front": "What is the difference between bi-encoder and cross-encoder models?",
+        "back": "A bi-encoder encodes query and document independently, enabling fast ANN retrieval. A cross-encoder attends to both jointly for higher accuracy re-ranking but is too slow for first-stage retrieval."
+      },
+      {
+        "front": "What is embedding dimensionality and how does it affect quality vs speed?",
+        "back": "Dimensionality is the size of the output vector. Higher dimensions can encode more nuance but increase storage, index build time, and query latency. Typical practical values are 384–1536."
+      }
     ],
     "exercises": [
       {
@@ -226,42 +427,82 @@
       }
     ]
   },
-
   "ai-rag-chunk": {
     "quiz": [
       {
         "q": "Why does chunk size matter for RAG retrieval quality?",
-        "options": ["Larger chunks are always better because they contain more context", "Chunk size balances context richness and retrieval precision; too large dilutes relevance, too small loses context needed to answer", "Chunk size only affects storage cost", "All chunk sizes produce equivalent embeddings"],
+        "options": [
+          "Larger chunks are always better because they contain more context",
+          "Chunk size balances context richness and retrieval precision; too large dilutes relevance, too small loses context needed to answer",
+          "Chunk size only affects storage cost",
+          "All chunk sizes produce equivalent embeddings"
+        ],
         "answer": 1,
         "explain": "Large chunks may contain the relevant passage but also irrelevant text that dilutes the embedding. Small chunks improve precision but may omit necessary context. Optimal size depends on document type and query nature."
       },
       {
         "q": "What is the purpose of chunk overlap in fixed-size chunking?",
-        "options": ["To reduce the number of chunks", "To ensure that sentences or ideas spanning a chunk boundary are still fully represented in at least one chunk's embedding", "To speed up embedding computation", "To compress the document"],
+        "options": [
+          "To reduce the number of chunks",
+          "To ensure that sentences or ideas spanning a chunk boundary are still fully represented in at least one chunk's embedding",
+          "To speed up embedding computation",
+          "To compress the document"
+        ],
         "answer": 1,
         "explain": "Overlap repeats a portion of each chunk in the next chunk. This prevents key information at a boundary from being split across two chunks where neither captures it fully."
       },
       {
         "q": "What is re-ranking in a RAG pipeline?",
-        "options": ["Re-ordering documents before indexing", "A second, more accurate model (cross-encoder) that re-scores the top-k retrieved candidates to improve final ordering before passing to the LLM", "Embedding documents multiple times", "Sorting chunks alphabetically"],
+        "options": [
+          "Re-ordering documents before indexing",
+          "A second, more accurate model (cross-encoder) that re-scores the top-k retrieved candidates to improve final ordering before passing to the LLM",
+          "Embedding documents multiple times",
+          "Sorting chunks alphabetically"
+        ],
         "answer": 1,
         "explain": "A bi-encoder retrieves fast but imprecisely. A cross-encoder re-ranks the shortlist by attending jointly to query and each candidate, catching relevance signals the bi-encoder missed."
       },
       {
         "q": "Compared to fixed-size chunking, sentence/paragraph-boundary chunking primarily improves:",
-        "options": ["Index build speed", "Semantic coherence of each chunk, since it avoids cutting sentences mid-way", "Retrieval latency", "Embedding dimension"],
+        "options": [
+          "Index build speed",
+          "Semantic coherence of each chunk, since it avoids cutting sentences mid-way",
+          "Retrieval latency",
+          "Embedding dimension"
+        ],
         "answer": 1,
         "explain": "Natural-boundary chunking respects linguistic structure so each chunk is a self-contained unit of meaning. Fixed-size chunking may break a sentence, producing incoherent chunks with noisy embeddings."
       }
     ],
     "flashcards": [
-      { "front": "What is fixed-size chunking?", "back": "Splitting text into non-overlapping (or overlapping) windows of N characters or tokens regardless of sentence boundaries. Simple and fast but can cut sentences mid-way." },
-      { "front": "What is chunk overlap and why use it?", "back": "Repeating the last M characters/tokens of a chunk at the start of the next. Ensures content near a boundary appears fully in at least one chunk, preventing retrieval gaps." },
-      { "front": "What is a sliding window chunker?", "back": "A chunker that moves a fixed-width window across the text by (chunk_size - overlap) tokens at each step, producing overlapping chunks. Most common approach in RAG pipelines." },
-      { "front": "What is the top-k hyperparameter in retrieval?", "back": "The number of most-similar chunks returned by the vector search. Too low misses relevant context; too high floods the LLM context window with irrelevant text." },
-      { "front": "What is re-ranking and when should you use it?", "back": "Using a cross-encoder model to re-score the top-k retrieved chunks for more precise relevance ordering before injecting them into the prompt. Use when retrieval precision matters more than latency." },
-      { "front": "Why might semantic chunking outperform fixed-size chunking?", "back": "Semantic chunking splits at topic boundaries detected by embedding similarity drops, keeping each chunk topically coherent and producing better embeddings than size-based splits." },
-      { "front": "What is the parent-document retrieval pattern?", "back": "Store small chunks for retrieval precision, but fetch the full parent document (or larger surrounding window) when an answer is needed — balancing retrieval accuracy with generation context." }
+      {
+        "front": "What is fixed-size chunking?",
+        "back": "Splitting text into non-overlapping (or overlapping) windows of N characters or tokens regardless of sentence boundaries. Simple and fast but can cut sentences mid-way."
+      },
+      {
+        "front": "What is chunk overlap and why use it?",
+        "back": "Repeating the last M characters/tokens of a chunk at the start of the next. Ensures content near a boundary appears fully in at least one chunk, preventing retrieval gaps."
+      },
+      {
+        "front": "What is a sliding window chunker?",
+        "back": "A chunker that moves a fixed-width window across the text by (chunk_size - overlap) tokens at each step, producing overlapping chunks. Most common approach in RAG pipelines."
+      },
+      {
+        "front": "What is the top-k hyperparameter in retrieval?",
+        "back": "The number of most-similar chunks returned by the vector search. Too low misses relevant context; too high floods the LLM context window with irrelevant text."
+      },
+      {
+        "front": "What is re-ranking and when should you use it?",
+        "back": "Using a cross-encoder model to re-score the top-k retrieved chunks for more precise relevance ordering before injecting them into the prompt. Use when retrieval precision matters more than latency."
+      },
+      {
+        "front": "Why might semantic chunking outperform fixed-size chunking?",
+        "back": "Semantic chunking splits at topic boundaries detected by embedding similarity drops, keeping each chunk topically coherent and producing better embeddings than size-based splits."
+      },
+      {
+        "front": "What is the parent-document retrieval pattern?",
+        "back": "Store small chunks for retrieval precision, but fetch the full parent document (or larger surrounding window) when an answer is needed — balancing retrieval accuracy with generation context."
+      }
     ],
     "exercises": [
       {
@@ -272,42 +513,82 @@
       }
     ]
   },
-
   "ai-rag-pipeline": {
     "quiz": [
       {
         "q": "In a RAG pipeline, what is the purpose of 'grounding' the prompt?",
-        "options": ["Reducing temperature to 0", "Injecting retrieved document chunks into the prompt so the model's answer is anchored to real source content rather than parametric memory", "Caching embeddings in a database", "Removing stop words from the query"],
+        "options": [
+          "Reducing temperature to 0",
+          "Injecting retrieved document chunks into the prompt so the model's answer is anchored to real source content rather than parametric memory",
+          "Caching embeddings in a database",
+          "Removing stop words from the query"
+        ],
         "answer": 1,
         "explain": "Grounding replaces reliance on potentially outdated or hallucinated parametric knowledge with explicit retrieved context. The model is instructed to answer only from the provided passages."
       },
       {
         "q": "Why should a RAG system include citations in its responses?",
-        "options": ["To increase token count and billable usage", "So the user can verify claims against the original source, reducing the impact of hallucinations", "Because it is required by LLM API terms of service", "To improve embedding quality"],
+        "options": [
+          "To increase token count and billable usage",
+          "So the user can verify claims against the original source, reducing the impact of hallucinations",
+          "Because it is required by LLM API terms of service",
+          "To improve embedding quality"
+        ],
         "answer": 1,
         "explain": "Citations let users and automated validators trace each claim back to a source chunk. This makes errors detectable and builds trust, especially in high-stakes applications."
       },
       {
         "q": "What is the ingest phase of a RAG pipeline responsible for?",
-        "options": ["Answering user queries", "Chunking source documents, embedding them, and storing vectors in a vector store so they can be retrieved later", "Fine-tuning the LLM on domain data", "Compressing the model weights"],
+        "options": [
+          "Answering user queries",
+          "Chunking source documents, embedding them, and storing vectors in a vector store so they can be retrieved later",
+          "Fine-tuning the LLM on domain data",
+          "Compressing the model weights"
+        ],
         "answer": 1,
         "explain": "Ingest is an offline (or async) step that converts raw documents into searchable embeddings. The query-time pipeline retrieves from this pre-built index."
       },
       {
         "q": "What is hallucination in the context of LLMs and how does RAG help?",
-        "options": ["The model generating slow responses", "The model confidently producing false or fabricated facts; RAG provides real retrieved passages that anchor the response to verified source content", "The model refusing to answer", "A GPU memory error during inference"],
+        "options": [
+          "The model generating slow responses",
+          "The model confidently producing false or fabricated facts; RAG provides real retrieved passages that anchor the response to verified source content",
+          "The model refusing to answer",
+          "A GPU memory error during inference"
+        ],
         "answer": 1,
         "explain": "Hallucination occurs because the model generates plausible-sounding but incorrect facts from parametric memory. RAG grounds answers in retrieved documents, reducing but not eliminating hallucination."
       }
     ],
     "flashcards": [
-      { "front": "What are the four stages of a RAG pipeline?", "back": "1. Ingest: chunk + embed documents. 2. Index: store vectors in a vector DB. 3. Retrieve: embed query, ANN search for top-k chunks. 4. Generate: inject chunks into prompt, call LLM, cite sources." },
-      { "front": "What is grounding in RAG?", "back": "Including retrieved document chunks verbatim in the LLM prompt with instructions to answer only from that context, anchoring the response to real source content." },
-      { "front": "What is a vector store / vector database?", "back": "A database (e.g., Pinecone, Chroma, FAISS, Qdrant) that stores embeddings and supports fast approximate nearest-neighbor queries to find the most similar vectors to a query embedding." },
-      { "front": "How do citations work in a RAG response?", "back": "Each retrieved chunk is labeled with a source ID. The LLM is prompted to reference these IDs when using information from a chunk, allowing post-processing to attach source metadata to claims." },
-      { "front": "What is the hallucination problem and why does RAG only reduce it?", "back": "LLMs can generate confident but false claims from parametric memory. RAG reduces this by providing retrieved context, but the model can still ignore context or confuse multiple sources." },
-      { "front": "What is hybrid retrieval in RAG?", "back": "Combining dense (embedding-based) retrieval with sparse (BM25/keyword) retrieval, then merging results. Improves recall for queries with specific proper nouns or rare terms that embeddings may miss." },
-      { "front": "What is query expansion in RAG?", "back": "Using an LLM to generate multiple paraphrases or hypothetical answers for the user query, then embedding all of them to retrieve a broader set of relevant chunks." }
+      {
+        "front": "What are the four stages of a RAG pipeline?",
+        "back": "1. Ingest: chunk + embed documents. 2. Index: store vectors in a vector DB. 3. Retrieve: embed query, ANN search for top-k chunks. 4. Generate: inject chunks into prompt, call LLM, cite sources."
+      },
+      {
+        "front": "What is grounding in RAG?",
+        "back": "Including retrieved document chunks verbatim in the LLM prompt with instructions to answer only from that context, anchoring the response to real source content."
+      },
+      {
+        "front": "What is a vector store / vector database?",
+        "back": "A database (e.g., Pinecone, Chroma, FAISS, Qdrant) that stores embeddings and supports fast approximate nearest-neighbor queries to find the most similar vectors to a query embedding."
+      },
+      {
+        "front": "How do citations work in a RAG response?",
+        "back": "Each retrieved chunk is labeled with a source ID. The LLM is prompted to reference these IDs when using information from a chunk, allowing post-processing to attach source metadata to claims."
+      },
+      {
+        "front": "What is the hallucination problem and why does RAG only reduce it?",
+        "back": "LLMs can generate confident but false claims from parametric memory. RAG reduces this by providing retrieved context, but the model can still ignore context or confuse multiple sources."
+      },
+      {
+        "front": "What is hybrid retrieval in RAG?",
+        "back": "Combining dense (embedding-based) retrieval with sparse (BM25/keyword) retrieval, then merging results. Improves recall for queries with specific proper nouns or rare terms that embeddings may miss."
+      },
+      {
+        "front": "What is query expansion in RAG?",
+        "back": "Using an LLM to generate multiple paraphrases or hypothetical answers for the user query, then embedding all of them to retrieve a broader set of relevant chunks."
+      }
     ],
     "exercises": [
       {
@@ -318,42 +599,82 @@
       }
     ]
   },
-
   "ai-ml-features": {
     "quiz": [
       {
         "q": "What is train/serve skew in a machine learning system?",
-        "options": ["The difference in model accuracy between training and validation sets", "A mismatch where features are computed differently at training time vs serving time, causing the model to underperform in production", "The latency difference between batch and real-time inference", "Gradient descent divergence during training"],
+        "options": [
+          "The difference in model accuracy between training and validation sets",
+          "A mismatch where features are computed differently at training time vs serving time, causing the model to underperform in production",
+          "The latency difference between batch and real-time inference",
+          "Gradient descent divergence during training"
+        ],
         "answer": 1,
         "explain": "If a feature like 'user_avg_order_value' is computed over all historical data at training time but only the last 30 days at serve time, the model receives a different distribution in production — a common and silent failure mode."
       },
       {
         "q": "What is feature leakage?",
-        "options": ["A memory leak in the feature extraction code", "Including information in training features that would not be available at prediction time (future data), causing optimistically inflated metrics", "A data pipeline memory error", "Using too many features in a model"],
+        "options": [
+          "A memory leak in the feature extraction code",
+          "Including information in training features that would not be available at prediction time (future data), causing optimistically inflated metrics",
+          "A data pipeline memory error",
+          "Using too many features in a model"
+        ],
         "answer": 1,
         "explain": "Leakage occurs when a feature encodes the target label directly or indirectly. A fraud model trained with 'transaction_flagged_by_bank' leaks the label and will appear accurate but fail completely in deployment."
       },
       {
         "q": "Why should feature engineering code be packaged as a shared library rather than duplicated in training and serving code?",
-        "options": ["To reduce model size", "To guarantee identical feature transformations at train and serve time, eliminating train/serve skew", "To improve GPU utilization", "To simplify the model architecture"],
+        "options": [
+          "To reduce model size",
+          "To guarantee identical feature transformations at train and serve time, eliminating train/serve skew",
+          "To improve GPU utilization",
+          "To simplify the model architecture"
+        ],
         "answer": 1,
         "explain": "A single shared feature-engineering function called from both training pipelines and serving APIs is the most reliable way to prevent skew — any bug fix or change propagates to both automatically."
       },
       {
         "q": "Which of the following is an example of a time-series derived feature that could cause leakage?",
-        "options": ["User account age in days", "Average transaction value computed over ALL transactions including future ones at training time", "Device operating system string", "Number of items in current cart"],
+        "options": [
+          "User account age in days",
+          "Average transaction value computed over ALL transactions including future ones at training time",
+          "Device operating system string",
+          "Number of items in current cart"
+        ],
         "answer": 1,
         "explain": "Computing averages over future data during training uses information that cannot exist at prediction time. Rolling windows must be correctly bounded to only use past data relative to each training example."
       }
     ],
     "flashcards": [
-      { "front": "What is feature engineering?", "back": "The process of transforming raw data into numerical representations that capture signal relevant to the prediction task — encoding categoricals, scaling numerics, creating interaction terms, etc." },
-      { "front": "What is train/serve skew?", "back": "A production failure caused by computing features differently at training time versus serving time, so the model receives out-of-distribution inputs at inference." },
-      { "front": "What is feature leakage?", "back": "Including a feature that encodes future or target-related information that would not be available at real prediction time, causing inflated training metrics and production failure." },
-      { "front": "What is a feature store?", "back": "A centralized system (e.g., Feast, Tecton) that computes, stores, and serves features with point-in-time correctness for both training and serving, eliminating skew." },
-      { "front": "What is one-hot encoding vs ordinal encoding?", "back": "One-hot creates a binary column per category, avoiding false ordinal relationships. Ordinal encoding assigns integers and implies an order — appropriate only when that order is meaningful." },
-      { "front": "What is normalization (min-max scaling)?", "back": "Transforming a feature to the [0,1] range: x' = (x - min) / (max - min). Ensures features on different scales contribute equally to distance-based or gradient-based algorithms." },
-      { "front": "What is the difference between a dense and sparse feature?", "back": "Dense features have a meaningful value for every example (e.g., age). Sparse features are mostly zero (e.g., one-hot encoded product ID from a catalog of 1M items)." }
+      {
+        "front": "What is feature engineering?",
+        "back": "The process of transforming raw data into numerical representations that capture signal relevant to the prediction task — encoding categoricals, scaling numerics, creating interaction terms, etc."
+      },
+      {
+        "front": "What is train/serve skew?",
+        "back": "A production failure caused by computing features differently at training time versus serving time, so the model receives out-of-distribution inputs at inference."
+      },
+      {
+        "front": "What is feature leakage?",
+        "back": "Including a feature that encodes future or target-related information that would not be available at real prediction time, causing inflated training metrics and production failure."
+      },
+      {
+        "front": "What is a feature store?",
+        "back": "A centralized system (e.g., Feast, Tecton) that computes, stores, and serves features with point-in-time correctness for both training and serving, eliminating skew."
+      },
+      {
+        "front": "What is one-hot encoding vs ordinal encoding?",
+        "back": "One-hot creates a binary column per category, avoiding false ordinal relationships. Ordinal encoding assigns integers and implies an order — appropriate only when that order is meaningful."
+      },
+      {
+        "front": "What is normalization (min-max scaling)?",
+        "back": "Transforming a feature to the [0,1] range: x' = (x - min) / (max - min). Ensures features on different scales contribute equally to distance-based or gradient-based algorithms."
+      },
+      {
+        "front": "What is the difference between a dense and sparse feature?",
+        "back": "Dense features have a meaningful value for every example (e.g., age). Sparse features are mostly zero (e.g., one-hot encoded product ID from a catalog of 1M items)."
+      }
     ],
     "exercises": [
       {
@@ -364,120 +685,240 @@
       }
     ]
   },
-
   "ai-ml-anomaly": {
     "quiz": [
       {
         "q": "Why does Isolation Forest identify anomalies by measuring how quickly a point is isolated?",
-        "options": ["Anomalies are always in the center of the data distribution", "Anomalies are rare and different, so random splits isolate them in fewer partitions on average", "Isolation Forest counts class labels to identify outliers", "Anomalies have larger feature magnitudes"],
+        "options": [
+          "Anomalies are always in the center of the data distribution",
+          "Anomalies are rare and different, so random splits isolate them in fewer partitions on average",
+          "Isolation Forest counts class labels to identify outliers",
+          "Anomalies have larger feature magnitudes"
+        ],
         "answer": 1,
         "explain": "Isolation Forest builds random trees by recursively splitting random features at random thresholds. Points far from the mass (anomalies) are isolated with very few splits; normal points require many splits and land deeper in trees."
       },
       {
         "q": "Isolation Forest is unsupervised. What does this mean for fraud detection?",
-        "options": ["It requires a large labeled fraud dataset to train", "It learns anomaly structure from unlabeled data, finding outliers without requiring examples of fraudulent transactions", "It only works after supervised pre-training", "It cannot be used without labeled data"],
+        "options": [
+          "It requires a large labeled fraud dataset to train",
+          "It learns anomaly structure from unlabeled data, finding outliers without requiring examples of fraudulent transactions",
+          "It only works after supervised pre-training",
+          "It cannot be used without labeled data"
+        ],
         "answer": 1,
         "explain": "Unsupervised means no labels are needed at training time. This is critical for fraud detection because labeled fraud examples are rare and expensive to obtain — Isolation Forest finds statistical outliers without them."
       },
       {
         "q": "An anomaly score from Isolation Forest near 1.0 indicates:",
-        "options": ["A very normal, typical data point", "A highly anomalous point that was isolated very quickly on average across trees", "A data point with missing features", "Perfect model calibration"],
+        "options": [
+          "A very normal, typical data point",
+          "A highly anomalous point that was isolated very quickly on average across trees",
+          "A data point with missing features",
+          "Perfect model calibration"
+        ],
         "answer": 1,
         "explain": "The score is derived from the average path length to isolation. Short path → score near 1 (anomaly). Long path (requires many splits like a normal point) → score near 0. Scores around 0.5 are ambiguous."
       },
       {
         "q": "What is the main advantage of Isolation Forest over statistical methods like z-score for anomaly detection?",
-        "options": ["It requires fewer hyperparameters", "It handles high-dimensional, non-Gaussian data and multi-feature interactions without assuming a particular distribution", "It always runs faster", "It produces exact probabilities"],
+        "options": [
+          "It requires fewer hyperparameters",
+          "It handles high-dimensional, non-Gaussian data and multi-feature interactions without assuming a particular distribution",
+          "It always runs faster",
+          "It produces exact probabilities"
+        ],
         "answer": 1,
         "explain": "Z-score assumes unimodal Gaussian distributions per feature. Isolation Forest captures complex multi-dimensional anomaly structure without distributional assumptions, making it robust on real-world tabular data."
       }
     ],
     "flashcards": [
-      { "front": "What is Isolation Forest?", "back": "An unsupervised anomaly detection algorithm that builds random trees splitting random features at random thresholds. Points isolated in fewer splits are anomalies." },
-      { "front": "What does the anomaly score represent in Isolation Forest?", "back": "A value in (0,1) derived from the average isolation path length across all trees. Near 1 = anomaly (short path). Near 0 = normal (long path). Near 0.5 = no clear distinction." },
-      { "front": "Why is Isolation Forest efficient for high-dimensional data?", "back": "It subsamples data and uses random splits, running in O(n log n) and requiring far less memory than density-based methods like LOF which compare each point to all neighbors." },
-      { "front": "What is the contamination hyperparameter in Isolation Forest?", "back": "The expected proportion of anomalies in the dataset. Used to set the decision threshold. If you expect 1% fraud, set contamination=0.01 so the model flags roughly 1% of points." },
-      { "front": "What is the difference between anomaly detection and fraud detection?", "back": "Anomaly detection finds statistical outliers without domain knowledge. Fraud detection applies domain rules + model scores, then routes high-confidence cases for human review." },
-      { "front": "What is LOF (Local Outlier Factor)?", "back": "A density-based anomaly detection method that compares the local density of a point to its neighbors. Points in sparse regions relative to neighbors score high. Slower than Isolation Forest on large datasets." },
-      { "front": "Why does Isolation Forest use sub-sampling (typical size 256)?", "back": "Most anomalies are isolated even with small sub-samples, making larger samples wasteful. Sub-sampling also reduces the masking effect where large clusters of normal points confuse the splits." }
+      {
+        "front": "What is Isolation Forest?",
+        "back": "An unsupervised anomaly detection algorithm that builds random trees splitting random features at random thresholds. Points isolated in fewer splits are anomalies."
+      },
+      {
+        "front": "What does the anomaly score represent in Isolation Forest?",
+        "back": "A value in (0,1) derived from the average isolation path length across all trees. Near 1 = anomaly (short path). Near 0 = normal (long path). Near 0.5 = no clear distinction."
+      },
+      {
+        "front": "Why is Isolation Forest efficient for high-dimensional data?",
+        "back": "It subsamples data and uses random splits, running in O(n log n) and requiring far less memory than density-based methods like LOF which compare each point to all neighbors."
+      },
+      {
+        "front": "What is the contamination hyperparameter in Isolation Forest?",
+        "back": "The expected proportion of anomalies in the dataset. Used to set the decision threshold. If you expect 1% fraud, set contamination=0.01 so the model flags roughly 1% of points."
+      },
+      {
+        "front": "What is the difference between anomaly detection and fraud detection?",
+        "back": "Anomaly detection finds statistical outliers without domain knowledge. Fraud detection applies domain rules + model scores, then routes high-confidence cases for human review."
+      },
+      {
+        "front": "What is LOF (Local Outlier Factor)?",
+        "back": "A density-based anomaly detection method that compares the local density of a point to its neighbors. Points in sparse regions relative to neighbors score high. Slower than Isolation Forest on large datasets."
+      },
+      {
+        "front": "Why does Isolation Forest use sub-sampling (typical size 256)?",
+        "back": "Most anomalies are isolated even with small sub-samples, making larger samples wasteful. Sub-sampling also reduces the masking effect where large clusters of normal points confuse the splits."
+      }
     ],
     "exercises": []
   },
-
   "ai-ml-calib": {
     "quiz": [
       {
         "q": "A model predicts P(fraud) = 0.8 for 100 transactions. If only 50 of them are actual fraud, the model is:",
-        "options": ["Well-calibrated", "Overconfident — its predicted probability is systematically higher than the true rate", "Underconfident", "Accurate"],
+        "options": [
+          "Well-calibrated",
+          "Overconfident — its predicted probability is systematically higher than the true rate",
+          "Underconfident",
+          "Accurate"
+        ],
         "answer": 1,
         "explain": "Calibration measures whether predicted probabilities match observed frequencies. P=0.8 but only 50% actual fraud means the model overestimates confidence. A reliability diagram would show points above the diagonal."
       },
       {
         "q": "Feature ablation (leave-one-out) is used to:",
-        "options": ["Speed up model training", "Measure each feature's marginal contribution to a prediction by observing how the score changes when that feature is removed or zeroed out", "Reduce model size", "Increase the number of training samples"],
+        "options": [
+          "Speed up model training",
+          "Measure each feature's marginal contribution to a prediction by observing how the score changes when that feature is removed or zeroed out",
+          "Reduce model size",
+          "Increase the number of training samples"
+        ],
         "answer": 1,
         "explain": "Ablation systematically removes or masks a feature and measures the change in prediction. Features that cause large score drops when removed have high importance for that prediction."
       },
       {
         "q": "SHAP values explain a prediction by:",
-        "options": ["Retraining the model without each feature", "Attributing each feature a marginal contribution computed as an average over all possible feature orderings using Shapley values from game theory", "Plotting the loss curve during training", "Measuring AUC on a held-out test set"],
+        "options": [
+          "Retraining the model without each feature",
+          "Attributing each feature a marginal contribution computed as an average over all possible feature orderings using Shapley values from game theory",
+          "Plotting the loss curve during training",
+          "Measuring AUC on a held-out test set"
+        ],
         "answer": 1,
         "explain": "SHAP (SHapley Additive exPlanations) assigns each feature an exact contribution that sums to the difference between the model output and the baseline, computed by averaging over coalitions — mathematically grounded in cooperative game theory."
       },
       {
         "q": "Platt scaling calibrates a model's probabilities by:",
-        "options": ["Retraining the entire model on calibration data", "Fitting a logistic regression on top of the model's raw scores using a held-out calibration set", "Normalizing scores to [0,1] with min-max scaling", "Adjusting the decision threshold on the training set"],
+        "options": [
+          "Retraining the entire model on calibration data",
+          "Fitting a logistic regression on top of the model's raw scores using a held-out calibration set",
+          "Normalizing scores to [0,1] with min-max scaling",
+          "Adjusting the decision threshold on the training set"
+        ],
         "answer": 1,
         "explain": "Platt scaling trains a 2-parameter logistic regression f(s) = 1/(1+exp(As+B)) on a held-out calibration set, transforming raw model scores into well-calibrated probabilities."
       }
     ],
     "flashcards": [
-      { "front": "What is model calibration?", "back": "The agreement between predicted probabilities and observed event frequencies. A well-calibrated model's P(event)=0.7 means ~70% of those predictions are correct events." },
-      { "front": "What is a reliability diagram (calibration curve)?", "back": "A plot of mean predicted probability (x) vs fraction of positives (y) in probability bins. A perfectly calibrated model lies on the y=x diagonal." },
-      { "front": "What is feature ablation (leave-one-out importance)?", "back": "Measuring a feature's contribution by zeroing/removing it and comparing prediction change. Large drops indicate high feature importance for that instance." },
-      { "front": "What are SHAP values?", "back": "Game-theoretically grounded attribution values (Shapley values) that distribute the model's prediction additively across features, showing each feature's exact marginal contribution." },
-      { "front": "What is Platt scaling?", "back": "A post-hoc calibration method that fits a logistic regression on top of model scores using a held-out set, mapping raw outputs to calibrated probabilities." },
-      { "front": "What is isotonic regression calibration?", "back": "A non-parametric calibration method that fits a piecewise-constant monotone function to calibration data — more flexible than Platt scaling but requires more calibration samples." },
-      { "front": "Why is 'the model flagged X as anomalous' insufficient for a production fraud system?", "back": "Operators need to know which features drove the flag to verify, override, or act on it. Explainability (SHAP, ablation) turns a black-box score into an auditable, trustworthy decision." }
+      {
+        "front": "What is model calibration?",
+        "back": "The agreement between predicted probabilities and observed event frequencies. A well-calibrated model's P(event)=0.7 means ~70% of those predictions are correct events."
+      },
+      {
+        "front": "What is a reliability diagram (calibration curve)?",
+        "back": "A plot of mean predicted probability (x) vs fraction of positives (y) in probability bins. A perfectly calibrated model lies on the y=x diagonal."
+      },
+      {
+        "front": "What is feature ablation (leave-one-out importance)?",
+        "back": "Measuring a feature's contribution by zeroing/removing it and comparing prediction change. Large drops indicate high feature importance for that instance."
+      },
+      {
+        "front": "What are SHAP values?",
+        "back": "Game-theoretically grounded attribution values (Shapley values) that distribute the model's prediction additively across features, showing each feature's exact marginal contribution."
+      },
+      {
+        "front": "What is Platt scaling?",
+        "back": "A post-hoc calibration method that fits a logistic regression on top of model scores using a held-out set, mapping raw outputs to calibrated probabilities."
+      },
+      {
+        "front": "What is isotonic regression calibration?",
+        "back": "A non-parametric calibration method that fits a piecewise-constant monotone function to calibration data — more flexible than Platt scaling but requires more calibration samples."
+      },
+      {
+        "front": "Why is 'the model flagged X as anomalous' insufficient for a production fraud system?",
+        "back": "Operators need to know which features drove the flag to verify, override, or act on it. Explainability (SHAP, ablation) turns a black-box score into an auditable, trustworthy decision."
+      }
     ],
     "exercises": []
   },
-
   "ai-ml-audio": {
     "quiz": [
       {
         "q": "What does the Fast Fourier Transform (FFT) convert an audio signal into?",
-        "options": ["A sequence of MFCC vectors", "A representation in the frequency domain showing the amplitude of each frequency component in the signal", "A compressed waveform", "A mel spectrogram directly"],
+        "options": [
+          "A sequence of MFCC vectors",
+          "A representation in the frequency domain showing the amplitude of each frequency component in the signal",
+          "A compressed waveform",
+          "A mel spectrogram directly"
+        ],
         "answer": 1,
         "explain": "FFT decomposes a time-domain signal into its constituent frequencies (spectrum). The magnitude of each frequency bin indicates how strongly that frequency is present in the window of audio."
       },
       {
         "q": "Why are MFCCs used instead of raw spectrograms for many audio ML tasks?",
-        "options": ["MFCCs are faster to compute than FFT", "MFCCs model the mel scale, which approximates human auditory perception, making them more discriminative for speech and music-like sounds while being compact", "MFCCs contain phase information that spectrograms lack", "MFCCs are lossless representations of audio"],
+        "options": [
+          "MFCCs are faster to compute than FFT",
+          "MFCCs model the mel scale, which approximates human auditory perception, making them more discriminative for speech and music-like sounds while being compact",
+          "MFCCs contain phase information that spectrograms lack",
+          "MFCCs are lossless representations of audio"
+        ],
         "answer": 1,
         "explain": "The mel scale compresses high-frequency bins (where human hearing is less sensitive) and expands low-frequency bins. Combined with cepstral analysis, MFCCs capture perceptually relevant features compactly, which is why they dominated speech recognition for decades."
       },
       {
         "q": "In the attention mechanism, what do the attention weights represent?",
-        "options": ["The learned weights of the embedding layer", "A distribution over input positions indicating how much each position should contribute to the output at a given step", "The gradient magnitudes during backpropagation", "The number of heads in multi-head attention"],
+        "options": [
+          "The learned weights of the embedding layer",
+          "A distribution over input positions indicating how much each position should contribute to the output at a given step",
+          "The gradient magnitudes during backpropagation",
+          "The number of heads in multi-head attention"
+        ],
         "answer": 1,
         "explain": "Attention weights (output of softmax over scores) tell the model which time steps or frequency bins to 'look at' most when forming an output representation. Higher weight = greater contribution."
       },
       {
         "q": "What is a spectrogram?",
-        "options": ["A single-channel audio recording", "A 2D representation of how the frequency content of a signal changes over time (time × frequency magnitude)", "A compressed waveform format", "A type of activation function"],
+        "options": [
+          "A single-channel audio recording",
+          "A 2D representation of how the frequency content of a signal changes over time (time × frequency magnitude)",
+          "A compressed waveform format",
+          "A type of activation function"
+        ],
         "answer": 1,
         "explain": "A spectrogram is computed by sliding a window over the audio and applying FFT to each window, producing a 2D array where the x-axis is time, y-axis is frequency, and color/value is magnitude."
       }
     ],
     "flashcards": [
-      { "front": "What is the FFT (Fast Fourier Transform)?", "back": "An efficient algorithm computing the Discrete Fourier Transform, converting a time-domain signal into a frequency-domain representation showing amplitude and phase of each frequency component." },
-      { "front": "What is a spectrogram?", "back": "A 2D time-frequency representation of audio: short-time FFT applied across sliding windows. X = time, Y = frequency, value = magnitude. Visualizes how frequency content changes over time." },
-      { "front": "What is the mel scale?", "back": "A perceptual scale of pitches that compresses high-frequency resolution (where humans hear less acutely) and expands low-frequency resolution, approximating how the human ear processes sound." },
-      { "front": "What are MFCCs (Mel Frequency Cepstral Coefficients)?", "back": "A compact feature set: apply FFT → map to mel filterbank → log compress → apply DCT to decorrelate. The resulting ~13–40 coefficients capture the spectral envelope relevant to human perception." },
-      { "front": "What is attention in neural networks?", "back": "A mechanism that computes a weighted sum of value vectors, where weights come from softmax(QK^T / sqrt(d_k)). It allows the model to selectively focus on relevant positions in the input sequence." },
-      { "front": "What is multi-head attention?", "back": "Running multiple attention mechanisms (heads) in parallel with different learned projections, then concatenating results. Each head can attend to different aspects of the input (e.g., pitch, rhythm, timbre)." },
-      { "front": "Why is log compression applied to mel filterbank energies before computing MFCCs?", "back": "Human loudness perception is approximately logarithmic. Log compression brings the feature distribution closer to perceptual reality and reduces the dynamic range, improving model training stability." }
+      {
+        "front": "What is the FFT (Fast Fourier Transform)?",
+        "back": "An efficient algorithm computing the Discrete Fourier Transform, converting a time-domain signal into a frequency-domain representation showing amplitude and phase of each frequency component."
+      },
+      {
+        "front": "What is a spectrogram?",
+        "back": "A 2D time-frequency representation of audio: short-time FFT applied across sliding windows. X = time, Y = frequency, value = magnitude. Visualizes how frequency content changes over time."
+      },
+      {
+        "front": "What is the mel scale?",
+        "back": "A perceptual scale of pitches that compresses high-frequency resolution (where humans hear less acutely) and expands low-frequency resolution, approximating how the human ear processes sound."
+      },
+      {
+        "front": "What are MFCCs (Mel Frequency Cepstral Coefficients)?",
+        "back": "A compact feature set: apply FFT → map to mel filterbank → log compress → apply DCT to decorrelate. The resulting ~13–40 coefficients capture the spectral envelope relevant to human perception."
+      },
+      {
+        "front": "What is attention in neural networks?",
+        "back": "A mechanism that computes a weighted sum of value vectors, where weights come from softmax(QK^T / sqrt(d_k)). It allows the model to selectively focus on relevant positions in the input sequence."
+      },
+      {
+        "front": "What is multi-head attention?",
+        "back": "Running multiple attention mechanisms (heads) in parallel with different learned projections, then concatenating results. Each head can attend to different aspects of the input (e.g., pitch, rhythm, timbre)."
+      },
+      {
+        "front": "Why is log compression applied to mel filterbank energies before computing MFCCs?",
+        "back": "Human loudness perception is approximately logarithmic. Log compression brings the feature distribution closer to perceptual reality and reduces the dynamic range, improving model training stability."
+      }
     ],
     "exercises": [
       {
@@ -485,6 +926,930 @@
         "starter": "function attentionWeights(scores) {\n  // your code\n}",
         "tests": "check('sums to 1', () => {\n  const w = attentionWeights([1, 2, 3]);\n  expect(w.reduce((a, b) => a + b, 0)).toBeCloseTo(1);\n});\ncheck('highest score gets highest weight', () => {\n  const w = attentionWeights([0, 0, 10]);\n  expect(w[2] > w[0]).toBe(true);\n});\ncheck('equal scores yield uniform weights', () => {\n  const w = attentionWeights([1, 1, 1]);\n  expect(w[0]).toBeCloseTo(1/3);\n});\ncheck('returns correct length', () => {\n  expect(attentionWeights([1, 2, 3, 4]).length).toBe(4);\n});",
         "solution": "function attentionWeights(scores) {\n  const max = Math.max(...scores);\n  const exps = scores.map(s => Math.exp(s - max));\n  const sum = exps.reduce((a, b) => a + b, 0);\n  return exps.map(e => e / sum);\n}"
+      }
+    ]
+  },
+  "ai-found-neural": {
+    "quiz": [
+      {
+        "q": "In the committee analogy, what does a weight represent?",
+        "options": [
+          "The number of neurons in a layer",
+          "How strongly one input's opinion counts toward the neuron's vote",
+          "The speed of training",
+          "The size of the dataset"
+        ],
+        "answer": 1,
+        "explain": "Each input is multiplied by its weight — the learned 'opinion strength' of that piece of evidence — before being summed and squashed by the activation."
+      },
+      {
+        "q": "What single question does backpropagation ask at every weight?",
+        "options": [
+          "Is this weight positive?",
+          "If I nudged this weight slightly, would the error shrink?",
+          "Should this neuron be deleted?",
+          "Is the input normalized?"
+        ],
+        "answer": 1,
+        "explain": "Backprop computes the gradient of the error with respect to each weight — the direction and amount a small nudge would change the error — then gradient descent steps against it."
+      },
+      {
+        "q": "Why is a deep network with NO activation functions useless?",
+        "options": [
+          "It runs too slowly",
+          "Stacked linear layers collapse into a single linear layer",
+          "Gradients become infinite",
+          "It can't accept more than one input"
+        ],
+        "answer": 1,
+        "explain": "Multiply-and-add layers compose into one multiply-and-add. Without a nonlinearity between layers, 1000 layers have exactly the expressive power of 1."
+      },
+      {
+        "q": "When JARVIS calls embeddings.embed(query), what is mechanically happening?",
+        "options": [
+          "A database lookup",
+          "One forward pass: inputs × weights through 6 transformer layers, reading the final activations",
+          "A call to the Groq API",
+          "Backpropagation on the query"
+        ],
+        "answer": 1,
+        "explain": "Inference is just the forward pass — multiplications through pretrained MiniLM weights, with the last layer's activations pooled into a 384-dim vector."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is an artificial neuron, in one sentence?",
+        "back": "A weighted sum of inputs plus a bias, passed through a nonlinear activation — a weighted vote with an excitement curve."
+      },
+      {
+        "front": "What is gradient descent?",
+        "back": "Repeatedly nudging each weight a small step in the direction that reduces error: weight -= learningRate × dError/dWeight."
+      },
+      {
+        "front": "Why are activation functions essential?",
+        "back": "They break linearity. Without them, stacked layers mathematically collapse into one layer — depth would add nothing."
+      },
+      {
+        "front": "What does 'deep' in deep learning actually buy?",
+        "back": "Concepts built from concepts: early layers detect simple patterns, later layers vote on combinations of earlier votes (edges → shapes → faces)."
+      },
+      {
+        "front": "Training vs inference — the cost asymmetry?",
+        "back": "Inference is one cheap forward pass. Training is billions of forward+backward passes — which is why JARVIS uses pretrained weights and trains nothing."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `neuron(inputs, weights, bias)` — weighted sum plus bias, squashed by a sigmoid (1/(1+e^-x)). This is a complete artificial neuron.",
+        "starter": "function neuron(inputs, weights, bias) {\n  // your code\n}",
+        "tests": "check('zero weights → sigmoid(bias)', () => {\n  expect(neuron([1,1],[0,0],0)).toBeCloseTo(0.5);\n});\ncheck('strong positive sum → near 1', () => {\n  expect(neuron([1,1],[5,5],0) > 0.99).toBe(true);\n});\ncheck('strong negative sum → near 0', () => {\n  expect(neuron([1,1],[-5,-5],0) < 0.01).toBe(true);\n});\ncheck('weights actually weigh', () => {\n  expect(neuron([1,0],[3,100],0)).toBeCloseTo(neuron([1,0],[3,-100],0));\n});",
+        "solution": "function neuron(inputs, weights, bias) {\n  let sum = bias;\n  for (let i = 0; i < inputs.length; i++) sum += inputs[i] * weights[i];\n  return 1 / (1 + Math.exp(-sum));\n}"
+      }
+    ]
+  },
+  "ai-found-attention": {
+    "quiz": [
+      {
+        "q": "In the library analogy for attention, the Query is:",
+        "options": [
+          "The book contents",
+          "The card describing what you're looking for",
+          "The librarian",
+          "The shelf order"
+        ],
+        "answer": 1,
+        "explain": "Q is what a token is looking for; Keys are what each token advertises (book spines); Values are what each token actually carries (book contents). Output = match-weighted blend of Values."
+      },
+      {
+        "q": "Why does doubling the context window roughly quadruple attention cost?",
+        "options": [
+          "Tokens get longer",
+          "Every token attends to every other token — n² pairs",
+          "The vocabulary doubles",
+          "Weights are duplicated"
+        ],
+        "answer": 1,
+        "explain": "Self-attention scores all pairs of positions: n tokens → n×n score matrix. 2n tokens → 4n² — quadratic growth is why context windows are bounded."
+      },
+      {
+        "q": "What is the KV cache for?",
+        "options": [
+          "Storing training data",
+          "Reusing the Keys/Values of already-seen tokens so each new token's generation is linear, not quadratic",
+          "Caching API responses",
+          "Compressing the model"
+        ],
+        "answer": 1,
+        "explain": "Past tokens' K and V tensors never change during generation, so they're computed once and reused — and providers' prompt-caching discounts are literally reusing the KV of your unchanged prefix."
+      },
+      {
+        "q": "'Lost in the middle' means:",
+        "options": [
+          "Middle layers train slowest",
+          "Models attend most sharply to the start and end of a long context, weakest to the middle",
+          "Tokens in the middle are deleted",
+          "The KV cache evicts middle tokens"
+        ],
+        "answer": 1,
+        "explain": "Empirically, retrieval and instruction-following degrade for content buried mid-context — so put rules first and key data near the edges."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "Q, K, V in one line each?",
+        "back": "Query: what I'm looking for. Key: what I advertise. Value: what I carry. Attention = softmax(Q·K) weighted blend of V."
+      },
+      {
+        "front": "Why did transformers beat RNNs?",
+        "back": "No sequential bottleneck: every token reaches every token in one step, and it's all matrix multiplication — perfectly parallel on GPUs. Scale-friendliness won."
+      },
+      {
+        "front": "What is multi-head attention?",
+        "back": "Several attention 'questions' run in parallel per layer — one head may track grammar, another coreference, another tone — then results are concatenated."
+      },
+      {
+        "front": "Why do context windows exist at all?",
+        "back": "Attention is O(n²) in tokens. The window is the affordable n. Tokens outside it were never seen — not forgotten, never present."
+      },
+      {
+        "front": "Why is a stable system-prompt prefix cheaper?",
+        "back": "Prompt caching reuses the KV tensors of the unchanged prefix — the provider literally skips recomputing it, hence ~10× cheaper cached tokens."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `attentionWeights(q, keys)` — dot-product each key with the query, scale by sqrt(dim), softmax into weights summing to 1. (The heart of a transformer.)",
+        "starter": "function dot(a, b) { return a.reduce((s, x, i) => s + x * b[i], 0); }\n\nfunction attentionWeights(q, keys) {\n  // your code\n}",
+        "tests": "check('sums to 1', () => {\n  const w = attentionWeights([1,0], [[1,0],[0,1]]);\n  expect(w.reduce((a,b)=>a+b,0)).toBeCloseTo(1);\n});\ncheck('matching key gets higher weight', () => {\n  const w = attentionWeights([1,0], [[1,0],[0,1]]);\n  expect(w[0] > w[1]).toBe(true);\n});\ncheck('identical keys → equal weights', () => {\n  const w = attentionWeights([1,2], [[3,4],[3,4]]);\n  expect(w[0]).toBeCloseTo(w[1]);\n});",
+        "solution": "function attentionWeights(q, keys) {\n  const scale = Math.sqrt(q.length);\n  const scores = keys.map(k => dot(q, k) / scale);\n  const max = Math.max(...scores);\n  const exps = scores.map(s => Math.exp(s - max));\n  const sum = exps.reduce((a,b)=>a+b,0);\n  return exps.map(e => e / sum);\n}"
+      }
+    ]
+  },
+  "ai-found-training": {
+    "quiz": [
+      {
+        "q": "Where does ~all of an LLM's knowledge come from?",
+        "options": [
+          "RLHF",
+          "Supervised fine-tuning",
+          "Pretraining (next-token prediction over massive corpora)",
+          "The system prompt"
+        ],
+        "answer": 2,
+        "explain": "Pretraining is 99.9% of compute and effectively all knowledge. SFT and preference tuning re-shape behavior; they don't add facts at scale."
+      },
+      {
+        "q": "A base model asked 'What is the capital of France?' might reply 'What is the capital of Spain?' because:",
+        "options": [
+          "It doesn't know Paris",
+          "It's autocompleting — quiz lists are a likely continuation of that text",
+          "RLHF made it evasive",
+          "Its context window is full"
+        ],
+        "answer": 1,
+        "explain": "Base models complete text. Without instruction tuning, a question is just text whose plausible continuation may be another question."
+      },
+      {
+        "q": "To give a model your private documents' knowledge, the correct default is:",
+        "options": [
+          "Fine-tune the model on them",
+          "RAG — retrieve and place them in context",
+          "Increase temperature",
+          "Train a new base model"
+        ],
+        "answer": 1,
+        "explain": "Fine-tuning barely instills facts, costs GPU time, and goes stale on every edit. Retrieval puts the live truth in context — exactly JARVIS's design."
+      },
+      {
+        "q": "Why does the model treat tool-result messages as authoritative?",
+        "options": [
+          "A runtime rule in the API enforces it",
+          "SFT data taught it to defer to role-tagged tool/system content",
+          "Tool results are encrypted",
+          "Temperature is set to 0 for tools"
+        ],
+        "answer": 1,
+        "explain": "Roles are a learned convention from instruction-tuning data — which is also why prompt injection (fake 'system' text in user content) can hijack that learned deference."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "The three training stages, one line each?",
+        "back": "Pretraining: read everything, predict next token (knowledge). SFT: imitate ideal answers (assistant role, tool syntax). RLHF/DPO: optimize on human preferences (taste, safety)."
+      },
+      {
+        "front": "Base model vs instruct model?",
+        "back": "Base = raw autocomplete over internet text. Instruct = fine-tuned to follow instructions, keep roles, emit structured output. JARVIS requires the latter."
+      },
+      {
+        "front": "What is sycophancy and where does it come from?",
+        "back": "Preference-tuned models would rather please than be right — an RLHF artifact. Defend with grounding and tools, not with 'please be honest'."
+      },
+      {
+        "front": "Why RAG over fine-tuning for user documents?",
+        "back": "User knowledge changes daily; fine-tuning bakes facts into weights at GPU cost and goes stale instantly. Retrieval keeps truth live and swappable."
+      },
+      {
+        "front": "Why does prompt injection work at all?",
+        "back": "Role deference is learned, not enforced — text that looks like a system instruction can trigger the learned obedience even when it sits in untrusted content."
+      }
+    ]
+  },
+  "ai-agent-memory": {
+    "quiz": [
+      {
+        "q": "In the RAM/disk analogy, 'paging in' corresponds to:",
+        "options": [
+          "Saving messages to SQLite",
+          "Pasting recalled memories into the system prompt for this turn",
+          "Deleting old memories",
+          "Embedding a document"
+        ],
+        "answer": 1,
+        "explain": "The model only knows what's in context. Recall = select relevant rows (cosine top-k) and write them into the prompt — loading disk into RAM."
+      },
+      {
+        "q": "Why does JARVIS use an LLM (not regex) for memory extraction?",
+        "options": [
+          "Regex is slower",
+          "Deciding what's durably worth remembering requires understanding, e.g. 'sister Priya, interview Thursday'",
+          "LLMs are free",
+          "SQLite requires JSON"
+        ],
+        "answer": 1,
+        "explain": "Extraction is a judgment task. The model reads the exchange and emits structured facts with category/importance — rules can't approximate that."
+      },
+      {
+        "q": "What actually breaks if memories never decay?",
+        "options": [
+          "SQLite corrupts",
+          "Recall quality: trivia crowds the top-k and the prompt fills with noise",
+          "Embeddings expire",
+          "The model refuses to answer"
+        ],
+        "answer": 1,
+        "explain": "Unbounded stores degrade retrieval — every query competes with thousands of stale rows. Forgetting is a recall-quality feature."
+      },
+      {
+        "q": "Memory poisoning is:",
+        "options": [
+          "A jailbreak technique",
+          "A hallucinated extraction stored as fact and recalled as truth forever",
+          "Deleting another user's memories",
+          "Embedding drift"
+        ],
+        "answer": 1,
+        "explain": "If extraction misreads a joke as fact, the lie persists and grounds future answers. Mitigations: dedup-by-similarity, importance thresholds, user-visible forget commands."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "The agent memory hierarchy?",
+        "back": "Context window = RAM (fast, tiny, wiped per request). Database = disk (permanent, invisible until loaded). Your code = the OS deciding what pages in."
+      },
+      {
+        "front": "JARVIS's write path after each exchange?",
+        "back": "Background fast-model calls extract memories, relationships, preferences, tasks, entities + update the profile — strict-JSON outputs written to SQLite."
+      },
+      {
+        "front": "JARVIS's read path on each message?",
+        "back": "Embed the message (MiniLM 384-dim) → cosine-similarity against stored memory embeddings → top-k pasted into the prompt as [MEMORIES]."
+      },
+      {
+        "front": "Why store atomic facts instead of transcripts?",
+        "back": "Atoms compose, dedupe (similarity between atoms is meaningful), and decay independently. Blobs make ranking, dedup, and forgetting all harder."
+      },
+      {
+        "front": "What is consolidation in JARVIS?",
+        "back": "On disconnect, the session is summarized into one compact row — cheap to store and recall, preserves narrative context individual facts lose."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `recallTopK(queryVec, memories, k)` — given a query vector and memories `[{text, vec}]`, return the k memory texts with highest cosine similarity, in descending order.",
+        "starter": "function cosine(a, b) {\n  let dot=0, na=0, nb=0;\n  for (let i=0;i<a.length;i++){ dot+=a[i]*b[i]; na+=a[i]*a[i]; nb+=b[i]*b[i]; }\n  return dot / (Math.sqrt(na)*Math.sqrt(nb));\n}\n\nfunction recallTopK(queryVec, memories, k) {\n  // your code\n}",
+        "tests": "const mems = [\n  { text: 'likes coffee', vec: [1, 0] },\n  { text: 'sister Priya', vec: [0, 1] },\n  { text: 'enjoys espresso', vec: [0.9, 0.1] },\n];\ncheck('finds nearest meaning', () => {\n  expect(recallTopK([1, 0], mems, 2)).toEqual(['likes coffee', 'enjoys espresso']);\n});\ncheck('k limits results', () => {\n  expect(recallTopK([0, 1], mems, 1)).toEqual(['sister Priya']);\n});",
+        "solution": "function recallTopK(queryVec, memories, k) {\n  return memories\n    .map(m => ({ text: m.text, s: cosine(queryVec, m.vec) }))\n    .sort((a, b) => b.s - a.s)\n    .slice(0, k)\n    .map(m => m.text);\n}"
+      }
+    ]
+  },
+  "ai-agent-context": {
+    "quiz": [
+      {
+        "q": "Ambient vs on-demand context — the right split is:",
+        "options": [
+          "Everything ambient for safety",
+          "Push small always-relevant data; let the model pull large/occasional data via tools",
+          "Everything via tools to save tokens",
+          "Alphabetical"
+        ],
+        "answer": 1,
+        "explain": "Profile and recalled memories are pushed every turn; weather, documents, and news are pulled on demand. JARVIS v1 pre-fetched by regex guessing — the rebuild moved it behind tools."
+      },
+      {
+        "q": "When JARVIS's 12k-char budget runs out mid-section, it:",
+        "options": [
+          "Throws an error",
+          "Truncates that section with an explicit [...truncated] marker and drops lower-priority sections entirely",
+          "Silently cuts at the character limit",
+          "Switches to a bigger model"
+        ],
+        "answer": 1,
+        "explain": "The marker tells the model data is incomplete (preventing 'the meeting is' disasters), and priority order decides what never makes it in."
+      },
+      {
+        "q": "Why does JARVIS only register tools whose integrations are connected?",
+        "options": [
+          "Security",
+          "Each tool schema costs ~50-150 prompt tokens per turn — disconnected capabilities would be pure waste",
+          "The SDK requires it",
+          "To keep the UI clean"
+        ],
+        "answer": 1,
+        "explain": "Tool schemas ride in the prompt every turn. buildTools() checks calendar.ready, email.ready etc. — a context (and cost) decision, not tidiness."
+      },
+      {
+        "q": "Healthy context growth over a long conversation should be:",
+        "options": [
+          "Linear — replay everything",
+          "Sublinear — recent messages raw, older context as extracted memories and summaries",
+          "Exponential",
+          "Zero — context-free turns"
+        ],
+        "answer": 1,
+        "explain": "JARVIS replays ~20 recent messages; everything older survives only as extraction + summaries. Linear replay means costlier, slower, and eventually worse turns."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "Context engineering in one sentence?",
+        "back": "Deciding, every turn, what earns prompt space, in what order, and what gets cut when the budget runs out."
+      },
+      {
+        "front": "Why labeled sections like [USER PROFILE]?",
+        "back": "Labels act as attention anchors — instruction-tuned models treat bracketed system sections as distinct data sources, reducing cross-contamination."
+      },
+      {
+        "front": "Where do the non-negotiable rules go and why?",
+        "back": "At the top of the system prompt: models weight early content most heavily, and a stable prefix is what prompt-caching can reuse."
+      },
+      {
+        "front": "Why can MORE context produce WORSE answers?",
+        "back": "Attention blends in whatever is present — irrelevant context distracts. Similarity thresholds exist to keep junk out, not just to find matches."
+      },
+      {
+        "front": "The two-step curation in JARVIS?",
+        "back": "The memory system curates what gets written down; the prompt assembler curates what gets paged in. Effective context is filtered twice."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `assemblePrompt(base, sections, maxChars)` — append sections in priority order; if one doesn't fully fit, append what fits (only if >10 chars remain) plus '[...truncated]', then stop entirely.",
+        "starter": "function assemblePrompt(base, sections, maxChars) {\n  // your code\n}",
+        "tests": "check('appends fitting sections in order', () => {\n  expect(assemblePrompt('B', ['11', '22'], 10)).toBe('B1122');\n});\ncheck('truncates the overflowing section with marker', () => {\n  const out = assemblePrompt('BASE', ['xxxxxxxxxx'], 8);\n  expect(out.startsWith('BASExxxx')).toBe(true);\n  expect(out.includes('[...truncated]')).toBe(true);\n});\ncheck('stops after first overflow (drops lower priority)', () => {\n  const out = assemblePrompt('B', ['aaaaaaaaaaaaaaaaaaaa', 'ZZ'], 15);\n  expect(out.includes('ZZ')).toBe(false);\n});\ncheck('skips truncation when almost no room', () => {\n  const out = assemblePrompt('0123456789', ['abcdefghijk'], 12);\n  expect(out).toBe('0123456789');\n});",
+        "solution": "function assemblePrompt(base, sections, maxChars) {\n  let out = base;\n  for (const s of sections) {\n    if (!s) continue;\n    if (out.length + s.length <= maxChars) {\n      out += s;\n    } else {\n      const remaining = maxChars - out.length;\n      if (remaining > 10) out += s.slice(0, remaining) + '[...truncated]';\n      break;\n    }\n  }\n  return out;\n}"
+      }
+    ]
+  },
+  "ai-agent-robust": {
+    "quiz": [
+      {
+        "q": "Groq returned 400 tool_use_failed because:",
+        "options": [
+          "The API key expired",
+          "Llama wrote the tool call as text (<function=...>) instead of the native channel, and Groq's parser rejected it",
+          "The tool didn't exist",
+          "The context overflowed"
+        ],
+        "answer": 1,
+        "explain": "The intent was correct, the packaging wasn't. JARVIS recovers it: parse failed_generation, balance braces, coerce Python literals to JSON."
+      },
+      {
+        "q": "Why brace-BALANCING instead of a regex to the last '}'?",
+        "options": [
+          "Regex is slow",
+          "Greedy matching over-captures when prose follows the JSON or when JSON nests — balancing counts depth and stops exactly at the matching close",
+          "Regex can't match braces",
+          "Balancing is shorter code"
+        ],
+        "answer": 1,
+        "explain": "'{...} and then I said {hi}' regex-greedy captures everything to the final brace → unparseable → silent {}. Depth-counting (quote-aware) extracts exactly the object."
+      },
+      {
+        "q": "A recovered call whose args still won't parse should be:",
+        "options": [
+          "Executed with {} as input",
+          "Dropped/refused — a wrong action is worse than no action",
+          "Retried with the same request",
+          "Sent to the user as JSON"
+        ],
+        "answer": 1,
+        "explain": "Executing with {} silently misfires the tool ('Unknown action: undefined'). JARVIS drops unparseable calls; missing-arg validation returns a correctable error to the model."
+      },
+      {
+        "q": "Why does the final safety-net call have tools DISABLED?",
+        "options": [
+          "To save tokens",
+          "To force prose — the loop exhausted its tool budget, so the model must produce a spoken answer now",
+          "Tools are broken at that point",
+          "To reset the conversation"
+        ],
+        "answer": 1,
+        "explain": "After MAX_ITERS tool-only turns the user has heard nothing. A tools-off call cannot emit another tool call — it must answer in words."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "The reliability ladder for model outputs?",
+        "back": "Validate → recover → degrade → fail loud. In that order, at every model boundary."
+      },
+      {
+        "front": "Why are tool error messages 'prompts'?",
+        "back": "Whatever the tool returns is read by the model as a tool result. 'missing required argument: entity_id' teaches the model exactly how to retry; 'Error 37' teaches nothing."
+      },
+      {
+        "front": "Which errors deserve a retry?",
+        "back": "429/5xx (transient). Never naively retry a 400 — it's deterministic; recover or rephrase instead."
+      },
+      {
+        "front": "Three layers of JARVIS's tool-call recovery?",
+        "back": "(1) Extract the call from the error's failed_generation; (2) brace-balanced JSON extraction; (3) Python-literal coercion (True/False/None, single quotes) — drop what still fails."
+      },
+      {
+        "front": "Why apply the same recovery to the 429 fallback model?",
+        "back": "The smaller model misbehaves MORE, not less — a fallback path without recovery turns a degraded answer into a hard error exactly when the user is rate-limited."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement `extractBalancedJson(text, startIdx)` — given text and the index of an opening '{', return the substring up to its MATCHING close brace (count depth; ignore braces inside double-quoted strings). Return null if unbalanced.",
+        "starter": "function extractBalancedJson(text, startIdx) {\n  // your code\n}",
+        "tests": "check('simple object', () => {\n  expect(extractBalancedJson('{\"a\":1} tail', 0)).toBe('{\"a\":1}');\n});\ncheck('nested braces', () => {\n  expect(extractBalancedJson('{\"a\":{\"b\":2}} x', 0)).toBe('{\"a\":{\"b\":2}}');\n});\ncheck('brace inside a string is ignored', () => {\n  expect(extractBalancedJson('{\"s\":\"}\"} end', 0)).toBe('{\"s\":\"}\"}');\n});\ncheck('unbalanced → null', () => {\n  expect(extractBalancedJson('{\"a\":1', 0)).toBe(null);\n});",
+        "solution": "function extractBalancedJson(text, startIdx) {\n  let depth = 0, inStr = false, esc = false;\n  for (let i = startIdx; i < text.length; i++) {\n    const c = text[i];\n    if (inStr) {\n      if (esc) esc = false;\n      else if (c === '\\\\') esc = true;\n      else if (c === '\"') inStr = false;\n    } else if (c === '\"') inStr = true;\n    else if (c === '{') depth++;\n    else if (c === '}') { depth--; if (depth === 0) return text.slice(startIdx, i + 1); }\n  }\n  return null;\n}"
+      }
+    ]
+  },
+  "ai-agent-proactive": {
+    "quiz": [
+      {
+        "q": "The trigger inversion in proactive AI replaces the user's message with:",
+        "options": [
+          "A random prompt",
+          "A schedule/timer/due-timestamp that points the model at stored user state",
+          "A bigger model",
+          "A webhook from the provider"
+        ],
+        "answer": 1,
+        "explain": "Same model, different entry point: cron or sweep fires, code gathers real context (tasks/calendar/follow-ups), and the model is asked what a thoughtful assistant would surface."
+      },
+      {
+        "q": "Why must the prompt explicitly permit returning [] ?",
+        "options": [
+          "JSON requires it",
+          "Without permission to stay silent, the model invents filler suggestions to be 'helpful'",
+          "It saves tokens",
+          "The parser breaks otherwise"
+        ],
+        "answer": 1,
+        "explain": "RLHF-tuned models hate empty answers. 'If nothing is genuinely worth surfacing, return []' makes silence an acceptable completion — the most important output a proactive system has."
+      },
+      {
+        "q": "Why does JARVIS's follow-up sweep need delivery acks + a grace window?",
+        "options": [
+          "WebSockets are unreliable by spec",
+          "Without ack-tracking, an undelivered/unacked follow-up re-fires every sweep forever — notification spam",
+          "To encrypt the payload",
+          "To dedupe users"
+        ],
+        "answer": 1,
+        "explain": "Sent-over-WS rows wait for the client's explicit done-ack; no ack within the grace window → push fallback + mark done. It's at-least-once delivery with idempotency."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "The three proactive patterns in JARVIS?",
+        "back": "(1) On-demand anticipatory digest (Dashboard suggestions); (2) detected follow-ups with due timestamps; (3) scheduled briefings + inactivity nudges — all respecting quiet hours."
+      },
+      {
+        "front": "The three load-bearing prompt phrases for proactive generation?",
+        "back": "'Grounded ONLY in the context provided' (no invention), 'return [] if nothing is worth surfacing' (licensed silence), 'Return ONLY a JSON array' (machine-renderable)."
+      },
+      {
+        "front": "Proactive vs autonomous?",
+        "back": "Proactive suggests; autonomous acts unprompted. JARVIS never sends emails or moves money on its own — autonomy without delegation gets assistants uninstalled."
+      },
+      {
+        "front": "What's the interruption budget?",
+        "back": "Caps per day + topic dedup + quiet hours. A proactive system that always speaks trains users to ignore it; healthy is mostly silent."
+      },
+      {
+        "front": "Why is proactive delivery a distributed-systems problem?",
+        "back": "Exactly-one user-visible copy, right channel, acceptable hour, never re-fires after ack = at-least-once delivery + idempotency + TTL fallback — a miniature outbox pattern."
+      }
+    ]
+  },
+  "ai-agent-frameworks": {
+    "quiz": [
+      {
+        "q": "What is a LangChain 'agent executor', stripped of vocabulary?",
+        "options": [
+          "A fine-tuned model",
+          "A while loop around a chat call that executes tool calls and feeds results back",
+          "A vector database",
+          "A GPU scheduler"
+        ],
+        "answer": 1,
+        "explain": "JARVIS's agentStream() is that loop in ~80 readable lines. The pattern is the skill; the package is optional."
+      },
+      {
+        "q": "The strongest argument for JARVIS skipping LangChain was:",
+        "options": [
+          "License cost",
+          "Its weirdest bugs lived at the provider boundary (raw 400 payloads) and its UI needed custom stream events — both fight framework abstraction",
+          "LangChain doesn't support Node",
+          "Frameworks are always slower"
+        ],
+        "answer": 1,
+        "explain": "Recovering tool_use_failed required reading raw error payloads; streaming {text|tool_start|tool_result} events to a voice UI required owning the loop."
+      },
+      {
+        "q": "When IS a framework the right call?",
+        "options": [
+          "Never",
+          "Prototyping fast, needing many integrations, team-scale conventions, or genuinely complex multi-agent graphs",
+          "Only for Python",
+          "When you need streaming"
+        ],
+        "answer": 1,
+        "explain": "Be honest in both directions: an afternoon RAG prototype or a 10-node LangGraph state machine are real framework wins. One loop + tools + retrieval usually isn't."
+      },
+      {
+        "q": "Under ~100k vectors, the pragmatic vector store is:",
+        "options": [
+          "A managed vector DB, always",
+          "Brute-force cosine over rows you already have (e.g. SQLite BLOBs) — it's milliseconds",
+          "Redis only",
+          "Fine-tuning instead"
+        ],
+        "answer": 1,
+        "explain": "JARVIS stores 384-dim embeddings as BLOBs and scans them — no extra service, no network hop. Reach for pgvector/Pinecone when scale demands."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "Framework concepts → plain code (any three)?",
+        "back": "Agent executor = while loop; Tool = JSON Schema + function; Memory = rows re-inserted into the prompt; Retriever = embed + cosine top-k; Chain = function composition."
+      },
+      {
+        "front": "JARVIS's entire AI dependency list?",
+        "back": "@anthropic-ai/sdk, groq-sdk, @xenova/transformers (local embeddings), better-sqlite3. No LangChain, no vector DB service, ~600 owned lines of AI plumbing."
+      },
+      {
+        "front": "'No framework' ≠ 'no structure' — meaning?",
+        "back": "You still build the same shapes (loop, tools, retriever, memory) — you just own them. Skipping the structure is what creates prompt-spaghetti."
+      },
+      {
+        "front": "The interview-grade answer to 'why no LangChain?'",
+        "back": "Name the tradeoff in both directions: 'my failure modes were at the provider boundary and my UI needed custom events — here's the 400-recovery that justified it; I'd use LangGraph for a true multi-agent graph.'"
+      }
+    ]
+  },
+  "ai-voice-pipeline": {
+    "quiz": [
+      {
+        "q": "Clause-level TTS splitting reduces:",
+        "options": [
+          "Total compute time",
+          "Perceived latency — time to first spoken syllable — while total work stays the same",
+          "Token costs",
+          "Model size"
+        ],
+        "answer": 1,
+        "explain": "Synthesis starts on the first clause while the model still writes. Humans judge responsiveness by first sign of progress, not completion time."
+      },
+      {
+        "q": "Audio chunks finish synthesis out of order. The fix is:",
+        "options": [
+          "Synthesize serially",
+          "Tag each chunk with an index; client holds a Map and plays strictly in sequence",
+          "Play on arrival",
+          "Use one giant chunk"
+        ],
+        "answer": 1,
+        "explain": "Concurrent synthesis + ordered playback = stream reassembly, the same algorithm as TCP applied to sentences."
+      },
+      {
+        "q": "Why does the interrupt teardown check abortController === myController?",
+        "options": [
+          "Performance",
+          "A stale turn's cleanup must not clear state belonging to a newly started turn — identity, not boolean, decides ownership",
+          "TypeScript requires it",
+          "To prevent double audio"
+        ],
+        "answer": 1,
+        "explain": "Interrupt + fast follow-up means turn B starts while turn A tears down. A's finally only resets shared state if it still owns it."
+      },
+      {
+        "q": "Without the isSpeaking mic gate, a voice assistant will:",
+        "options": [
+          "Drain the battery",
+          "Transcribe its own TTS output and reply to itself in a loop",
+          "Lose the WebSocket",
+          "Mix languages"
+        ],
+        "answer": 1,
+        "explain": "Echo control: pause recognition while assistant audio plays, resume after — or the pipeline feeds itself."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "The voice pipeline and where each leg runs in JARVIS?",
+        "back": "ASR in the browser (Web Speech, free, on-device) → agent on the server (Groq/Claude) → edge-tts neural synthesis → indexed audio queue in the client."
+      },
+      {
+        "front": "The split rules in shouldSplitForTTS?",
+        "back": "Always split on sentence end (.!?;). Split on clause boundaries (,—:) only once the buffer exceeds ~30 chars — below that it sounds choppy."
+      },
+      {
+        "front": "Barge-in, end to end?",
+        "back": "One AbortController per turn threaded through LLM stream, tools, and TTS; interrupt aborts → partial saved with [interrupted] → client clears its audio queue → identity-guarded finally releases the lock."
+      },
+      {
+        "front": "The cursor-reset bug?",
+        "back": "The client reset its play-index only on 'thinking'; a server path that sent audio without it left the cursor stale → silent assistant. Every stream needs an explicit new-response reset signal."
+      },
+      {
+        "front": "The perceptual law of latency?",
+        "back": "Users judge time-to-first-progress, not time-to-completion. Stream the first defensible thing — a clause, a tool chip — and buy seconds of patience free."
+      }
+    ]
+  },
+  "ai-voice-affect": {
+    "quiz": [
+      {
+        "q": "JARVIS's mood→emotion map sends 'angry' to 'calm' because:",
+        "options": [
+          "Calm is cheapest to synthesize",
+          "Mirroring distress escalates; countering it de-escalates — mirror joy, counter distress",
+          "The model can't do angry",
+          "Pitch can't go higher"
+        ],
+        "answer": 1,
+        "explain": "The asymmetry is deliberate emotional intelligence: positive moods are mirrored, negative moods are met with a calm/empathetic counter-posture."
+      },
+      {
+        "q": "An MFCC vector fingerprints:",
+        "options": [
+          "The words spoken",
+          "The shape of the speaker's vocal tract — a compact spectral identity usable for speaker recognition",
+          "The room's echo",
+          "The microphone model"
+        ],
+        "answer": 1,
+        "explain": "Mel-frequency cepstral coefficients summarize the voice's spectral envelope; JARVIS enrolls them per speaker and identifies by nearest-neighbor similarity."
+      },
+      {
+        "q": "Why log mood as a time-series instead of using it once?",
+        "options": [
+          "SQLite needs tables",
+          "Trends ('anxious 3 days running') feed the prompt and the proactive engine — the value is in remembering, not detecting",
+          "GDPR requires it",
+          "To train a model later"
+        ],
+        "answer": 1,
+        "explain": "Per-message sentiment is a gimmick; aggregated mood becomes context and proactive triggers. Classify → log → aggregate → act."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "The full affect loop per JARVIS turn?",
+        "back": "User message → background LLM mood classification (strict JSON: mood/intensity/triggers) → logged to mood_log → summarized into prompt context → tts.setEmotion() adjusts rate/pitch for the reply."
+      },
+      {
+        "front": "The two cheap prosody knobs?",
+        "back": "Speaking rate and pitch. ±10-15% is felt but unnoticed; ±50% is a cartoon. If users can name the change, it's overdone."
+      },
+      {
+        "front": "Why adapt silently instead of saying 'I sense you're upset'?",
+        "back": "Announced affect-detection is creepy validation-bait. Adapt the posture; let the user feel heard without being told they were scanned."
+      },
+      {
+        "front": "How does JARVIS pick a voice for Telugu input?",
+        "back": "detectLanguage() checks Unicode script ranges (and common-word heuristics for Latin scripts) → swaps to the matching neural voice automatically."
+      },
+      {
+        "front": "Why is mood data sensitive?",
+        "back": "A mood time-series is health-adjacent. It lives in the same encrypted local store as memories and obeys the same privacy commands (forget/off-the-record)."
+      }
+    ]
+  },
+  "ai-ship-hallu": {
+    "quiz": [
+      {
+        "q": "Mechanically, a hallucination is:",
+        "options": [
+          "A bug in the GPU",
+          "The most plausible next-token continuation when the truth isn't in context",
+          "Deliberate deception",
+          "A context overflow"
+        ],
+        "answer": 1,
+        "explain": "The model must emit some token; with no calendar in context, a plausible calendar is the highest-probability completion. Confidence is a text style, not knowledge."
+      },
+      {
+        "q": "JARVIS's TOOLS_GUIDE rule #1 exists to:",
+        "options": [
+          "Save tokens",
+          "Make success claims structurally impossible without a tool-returned success",
+          "Speed up TTS",
+          "Encrypt actions"
+        ],
+        "answer": 1,
+        "explain": "'NEVER claim you performed an action unless the tool returned success' — paired with tools being the only action path, the demo-killing lie ('I emailed your boss') becomes unreachable."
+      },
+      {
+        "q": "The cleverest honesty mechanism in JARVIS is get_integration_status because:",
+        "options": [
+          "It's fast",
+          "It turns 'be honest about capabilities' from a virtue into a low-effort tool call returning ground truth",
+          "It uses no tokens",
+          "It runs locally"
+        ],
+        "answer": 1,
+        "explain": "Asked 'can you read my email?', the model fetches 'Gmail: not connected' instead of guessing — honesty became the smooth path."
+      },
+      {
+        "q": "When retrieval finds nothing, the tool result should be:",
+        "options": [
+          "An empty string",
+          "Explicit words: 'No relevant passages found' — silence invites the model to fill it with fiction",
+          "A retry",
+          "null"
+        ],
+        "answer": 1,
+        "explain": "Explicit absence is grounding too. JARVIS returns 'The user has not uploaded any documents yet' so the model reports reality."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "The grounding ladder?",
+        "back": "(1) RAG the truth into context; (2) require citations; (3) make actions tool-verifiable; (4) forbid the gap by contract (TOOLS_GUIDE); (5) give honesty a tool (integration status)."
+      },
+      {
+        "front": "Why does RLHF worsen hallucination?",
+        "back": "People-pleasing tuning prefers a confident satisfying answer over 'I don't know' — sycophancy is a training artifact, defended by architecture, not politeness requests."
+      },
+      {
+        "front": "Why never ask the model 'are you sure?'",
+        "back": "Self-assessed confidence is more fluent autocomplete. Verify against sources and tool results, never against the model's feelings."
+      },
+      {
+        "front": "What do citations actually buy?",
+        "back": "Not correctness — traceability. A cited error can be checked against the source; an uncited one can't. That's the realistic bar."
+      },
+      {
+        "front": "The incentive reframe?",
+        "back": "Stop prompting honesty; make honesty the cheapest available completion — tools for capabilities, required citation formats, guaranteed results for actions, explicit license to say 'not connected'."
+      }
+    ]
+  },
+  "ai-ship-evals": {
+    "quiz": [
+      {
+        "q": "Evals assert on events and properties (not exact text) because:",
+        "options": [
+          "Text is hard to store",
+          "Model updates change wording; 'which tool fired, did it cite, did it complete' survives them",
+          "Regex is slow",
+          "Providers forbid text checks"
+        ],
+        "answer": 1,
+        "explain": "'tools=[set_reminder:start,done] + a confirmation followed' is stable across model versions; exact-string assertions are flakiness factories."
+      },
+      {
+        "q": "The 18→15→3 funnel demonstrates:",
+        "options": [
+          "Reviews are useless",
+          "Even strong reviewers are ~85% precise — a skeptic layer that re-verifies each claim against the code is what makes findings safe to act on",
+          "Three bugs were unfixable",
+          "The code had 18 bugs"
+        ],
+        "answer": 1,
+        "explain": "Generation (of findings) is cheap and noisy; independent verification is the quality gate. Acting unverified means fixing imaginary bugs."
+      },
+      {
+        "q": "Why could the fail-open Twilio guard never appear in a demo?",
+        "options": [
+          "Demos don't use phones",
+          "It only manifests under a specific misconfiguration (PUBLIC_URL unset) under adversarial traffic — happy paths never exercise it",
+          "It was frontend-only",
+          "It required scale"
+        ],
+        "answer": 1,
+        "explain": "Probes confirm promises; adversarial review hunts the conditions nobody demos: misconfig, malice, and week-two usage."
+      },
+      {
+        "q": "A fix without a re-probe is:",
+        "options": [
+          "Fine if reviewed",
+          "A hope — regression discipline is fix → re-run the probe that failed → re-run the suite",
+          "Faster",
+          "Standard practice"
+        ],
+        "answer": 1,
+        "explain": "JARVIS's loop: fix 15 findings → syntax+build → re-run WS probes → re-verify the original failure live in production."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "Why aren't unit tests enough for LLM systems?",
+        "back": "Outputs are distributions, not values — a turn can pass 9/10 times or fail on a synonym. Test observable behavior across varied probes."
+      },
+      {
+        "front": "JARVIS's five behavioral probes?",
+        "back": "Tool-triggering ask (reminder), RAG question (assert cited title), capability honesty, barge-in mid-stream, malicious input rejected (set_voice allowlist). Five probes = five product promises."
+      },
+      {
+        "front": "The verify-the-claim discipline?",
+        "back": "A reported bug is a hypothesis. Re-read the actual code path before fixing — that's what filtered 3 plausible-but-wrong findings out of 18."
+      },
+      {
+        "front": "One-probe-per-promise rule?",
+        "back": "Every marketing claim ('cited answers from your documents') needs a probe that exercises it end-to-end. Unprobed promises are marketing."
+      },
+      {
+        "front": "What made the adversarial review effective?",
+        "back": "Independent dimensions (loop/server/client/UI/deploy), reviewers instructed to find problems, and a skeptic layer instructed to REFUTE each finding with code evidence."
+      }
+    ]
+  },
+  "ai-ship-cost": {
+    "quiz": [
+      {
+        "q": "JARVIS routes ~7 background calls per turn to the 8B model because:",
+        "options": [
+          "The 70B was down",
+          "Extraction/classification are easy tasks where the big model adds cost, not quality",
+          "The 8B is more accurate",
+          "Groq requires it"
+        ],
+        "answer": 1,
+        "explain": "Tier by task difficulty: user-facing reasoning gets the 70B; memory extraction, mood, summaries ride the cheap tier — several-fold total savings."
+      },
+      {
+        "q": "On a 429, JARVIS degrades by:",
+        "options": [
+          "Showing an error toast",
+          "Falling back to the fast model AND shrinking max_tokens — two degradations in one move",
+          "Waiting 60 seconds",
+          "Switching providers"
+        ],
+        "answer": 1,
+        "explain": "A slightly-worse answer beats an error every time; on a free tier the fallback IS the reliability story."
+      },
+      {
+        "q": "Baking the embedding model into the Docker image moved:",
+        "options": [
+          "Cost from Groq to Railway",
+          "25 seconds of deterministic download from the user's first request to the build pipeline",
+          "The model to the client",
+          "Vectors to the volume"
+        ],
+        "answer": 1,
+        "explain": "Anything slow and deterministic (downloads, warmups, index builds) belongs in the build, not the request path. Upload: 25s → 0.5s."
+      },
+      {
+        "q": "Every loop touching a paid API needs a cap because:",
+        "options": [
+          "APIs ban loops",
+          "An uncapped loop + a confused model = unbounded spend — a billing incident, not a bug report",
+          "Latency grows",
+          "Logs overflow"
+        ],
+        "answer": 1,
+        "explain": "JARVIS caps agent iterations (6), max_tokens per call, prompt chars (12k), and history (~20 messages)."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "JARVIS's $0/month bill of materials?",
+        "back": "Groq free tier (LLM) + local MiniLM in-process (embeddings) + edge-tts (voice) + browser ASR + SQLite (storage incl. vectors). Claude is an opt-in upgrade."
+      },
+      {
+        "front": "The one repeated cost question?",
+        "back": "'Does this call need the big model — or any model at all?' asked at every call site, made explicit via a per-call flag like { useMainModel }."
+      },
+      {
+        "front": "Why expose model choice as a per-call knob?",
+        "back": "Tier cost asymmetry is 10-30×; quality asymmetry on easy tasks ≈ 0. Hide the knob and everything converges to the expensive default — bills scale with traffic instead of difficulty."
+      },
+      {
+        "front": "The background-multiplication trap?",
+        "back": "'One user message' = 1 big call + ~7 small ones + embeddings. Per-feature token accounting catches the 10× surprise before the invoice does."
+      },
+      {
+        "front": "Local models' hidden price?",
+        "back": "Free per call but resident in RAM/CPU. In-process MiniLM is perfect at assistant scale; at high QPS the trade flips toward a service."
       }
     ]
   }
