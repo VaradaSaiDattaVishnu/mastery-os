@@ -26,6 +26,12 @@ export function TopBar() {
               {done}/{TOTAL_LESSONS} · {pct}%
             </span>
           </div>
+          <Link to="/campaign" className="hidden font-mono text-[0.7rem] text-aurora-cyan transition-colors hover:text-ink sm:block">
+            campaign
+          </Link>
+          <Link to="/arena" className="hidden font-mono text-[0.7rem] text-ink-secondary transition-colors hover:text-ink sm:block">
+            arena
+          </Link>
           <Link to="/atlas" className="hidden font-mono text-[0.7rem] text-ink-secondary transition-colors hover:text-ink sm:block">
             atlas
           </Link>

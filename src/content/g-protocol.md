@@ -26,4 +26,9 @@ This track is a gym, not a library. The unit of learning is a **solved problem**
 - If a problem takes <5 minutes, you're reviewing, not training — skip forward.
 - Log every solve in your head with one line: *cue → pattern → complexity*. That's the whole flashcard.
 
+## Your two daily tools
+
+- **The Campaign** (top nav) — your day-by-day orders for the next 90 days. Never decide what to study; just open today.
+- **The Arena** (top nav) — mock-interview mode: random problems with the pattern *hidden*, on a 25-minute clock. From week 2 onward, this is where fluency is forged — real interviews never tell you the pattern, so labeled practice alone will betray you.
+
 Start now: **Hashmap & Frequency** is next. Don't read ahead. Solve.

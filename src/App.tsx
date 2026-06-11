@@ -9,6 +9,8 @@ import { TrackPage } from './pages/TrackPage'
 import { LessonPage } from './pages/LessonPage'
 import { Review } from './pages/Review'
 import { Atlas } from './pages/Atlas'
+import { Campaign } from './pages/Campaign'
+import { Arena } from './pages/Arena'
 
 function GlobalKeys() {
   const togglePalette = useStore((s) => s.togglePalette)
@@ -38,6 +40,8 @@ export default function App() {
           <Route path="/lesson/:id" element={<LessonPage />} />
           <Route path="/review" element={<Review />} />
           <Route path="/atlas" element={<Atlas />} />
+          <Route path="/campaign" element={<Campaign />} />
+          <Route path="/arena" element={<Arena />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
