@@ -764,6 +764,92 @@
     ],
     "exercises": []
   },
+  "ai-ml-anomaly-algos": {
+    "quiz": [
+      {
+        "q": "kNN-distance, LOF, k-means, and Isolation Forest are all unsupervised. In an interview, why is 'I chose Isolation Forest because it's unsupervised' a weak justification?",
+        "options": [
+          "Because Isolation Forest is actually supervised",
+          "Because all four are unsupervised, so that property doesn't distinguish it — the real reasons are scale-invariance, streaming cost, and dimensionality",
+          "Because unsupervised models can't be calibrated",
+          "Because labels are always available for fraud"
+        ],
+        "answer": 1,
+        "explain": "Every detector in this family learns 'normal' without labels, so 'unsupervised' is table stakes. The decisive reasons for IF on order fraud are that it's scale-invariant (no StandardScaler needed for mixed features), scores in O(t·log ψ) for streaming, and tolerates higher dimensions better than distance/density methods."
+      },
+      {
+        "q": "A point is normal globally but unusual relative to its small local cluster's density. Which detector is specifically designed to catch this?",
+        "options": [
+          "k-means distance-to-centroid",
+          "kNN-distance with a global threshold",
+          "Local Outlier Factor (LOF)",
+          "A global z-score"
+        ],
+        "answer": 2,
+        "explain": "LOF compares a point's local reachability density to its neighbours' densities (LOF ≫ 1 = much sparser than neighbours). A global kNN threshold or k-means distance can't express 'sparse relative to this local pocket' — they only see global distance."
+      },
+      {
+        "q": "Why does Isolation Forest NOT require feature scaling, while kNN, LOF, and k-means do?",
+        "options": [
+          "Because IF normalizes features internally with a StandardScaler",
+          "Because IF splits each feature on its own min–max range, so a feature's units never dominate a shared distance metric",
+          "Because IF only accepts pre-normalized data",
+          "Because IF ignores feature magnitudes entirely by hashing them"
+        ],
+        "answer": 1,
+        "explain": "IF makes axis-parallel random splits relative to each feature's own range, so it's scale-invariant. Distance/density methods compute a shared metric (usually Euclidean), so an unscaled large-magnitude feature like raw amount swamps the others — they need StandardScaler."
+      },
+      {
+        "q": "In the Order Processing System, how is Isolation Forest's weakness on LOCAL anomalies mitigated without switching to LOF?",
+        "options": [
+          "By increasing n_estimators to 10,000",
+          "By engineering per-user context into the features (e.g. amount_vs_user_z), turning a locally-weird order into a globally-far point IF can isolate",
+          "By lowering the contamination parameter",
+          "By running LOF as a second model on every order"
+        ],
+        "answer": 1,
+        "explain": "The features encode locality directly: amount_vs_user_z measures how far an order is from that user's own mean. A '$200 order from a $50k-normal user' becomes an extreme z-score coordinate — globally far in feature space — so a cheap global detector sees the local anomaly for free."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "kNN-distance anomaly score — definition and failure mode?",
+        "back": "Score = distance to the k-th nearest neighbour (or mean distance to k NN). Large = outlier. Fails with a single global threshold across clusters of different density, and is a lazy learner needing all data at query time."
+      },
+      {
+        "front": "LOF (Local Outlier Factor) — what does the value mean?",
+        "back": "Ratio of a point's neighbours' local density to its own. LOF ≈ 1 = normal; LOF ≫ 1 = in a much thinner region than its neighbours (local outlier); LOF < 1 = denser core point. Cost is O(n²)."
+      },
+      {
+        "front": "LOF reachability density formulas?",
+        "back": "reach-dist_k(x,y)=max(k-dist(y), d(x,y)); lrd_k(x)=1/mean_{y∈N_k(x)} reach-dist_k(x,y); LOF_k(x)=mean_{y∈N_k(x)} lrd_k(y)/lrd_k(x)."
+      },
+      {
+        "front": "k-means as an anomaly detector — score and caveats?",
+        "back": "Cluster normal data, then score = distance to nearest centroid (min_j ‖x−μ_j‖²). Caveats: must pick k, centroids are pulled by outliers (not robust), assumes spherical similar-size clusters, needs scaling."
+      },
+      {
+        "front": "Isolation Forest anomaly score formula?",
+        "back": "s(x,n) = 2^(−E[h(x)]/c(n)), where h(x)=path length to isolation and c(n)=2H(n−1)−2(n−1)/n is the avg unsuccessful-BST-search length (H(i)≈ln i+0.5772). s→1 = anomaly, s≈0.5 = normal."
+      },
+      {
+        "front": "What do sklearn's IsolationForest decision_function signs mean?",
+        "back": "Positive = inlier, negative = outlier, exactly 0 = the contamination boundary. decision_function = score_samples − offset_, where offset_ is fixed by the contamination parameter."
+      },
+      {
+        "front": "One-line decision guide: kNN vs LOF vs k-means vs Isolation Forest?",
+        "back": "kNN: simple low-dim global baseline. LOF: local anomalies in varying-density data (O(n²)). k-means: you already cluster and want cheap blob-distance. Isolation Forest: high-dim, mixed-scale, fast streaming scores — the default for tabular fraud."
+      }
+    ],
+    "exercises": [
+      {
+        "prompt": "Implement the k-means-style anomaly score: `nearestCentroidDistance(point, centroids)` returns the Euclidean distance from `point` to the closest centroid. `point` is a number[]; `centroids` is an array of number[] of the same length. A large distance = more anomalous.",
+        "starter": "function nearestCentroidDistance(point, centroids) {\n  // your code\n}",
+        "tests": "check('distance to a single centroid', () => {\n  expect(nearestCentroidDistance([3,4],[[0,0]])).toBeCloseTo(5);\n});\ncheck('picks the nearest of several', () => {\n  expect(nearestCentroidDistance([0,0],[[10,10],[1,0],[0,5]])).toBeCloseTo(1);\n});\ncheck('zero when point is a centroid', () => {\n  expect(nearestCentroidDistance([2,2],[[2,2],[9,9]])).toBeCloseTo(0);\n});\ncheck('works in higher dimensions', () => {\n  expect(nearestCentroidDistance([1,2,2],[[0,0,0]])).toBeCloseTo(3);\n});",
+        "solution": "function nearestCentroidDistance(point, centroids) {\n  let best = Infinity;\n  for (const c of centroids) {\n    let sum = 0;\n    for (let i = 0; i < point.length; i++) sum += (point[i] - c[i]) ** 2;\n    best = Math.min(best, Math.sqrt(sum));\n  }\n  return best;\n}"
+      }
+    ]
+  },
   "ai-ml-calib": {
     "quiz": [
       {
