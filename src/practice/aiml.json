@@ -767,78 +767,78 @@
   "ai-ml-anomaly-algos": {
     "quiz": [
       {
-        "q": "kNN-distance, LOF, k-means, and Isolation Forest are all unsupervised. In an interview, why is 'I chose Isolation Forest because it's unsupervised' a weak justification?",
+        "q": "If every order is a dot on a chart, what is 'anomaly detection' looking for?",
         "options": [
-          "Because Isolation Forest is actually supervised",
-          "Because all four are unsupervised, so that property doesn't distinguish it — the real reasons are scale-invariance, streaming cost, and dimensionality",
-          "Because unsupervised models can't be calibrated",
-          "Because labels are always available for fraud"
+          "The dot in the exact centre of the biggest cloud",
+          "The dots sitting alone in the empty space, far from the normal clouds",
+          "The dot with the largest order number",
+          "Two dots that are closest together"
         ],
         "answer": 1,
-        "explain": "Every detector in this family learns 'normal' without labels, so 'unsupervised' is table stakes. The decisive reasons for IF on order fraud are that it's scale-invariant (no StandardScaler needed for mixed features), scores in O(t·log ψ) for streaming, and tolerates higher dimensions better than distance/density methods."
+        "explain": "Normal orders pile into dense clouds; weird ones sit far out in empty space. Anomaly detection finds those loners — and it never needed anyone to label which past orders were fraud."
       },
       {
-        "q": "A point is normal globally but unusual relative to its small local cluster's density. Which detector is specifically designed to catch this?",
+        "q": "In Isolation Forest, what makes an order look weird?",
         "options": [
-          "k-means distance-to-centroid",
-          "kNN-distance with a global threshold",
-          "Local Outlier Factor (LOF)",
-          "A global z-score"
-        ],
-        "answer": 2,
-        "explain": "LOF compares a point's local reachability density to its neighbours' densities (LOF ≫ 1 = much sparser than neighbours). A global kNN threshold or k-means distance can't express 'sparse relative to this local pocket' — they only see global distance."
-      },
-      {
-        "q": "Why does Isolation Forest NOT require feature scaling, while kNN, LOF, and k-means do?",
-        "options": [
-          "Because IF normalizes features internally with a StandardScaler",
-          "Because IF splits each feature on its own min–max range, so a feature's units never dominate a shared distance metric",
-          "Because IF only accepts pre-normalized data",
-          "Because IF ignores feature magnitudes entirely by hashing them"
+          "It has the highest dollar amount",
+          "It can be fenced off into its own little box using very few random cuts",
+          "It matches a list of known fraud rules",
+          "It is closest to the average order"
         ],
         "answer": 1,
-        "explain": "IF makes axis-parallel random splits relative to each feature's own range, so it's scale-invariant. Distance/density methods compute a shared metric (usually Euclidean), so an unscaled large-magnitude feature like raw amount swamps the others — they need StandardScaler."
+        "explain": "Draw random lines until each dot is alone. A loner in empty space gets boxed off in one or two cuts; a dot inside a crowd needs many. Few cuts to isolate = anomaly."
       },
       {
-        "q": "In the Order Processing System, how is Isolation Forest's weakness on LOCAL anomalies mitigated without switching to LOF?",
+        "q": "In plain terms, why did the project pick Isolation Forest over the distance-based methods (kNN, LOF, k-means)?",
         "options": [
-          "By increasing n_estimators to 10,000",
-          "By engineering per-user context into the features (e.g. amount_vs_user_z), turning a locally-weird order into a globally-far point IF can isolate",
-          "By lowering the contamination parameter",
-          "By running LOF as a second model on every order"
+          "It is the only one that uses labelled fraud data",
+          "Orders mix different units (dollars, item counts, time of day); distance methods need rescaling and must keep all past orders in memory, while Isolation Forest just splits randomly — fast and unit-agnostic",
+          "It always gives a yes/no answer with no score",
+          "It needs the fewest lines of code"
         ],
         "answer": 1,
-        "explain": "The features encode locality directly: amount_vs_user_z measures how far an order is from that user's own mean. A '$200 order from a $50k-normal user' becomes an extreme z-score coordinate — globally far in feature space — so a cheap global detector sees the local anomaly for free."
+        "explain": "Distance-based detectors measure how far apart orders are, which gets messy when you mix dollars with clock-hours and forces you to hold all history in memory. Isolation Forest never measures distance — it slices — so it sidesteps both problems."
+      },
+      {
+        "q": "How was the model trained when there are no labelled fraud examples?",
+        "options": [
+          "It was given a spreadsheet of past fraud cases",
+          "It learns the shape of 'normal' from real past orders; when there are too few, it starts on realistic fake-but-normal orders and relearns as real ones arrive",
+          "It cannot be trained without labels",
+          "A human manually flags every order"
+        ],
+        "answer": 1,
+        "explain": "This is 'unsupervised' learning: it only needs examples of normal to learn the clouds. The cold-start bootstrap gives it something realistic to learn from on day one."
       }
     ],
     "flashcards": [
       {
-        "front": "kNN-distance anomaly score — definition and failure mode?",
-        "back": "Score = distance to the k-th nearest neighbour (or mean distance to k NN). Large = outlier. Fails with a single global threshold across clusters of different density, and is a lazy learner needing all data at query time."
+        "front": "Anomaly detection, in one line (orders project)?",
+        "back": "Finding orders that sit far from the normal crowd — without ever being told which past orders were fraud."
       },
       {
-        "front": "LOF (Local Outlier Factor) — what does the value mean?",
-        "back": "Ratio of a point's neighbours' local density to its own. LOF ≈ 1 = normal; LOF ≫ 1 = in a much thinner region than its neighbours (local outlier); LOF < 1 = denser core point. Cost is O(n²)."
+        "front": "Isolation Forest, in one line?",
+        "back": "Chop the chart with random cuts; the orders that get isolated in the fewest cuts are the weird ones."
       },
       {
-        "front": "LOF reachability density formulas?",
-        "back": "reach-dist_k(x,y)=max(k-dist(y), d(x,y)); lrd_k(x)=1/mean_{y∈N_k(x)} reach-dist_k(x,y); LOF_k(x)=mean_{y∈N_k(x)} lrd_k(y)/lrd_k(x)."
+        "front": "'Why Isolation Forest?' — the Layer 1 answer to say first.",
+        "back": "It learns what normal orders look like and flags the ones that don't fit — without needing labelled fraud examples, which we don't have."
       },
       {
-        "front": "k-means as an anomaly detector — score and caveats?",
-        "back": "Cluster normal data, then score = distance to nearest centroid (min_j ‖x−μ_j‖²). Caveats: must pick k, centroids are pulled by outliers (not robust), assumes spherical similar-size clusters, needs scaling."
+        "front": "'Why not kNN / LOF / k-means?' — the plain answer.",
+        "back": "Those measure distance between orders. My features mix units (dollars, counts, time), so they'd need rescaling and have to keep all past orders in memory. Isolation Forest just splits randomly — fast and unit-agnostic."
       },
       {
-        "front": "Isolation Forest anomaly score formula?",
-        "back": "s(x,n) = 2^(−E[h(x)]/c(n)), where h(x)=path length to isolation and c(n)=2H(n−1)−2(n−1)/n is the avg unsuccessful-BST-search length (H(i)≈ln i+0.5772). s→1 = anomaly, s≈0.5 = normal."
+        "front": "The three other tools, one line each?",
+        "back": "kNN: how far from your nearest few dots. LOF: same idea but fair about roomy vs packed areas. k-means: how far from the nearest cloud-centre."
       },
       {
-        "front": "What do sklearn's IsolationForest decision_function signs mean?",
-        "back": "Positive = inlier, negative = outlier, exactly 0 = the contamination boundary. decision_function = score_samples − offset_, where offset_ is fixed by the contamination parameter."
+        "front": "What does the anomaly score mean?",
+        "back": "A number from 0 to 1 — 'how much of a loner is this order?' Around 0.5 = on the fence; higher = more anomalous. The project flags anything above 0.6."
       },
       {
-        "front": "One-line decision guide: kNN vs LOF vs k-means vs Isolation Forest?",
-        "back": "kNN: simple low-dim global baseline. LOF: local anomalies in varying-density data (O(n²)). k-means: you already cluster and want cheap blob-distance. Isolation Forest: high-dim, mixed-scale, fast streaming scores — the default for tabular fraud."
+        "front": "The whole topic in one breath (say it out loud).",
+        "back": "Every order is a dot; normal ones cluster, weird ones sit alone. Isolation Forest finds the lonely ones by how few random cuts isolate them. I picked it because it needs no fraud labels, it's fast, and it doesn't care that my features are in different units."
       }
     ],
     "exercises": [
