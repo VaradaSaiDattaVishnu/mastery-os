@@ -392,6 +392,7 @@ export const tracks: Track[] = [
         lessons: [
           { id: 'ai-ml-features', title: 'Features, training & serving skew', coreIdea: 'A model is only its features; compute them identically at train and serve time.', project: 'Order — per-user features', concepts: ['feature engineering', 'train/serve skew', 'leakage'] },
           { id: 'ai-ml-anomaly', title: 'Anomaly detection (Isolation Forest)', coreIdea: 'Unusual points are easy to isolate with random splits — no labels needed.', project: 'Order — fraud scoring', concepts: ['Isolation Forest', 'unsupervised', 'anomaly score'] },
+          { id: 'ai-ml-anomaly-algos', title: 'Choosing a detector: IF vs kNN, LOF & k-means', coreIdea: 'Four unsupervised detectors, four geometries of “weird” — and why random isolation wins for order fraud.', project: 'Order — detector selection', concepts: ['kNN distance', 'LOF', 'k-means', 'Isolation Forest', 'curse of dimensionality'] },
           { id: 'ai-ml-calib', title: 'Calibration & explainability', coreIdea: 'A score must mean something (calibration); a flag must say why (ablation).', project: 'Order — “24σ above normal”', concepts: ['calibration', 'feature ablation', 'explainability', 'SHAP'] },
           { id: 'ai-ml-audio', title: 'Audio ML: FFT, MFCC & attention', coreIdea: 'Sound → spectrum (FFT) → perceptual features (MFCC); attention weighs what matters.', project: 'Unity — chanting analysis', concepts: ['FFT', 'spectrogram', 'MFCC', 'attention'] },
         ],
